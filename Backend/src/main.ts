@@ -3,6 +3,7 @@ import { AppModule } from './app.module';
 import { RedisIoAdapter } from './websocket/redis-io.adapter';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { ValidationPipe } from '@nestjs/common';
+import { ThrottleGuard } from './throttle/throttle.guard';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -32,6 +33,8 @@ async function bootstrap() {
   await redisIoAdapter.connectToRedis();
 
   app.useWebSocketAdapter(redisIoAdapter);
+  app.useGlobalGuards(app.get(ThrottleGuard));
+
 
   await app.listen(process.env.PORT ?? 3000);
 }
