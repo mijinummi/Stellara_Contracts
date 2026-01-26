@@ -2,7 +2,7 @@
 members = [
     "contracts/trading",
     "contracts/social_rewards",
-    "contracts/academy",
+    "contracts/liquidity_pool",
     "shared",
 ]
 resolver = "2"
