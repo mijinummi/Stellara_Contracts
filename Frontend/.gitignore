@@ -1,0 +1,16 @@
+# Dependencies
+node_modules/
+
+# Production build
+.next/
+
+# Environment variables
+.env*
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
