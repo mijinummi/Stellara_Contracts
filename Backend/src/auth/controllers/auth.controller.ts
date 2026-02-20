@@ -145,6 +145,7 @@ export class AuthController {
 
     return {
       accessToken,
+      refreshTokenId: refreshTokenData.id,
       refreshToken: refreshTokenData.token,
       user: {
         id: user.id,
@@ -174,11 +175,13 @@ export class AuthController {
   @ApiResponse({ status: 429, description: 'Too many requests' })
   async refreshToken(@Body() dto: RefreshTokenDto) {
     const tokens = await this.jwtAuthService.refreshAccessToken(
+      dto.refreshTokenId,
       dto.refreshToken,
     );
 
     return {
       accessToken: tokens.accessToken,
+      refreshTokenId: tokens.newRefreshTokenId,
       refreshToken: tokens.newRefreshToken,
     };
   }

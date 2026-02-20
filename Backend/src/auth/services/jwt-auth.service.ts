@@ -6,6 +6,7 @@ import { Repository } from 'typeorm';
 import { RefreshToken } from '../entities/refresh-token.entity';
 import { User } from '../entities/user.entity';
 import { v4 as uuidv4 } from 'uuid';
+import * as bcrypt from 'bcrypt';
 import { AuditService } from '../../audit/audit.service';
 import { AuditEvent } from '../../audit/audit.event';  
 
@@ -83,12 +84,19 @@ export class JwtAuthService {
   }
 
   async generateRefreshToken(userId: string): Promise<{ token: string; id: string; expiresAt: Date }> {
-    const token = uuidv4();
+    // token: public identifier (not secret)
+    const tokenId = uuidv4();
+    // secret: actual secret returned to client and hashed in DB
+    const secret = uuidv4();
     const configured = this.configService.get('JWT_REFRESH_EXPIRATION', '7d');
     const expiresAt = this.parseExpirationToDate(configured);
 
+    const saltRounds = Number(this.configService.get('REFRESH_TOKEN_SALT_ROUNDS', 10));
+    const tokenHash = await bcrypt.hash(secret, saltRounds);
+
     const refreshToken = this.refreshTokenRepository.create({
-      token,
+      token: tokenId,
+      tokenHash,
       userId,
       expiresAt,
       revoked: false,
@@ -98,14 +106,13 @@ export class JwtAuthService {
 
     // Get user details for audit event
     const user = await this.userRepository.findOne({ where: { id: userId } });
-    
+
     // Log refresh token creation
     await this.auditService.logAction('REFRESH_TOKEN_CREATED', userId, saved.id, { expiresAt: saved.expiresAt });
-    
 
     return {
-      token: saved.token,
-      id: saved.id,
+      token: secret,
+      id: saved.token,
       expiresAt: saved.expiresAt,
     };
   }
@@ -119,9 +126,9 @@ export class JwtAuthService {
     }
   }
 
-  async refreshAccessToken(refreshToken: string): Promise<{ accessToken: string; newRefreshToken: string }> {
+  async refreshAccessToken(refreshTokenId: string, refreshTokenSecret: string): Promise<{ accessToken: string; newRefreshToken: string; newRefreshTokenId: string }> {
     const tokenRecord = await this.refreshTokenRepository.findOne({
-      where: { token: refreshToken },
+      where: { token: refreshTokenId },
       relations: ['user'],
     });
 
@@ -129,7 +136,7 @@ export class JwtAuthService {
       throw new UnauthorizedException('Invalid refresh token');
     }
 
-    // Detect reuse of revoked token: this likely indicates compromise.
+    // If token record exists but already revoked, treat as reuse/compromise.
     if (tokenRecord.revoked) {
       // Revoke all refresh tokens for this user to invalidate sessions
       if (tokenRecord.userId) {
@@ -144,6 +151,15 @@ export class JwtAuthService {
       throw new UnauthorizedException('Refresh token expired');
     }
 
+    // Verify secret against stored hash
+    const matches = await bcrypt.compare(refreshTokenSecret, tokenRecord.tokenHash);
+    if (!matches) {
+      // Secret mismatch — possible tampering. Revoke this token to be safe.
+      await this.revokeRefreshToken(tokenRecord.id);
+      await this.auditService.logAction('REFRESH_TOKEN_INVALID_SECRET', tokenRecord.userId, tokenRecord.id, { message: 'Provided secret did not match stored hash' });
+      throw new UnauthorizedException('Invalid refresh token');
+    }
+
     if (!tokenRecord.user.isActive) {
       throw new UnauthorizedException('User account is inactive');
     }
@@ -155,12 +171,12 @@ export class JwtAuthService {
     const accessToken = await this.generateAccessToken(tokenRecord.userId);
     const newRefreshTokenData = await this.generateRefreshToken(tokenRecord.userId);
 
-    await this.auditService.logAction( 'ACCESS_TOKEN_REFRESHED', tokenRecord.userId, tokenRecord.id
-);
+    await this.auditService.logAction('ACCESS_TOKEN_REFRESHED', tokenRecord.userId, tokenRecord.id);
 
     return {
       accessToken,
       newRefreshToken: newRefreshTokenData.token,
+      newRefreshTokenId: newRefreshTokenData.id,
     };
   }
 
