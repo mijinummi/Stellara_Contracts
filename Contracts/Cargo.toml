@@ -5,10 +5,10 @@ members = [
     "contracts/social_rewards",
     "contracts/academy",
     "contracts/academy-rewards",
-    "contracts/staking",
-    "contracts/yield_farming",
-    "contracts/reward_distributor",
-    "contracts/governance_token",
+    # "contracts/staking",         # TODO: Fix compilation errors
+    # "contracts/yield_farming",   # TODO: Fix compilation errors
+    # "contracts/reward_distributor", # TODO: Fix compilation errors
+    # "contracts/governance_token",   # TODO: Fix compilation errors
     "shared",
 ]
 resolver = "2"

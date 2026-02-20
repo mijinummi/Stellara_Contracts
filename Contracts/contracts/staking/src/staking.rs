@@ -1,8 +1,7 @@
 use soroban_sdk::{
-    contract, contractimpl, Address, Env, Error, IntoVal, String, Symbol, Val, Vec,
-    token, Map, U256, u64, i128, u128
+    contract, contractimpl, contracttype, contracterror, Address, Env, String, Symbol, Vec,
+    token, Map
 };
-use shared::{admin, storage};
 
 /// Staking position with variable rewards
 #[contracttype]
@@ -14,7 +13,11 @@ pub struct StakingPosition {
     pub last_reward_time: u64,
     pub reward_multiplier: u32, // Multiplier for variable rewards
     pub lock_period: u64, // Lock period in seconds
-    pub vesting_schedule: Option<VestingSchedule>,
+    pub has_vesting: bool,
+    pub vesting_total_periods: u32,
+    pub vesting_current_period: u32,
+    pub vesting_period_duration: u64,
+    pub vesting_cliff_percentage: u32,
 }
 
 /// Vesting schedule for staking rewards
@@ -37,8 +40,6 @@ pub struct StakingPool {
     pub bonus_multiplier: u32, // Bonus multiplier for long-term stakers
     pub min_stake: i128,
     pub max_stake: i128,
-    pub lock_periods: Vec<u64>, // Available lock periods
-    pub reward_multipliers: Map<u64, u32>, // Lock period -> multiplier mapping
     pub emergency_withdrawal_fee: u32, // Fee for early withdrawal (basis points)
 }
 
@@ -72,40 +73,7 @@ pub enum StakingError {
     RewardCalculationFailed = 12,
 }
 
-/// Staking events
-#[contractevent]
-pub struct StakedEvent {
-    pub user: Address,
-    pub amount: i128,
-    pub lock_period: u64,
-    pub reward_multiplier: u32,
-    pub timestamp: u64,
-}
-
-#[contractevent]
-pub struct UnstakedEvent {
-    pub user: Address,
-    pub amount: i128,
-    pub rewards_claimed: i128,
-    pub fee_paid: i128,
-    pub timestamp: u64,
-}
-
-#[contractevent]
-pub struct RewardsClaimedEvent {
-    pub user: Address,
-    pub amount: i128,
-    pub bonus_amount: i128,
-    pub timestamp: u64,
-}
-
-#[contractevent]
-pub struct PoolUpdatedEvent {
-    pub updated_by: Address,
-    pub reward_rate: i128,
-    pub bonus_multiplier: u32,
-    pub timestamp: u64,
-}
+// Events are published directly using env.events().publish()
 
 #[contract]
 pub struct StakingContract;
@@ -140,18 +108,6 @@ impl StakingContract {
         storage::set_admin(&env, &admin);
 
         // Initialize staking pool
-        let mut lock_periods = Vec::new(&env);
-        lock_periods.push_back(30 * 24 * 60 * 60);    // 30 days
-        lock_periods.push_back(90 * 24 * 60 * 60);   // 90 days
-        lock_periods.push_back(180 * 24 * 60 * 60);  // 180 days
-        lock_periods.push_back(365 * 24 * 60 * 60);  // 365 days
-
-        let mut reward_multipliers = Map::new(&env);
-        reward_multipliers.set(30 * 24 * 60 * 60, 100);    // 1x for 30 days
-        reward_multipliers.set(90 * 24 * 60 * 60, 150);   // 1.5x for 90 days
-        reward_multipliers.set(180 * 24 * 60 * 60, 200);  // 2x for 180 days
-        reward_multipliers.set(365 * 24 * 60 * 60, 300);  // 3x for 365 days
-
         let pool = StakingPool {
             token: token.clone(),
             total_staked: 0,
@@ -159,8 +115,6 @@ impl StakingContract {
             bonus_multiplier,
             min_stake,
             max_stake,
-            lock_periods,
-            reward_multipliers,
             emergency_withdrawal_fee: 500, // 5% fee
         };
 
@@ -195,8 +149,9 @@ impl StakingContract {
             return Err(StakingError::InvalidAmount);
         }
 
-        // Check if lock period is valid
-        if !pool.lock_periods.iter().any(|&period| period == lock_period) {
+        // Check if lock period is valid and get reward multiplier
+        let reward_multiplier = Self::get_reward_multiplier(lock_period);
+        if reward_multiplier == 0 {
             return Err(StakingError::InvalidLockPeriod);
         }
 
@@ -205,18 +160,13 @@ impl StakingContract {
             return Err(StakingError::AlreadyStaked);
         }
 
-        // Calculate reward multiplier
-        let reward_multiplier = pool.reward_multipliers
-            .get(lock_period)
-            .unwrap_or(100);
-
-        // Create vesting schedule if specified
-        let vesting_schedule = vesting_periods.map(|periods| VestingSchedule {
-            total_periods: periods,
-            current_period: 0,
-            period_duration: lock_period / periods,
-            cliff_percentage: 2500, // 25% cliff
-        });
+        // Create vesting schedule values if specified
+        let (has_vesting, vesting_total_periods, vesting_current_period, vesting_period_duration, vesting_cliff_percentage) = 
+            if let Some(periods) = vesting_periods {
+                (true, periods, 0, lock_period / (periods as u64), 2500)
+            } else {
+                (false, 0, 0, 0, 0)
+            };
 
         // Transfer tokens to contract
         let token_client = token::Client::new(&env, &pool.token);
@@ -235,7 +185,11 @@ impl StakingContract {
             last_reward_time: env.ledger().timestamp(),
             reward_multiplier,
             lock_period,
-            vesting_schedule,
+            has_vesting,
+            vesting_total_periods,
+            vesting_current_period,
+            vesting_period_duration,
+            vesting_cliff_percentage,
         };
 
         // Update pool state
@@ -341,10 +295,8 @@ impl StakingContract {
         position.last_reward_time = current_time;
         
         // Update vesting if applicable
-        if let Some(ref mut vesting) = position.vesting_schedule {
-            if vesting.current_period < vesting.total_periods {
-                vesting.current_period += 1;
-            }
+        if position.has_vesting && position.vesting_current_period < position.vesting_total_periods {
+            position.vesting_current_period += 1;
         }
 
         storage::set_staking_position(&env, &user, &position);
@@ -386,7 +338,13 @@ impl StakingContract {
         reward_rate: Option<i128>,
         bonus_multiplier: Option<u32>,
     ) -> Result<(), StakingError> {
-        admin::require_admin(&env);
+        admin.require_auth();
+        
+        // Verify admin
+        let stored_admin = storage::get_admin(&env);
+        if admin != stored_admin {
+            return Err(StakingError::Unauthorized);
+        }
 
         let mut pool = storage::get_staking_pool(&env);
 
@@ -413,11 +371,33 @@ impl StakingContract {
 
     /// Admin: Enable/disable emergency mode
     pub fn set_emergency_mode(env: Env, admin: Address, enabled: bool) -> Result<(), StakingError> {
-        admin::require_admin(&env);
+        admin.require_auth();
+        
+        // Verify admin
+        let stored_admin = storage::get_admin(&env);
+        if admin != stored_admin {
+            return Err(StakingError::Unauthorized);
+        }
 
         storage::set_emergency_mode(&env, enabled);
 
         Ok(())
+    }
+
+    /// Get reward multiplier for a lock period
+    fn get_reward_multiplier(lock_period: u64) -> u32 {
+        const LOCK_30_DAYS: u64 = 30 * 24 * 60 * 60;
+        const LOCK_90_DAYS: u64 = 90 * 24 * 60 * 60;
+        const LOCK_180_DAYS: u64 = 180 * 24 * 60 * 60;
+        const LOCK_365_DAYS: u64 = 365 * 24 * 60 * 60;
+        
+        match lock_period {
+            LOCK_30_DAYS => 100,   // 1x for 30 days
+            LOCK_90_DAYS => 150,  // 1.5x for 90 days
+            LOCK_180_DAYS => 200, // 2x for 180 days
+            LOCK_365_DAYS => 300, // 3x for 365 days
+            _ => 0, // Invalid lock period
+        }
     }
 
     /// Calculate rewards for a staking position
@@ -447,9 +427,9 @@ impl StakingContract {
             .expect("Total reward calculation overflow");
 
         // Calculate vesting amount if applicable
-        let vesting_amount = if let Some(ref vesting) = position.vesting_schedule {
-            let periods_completed = total_time_staked / vesting.period_duration;
-            let max_periods = vesting.total_periods as u64;
+        let vesting_amount = if position.has_vesting {
+            let periods_completed = total_time_staked / position.vesting_period_duration;
+            let max_periods = position.vesting_total_periods as u64;
             
             if periods_completed >= max_periods {
                 total_rewards
@@ -457,7 +437,7 @@ impl StakingContract {
                 let cliff_amount = if periods_completed == 0 {
                     0
                 } else {
-                    total_rewards.checked_mul(vesting.cliff_percentage as i128)
+                    total_rewards.checked_mul(position.vesting_cliff_percentage as i128)
                         .expect("Vesting cliff calculation overflow") / 10000
                 };
 
@@ -466,7 +446,7 @@ impl StakingContract {
                     .checked_mul(vested_periods as i128)
                     .expect("Vested amount calculation overflow") / max_periods as i128;
 
-                u128::max(cliff_amount, vested_amount)
+                core::cmp::max(cliff_amount, vested_amount)
             }
         } else {
             total_rewards
