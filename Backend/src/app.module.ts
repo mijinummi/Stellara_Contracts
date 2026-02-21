@@ -2,6 +2,7 @@ import { Module, Logger } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
+import { EventEmitterModule } from '@nestjs/event-emitter';
 
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -9,6 +10,9 @@ import { AppService } from './app.service';
 // logging and error handling
 import { LoggingModule } from './logging/logging.module';
 import { StructuredLogger } from './logging/structured-logger.service';
+
+// Configuration management
+import { ConfigurationModule } from './config/configuration.module';
 
 import { RedisModule } from './redis/redis.module';
 import { VoiceModule } from './voice/voice.module';
@@ -48,9 +52,16 @@ import { VersionMiddleware } from './api-versioning/version.middleware';
     // logging comes first so correlation middleware wraps every request
     LoggingModule,
 
+    // Event emitter for configuration change events
+    EventEmitterModule.forRoot(),
+
+    // Global configuration
     ConfigModule.forRoot({
       isGlobal: true,
     }),
+
+    // Centralized configuration management
+    ConfigurationModule.forRoot(),
 
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],

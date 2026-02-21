@@ -23,6 +23,7 @@ lerna-debug.log*
 /.idea
 .project
 .classpath
+.qoder/
 .c9/
 *.launch
 .settings/
