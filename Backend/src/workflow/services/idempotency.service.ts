@@ -26,7 +26,9 @@ export class IdempotencyService {
       workflowType,
       userId,
       input: this.stableStringify(input),
-      additionalContext: additionalContext ? this.stableStringify(additionalContext) : undefined,
+      additionalContext: additionalContext
+        ? this.stableStringify(additionalContext)
+        : undefined,
       timestamp: new Date().toISOString().split('T')[0], // Daily key rotation
     };
 
@@ -61,7 +63,10 @@ export class IdempotencyService {
   /**
    * Generate a unique idempotency key for one-time operations
    */
-  generateUniqueIdempotencyKey(operationType: string, identifier: string): string {
+  generateUniqueIdempotencyKey(
+    operationType: string,
+    identifier: string,
+  ): string {
     return `${operationType}:${identifier}:${uuidv4()}`;
   }
 
@@ -138,14 +143,19 @@ export class IdempotencyService {
   async checkIdempotency(
     idempotencyKey: string,
     operation: () => Promise<any>,
-    cache?: { get: (key: string) => Promise<any>; set: (key: string, value: any) => Promise<void> },
+    cache?: {
+      get: (key: string) => Promise<any>;
+      set: (key: string, value: any) => Promise<void>;
+    },
   ): Promise<{ result: any; isDuplicate: boolean }> {
     // If cache is provided, check for existing result
     if (cache) {
       try {
         const cachedResult = await cache.get(idempotencyKey);
         if (cachedResult) {
-          this.logger.debug(`Returning cached result for idempotency key: ${idempotencyKey}`);
+          this.logger.debug(
+            `Returning cached result for idempotency key: ${idempotencyKey}`,
+          );
           return { result: cachedResult, isDuplicate: true };
         }
       } catch (error) {
@@ -154,7 +164,9 @@ export class IdempotencyService {
     }
 
     // Execute the operation
-    this.logger.debug(`Executing operation for idempotency key: ${idempotencyKey}`);
+    this.logger.debug(
+      `Executing operation for idempotency key: ${idempotencyKey}`,
+    );
     const result = await operation();
 
     // Cache the result if cache is provided

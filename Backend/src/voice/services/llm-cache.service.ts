@@ -51,7 +51,10 @@ export class LlmCacheService {
 
       return null;
     } catch (error) {
-      this.logger.error(`Error retrieving from cache: ${error.message}`, error.stack);
+      this.logger.error(
+        `Error retrieving from cache: ${error.message}`,
+        error.stack,
+      );
       return null; // Fail gracefully - cache miss
     }
   }
@@ -59,7 +62,12 @@ export class LlmCacheService {
   /**
    * Sets a cached response for a prompt
    */
-  async set(prompt: string, response: string, model: string, ttl?: number): Promise<void> {
+  async set(
+    prompt: string,
+    response: string,
+    model: string,
+    ttl?: number,
+  ): Promise<void> {
     try {
       const cacheKey = this.generateCacheKey(prompt, model);
       const effectiveTtl = ttl || this.DEFAULT_TTL;
@@ -72,21 +80,32 @@ export class LlmCacheService {
       // Initialize stats
       const statsKey = this.generateStatsKey(cacheKey);
       await Promise.all([
-        this.redisService.client.set(`${statsKey}:created`, Date.now().toString(), {
-          EX: effectiveTtl,
-        }),
+        this.redisService.client.set(
+          `${statsKey}:created`,
+          Date.now().toString(),
+          {
+            EX: effectiveTtl,
+          },
+        ),
         this.redisService.client.set(`${statsKey}:model`, model, {
           EX: effectiveTtl,
         }),
-        this.redisService.client.set(`${statsKey}:ttl`, effectiveTtl.toString(), {
-          EX: effectiveTtl,
-        }),
+        this.redisService.client.set(
+          `${statsKey}:ttl`,
+          effectiveTtl.toString(),
+          {
+            EX: effectiveTtl,
+          },
+        ),
         this.redisService.client.incr('llm:cache:total-entries'),
       ]);
 
       this.logger.debug(`Cached response for prompt (${model})`);
     } catch (error) {
-      this.logger.error(`Error caching response: ${error.message}`, error.stack);
+      this.logger.error(
+        `Error caching response: ${error.message}`,
+        error.stack,
+      );
       // Fail gracefully - cache write failure shouldn't block response
     }
   }
@@ -117,7 +136,7 @@ export class LlmCacheService {
       }
 
       // Delete cache entries and their stats
-      const statsKeys = keys.map(key => this.generateStatsKey(key));
+      const statsKeys = keys.map((key) => this.generateStatsKey(key));
       const allKeys = [...keys, ...statsKeys];
 
       await this.redisService.client.del(allKeys);
@@ -127,7 +146,10 @@ export class LlmCacheService {
       );
       return keys.length;
     } catch (error) {
-      this.logger.error(`Error invalidating cache: ${error.message}`, error.stack);
+      this.logger.error(
+        `Error invalidating cache: ${error.message}`,
+        error.stack,
+      );
       return 0;
     }
   }
@@ -148,7 +170,10 @@ export class LlmCacheService {
       this.logger.log(`Invalidated all ${keys.length} cache entries`);
       return keys.length;
     } catch (error) {
-      this.logger.error(`Error invalidating all cache: ${error.message}`, error.stack);
+      this.logger.error(
+        `Error invalidating all cache: ${error.message}`,
+        error.stack,
+      );
       return 0;
     }
   }
@@ -161,16 +186,18 @@ export class LlmCacheService {
       const [totalEntries, totalHits] = await Promise.all([
         this.redisService.client
           .get('llm:cache:total-entries')
-          .then(v => parseInt(v || '0', 10)),
+          .then((v) => parseInt(v || '0', 10)),
         this.redisService.client
           .get('llm:cache:total-hits')
-          .then(v => parseInt(v || '0', 10)),
+          .then((v) => parseInt(v || '0', 10)),
       ]);
 
       const hitRate = totalEntries > 0 ? totalHits / totalEntries : 0;
 
       // Find oldest entry
-      const cacheKeys = await this.redisService.client.keys(`${this.CACHE_PREFIX}*`);
+      const cacheKeys = await this.redisService.client.keys(
+        `${this.CACHE_PREFIX}*`,
+      );
       let oldestEntry: { key: string; age: number } | null = null;
 
       if (cacheKeys.length > 0) {
@@ -179,7 +206,9 @@ export class LlmCacheService {
 
         for (const key of cacheKeys) {
           const statsKey = this.generateStatsKey(key);
-          const createdStr = await this.redisService.client.get(`${statsKey}:created`);
+          const createdStr = await this.redisService.client.get(
+            `${statsKey}:created`,
+          );
 
           if (createdStr) {
             const created = parseInt(createdStr, 10);
@@ -201,7 +230,10 @@ export class LlmCacheService {
         oldestEntry,
       };
     } catch (error) {
-      this.logger.error(`Error getting cache stats: ${error.message}`, error.stack);
+      this.logger.error(
+        `Error getting cache stats: ${error.message}`,
+        error.stack,
+      );
       return {
         totalEntries: 0,
         totalHits: 0,
@@ -216,13 +248,17 @@ export class LlmCacheService {
    */
   async pruneOldEntries(maxAgeSeconds: number): Promise<number> {
     try {
-      const cacheKeys = await this.redisService.client.keys(`${this.CACHE_PREFIX}*`);
+      const cacheKeys = await this.redisService.client.keys(
+        `${this.CACHE_PREFIX}*`,
+      );
       const now = Date.now();
       const keysToDelete: string[] = [];
 
       for (const key of cacheKeys) {
         const statsKey = this.generateStatsKey(key);
-        const createdStr = await this.redisService.client.get(`${statsKey}:created`);
+        const createdStr = await this.redisService.client.get(
+          `${statsKey}:created`,
+        );
 
         if (createdStr) {
           const created = parseInt(createdStr, 10);
@@ -251,7 +287,14 @@ export class LlmCacheService {
   /**
    * Warms cache by pre-populating common responses
    */
-  async warmCache(entries: Array<{ prompt: string; response: string; model: string; ttl?: number }>): Promise<number> {
+  async warmCache(
+    entries: Array<{
+      prompt: string;
+      response: string;
+      model: string;
+      ttl?: number;
+    }>,
+  ): Promise<number> {
     try {
       let count = 0;
 
@@ -275,7 +318,10 @@ export class LlmCacheService {
    */
   private generateCacheKey(prompt: string, model: string): string {
     const normalizedPrompt = prompt.trim().toLowerCase();
-    const hash = crypto.createHash('sha256').update(normalizedPrompt).digest('hex');
+    const hash = crypto
+      .createHash('sha256')
+      .update(normalizedPrompt)
+      .digest('hex');
     return `${this.CACHE_PREFIX}${this.CACHE_VERSION}:${model}:${hash}`;
   }
 

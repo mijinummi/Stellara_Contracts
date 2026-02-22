@@ -1,4 +1,10 @@
-import { Injectable, CanActivate, ExecutionContext, ForbiddenException, Inject } from '@nestjs/common';
+import {
+  Injectable,
+  CanActivate,
+  ExecutionContext,
+  ForbiddenException,
+  Inject,
+} from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { RoleManagerService } from '../services/role-manager.service';
 
@@ -6,7 +12,11 @@ export const PERMISSIONS_KEY = 'permissions';
 export const ROLES_KEY = 'roles';
 
 export const Permissions = (...permissions: string[]) => {
-  return (target: any, propertyKey?: string, descriptor?: PropertyDescriptor) => {
+  return (
+    target: any,
+    propertyKey?: string,
+    descriptor?: PropertyDescriptor,
+  ) => {
     if (propertyKey && descriptor) {
       Reflect.defineMetadata(PERMISSIONS_KEY, permissions, descriptor.value);
       return descriptor;
@@ -17,7 +27,11 @@ export const Permissions = (...permissions: string[]) => {
 };
 
 export const Roles = (...roles: string[]) => {
-  return (target: any, propertyKey?: string, descriptor?: PropertyDescriptor) => {
+  return (
+    target: any,
+    propertyKey?: string,
+    descriptor?: PropertyDescriptor,
+  ) => {
     if (propertyKey && descriptor) {
       Reflect.defineMetadata(ROLES_KEY, roles, descriptor.value);
       return descriptor;
@@ -49,8 +63,10 @@ export class EnhancedRolesGuard implements CanActivate {
     );
 
     // If no permissions or roles required, allow access
-    if ((!requiredPermissions || requiredPermissions.length === 0) && 
-        (!requiredRoles || requiredRoles.length === 0)) {
+    if (
+      (!requiredPermissions || requiredPermissions.length === 0) &&
+      (!requiredRoles || requiredRoles.length === 0)
+    ) {
       return true;
     }
 
@@ -63,9 +79,11 @@ export class EnhancedRolesGuard implements CanActivate {
 
     // Check role-based access
     if (requiredRoles && requiredRoles.length > 0) {
-      const userRoles = await this.roleManagerService.getUserRoleHierarchy(user.id);
-      const hasRequiredRole = requiredRoles.some(requiredRole => 
-        userRoles.includes(requiredRole as any)
+      const userRoles = await this.roleManagerService.getUserRoleHierarchy(
+        user.id,
+      );
+      const hasRequiredRole = requiredRoles.some((requiredRole) =>
+        userRoles.includes(requiredRole as any),
       );
 
       if (!hasRequiredRole) {
@@ -77,10 +95,13 @@ export class EnhancedRolesGuard implements CanActivate {
 
     // Check permission-based access
     if (requiredPermissions && requiredPermissions.length > 0) {
-      const userPermissions = await this.roleManagerService.getUserPermissions(user.id);
-      
-      const hasRequiredPermission = requiredPermissions.every(permission => 
-        userPermissions.includes(permission) || userPermissions.includes('*')
+      const userPermissions = await this.roleManagerService.getUserPermissions(
+        user.id,
+      );
+
+      const hasRequiredPermission = requiredPermissions.every(
+        (permission) =>
+          userPermissions.includes(permission) || userPermissions.includes('*'),
       );
 
       if (!hasRequiredPermission) {

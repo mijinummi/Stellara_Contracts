@@ -213,8 +213,8 @@ describe('Database Migrations', () => {
       };
 
       expect(mockMigration.backupStrategy).toBeDefined();
-      expect(mockMigration.backupStrategy!.tables).toContain('workflows');
-      expect(mockMigration.backupStrategy!.strategy).toBe('full');
+      expect(mockMigration.backupStrategy.tables).toContain('workflows');
+      expect(mockMigration.backupStrategy.strategy).toBe('full');
     });
   });
 });

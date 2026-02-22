@@ -46,9 +46,14 @@ export class DataRetentionService {
       try {
         const result = await this.processRetentionPolicy(policy);
         results.push(result);
-        this.logger.log(`Retention policy executed for ${policy.entity}: ${JSON.stringify(result)}`);
+        this.logger.log(
+          `Retention policy executed for ${policy.entity}: ${JSON.stringify(result)}`,
+        );
       } catch (error) {
-        this.logger.error(`Failed to execute retention policy for ${policy.entity}:`, error);
+        this.logger.error(
+          `Failed to execute retention policy for ${policy.entity}:`,
+          error,
+        );
         results.push({
           entity: policy.entity,
           processed: 0,
@@ -59,10 +64,15 @@ export class DataRetentionService {
       }
     }
 
-    await this.auditService.logAction('RETENTION_CLEANUP_COMPLETED', 'system', 'batch', {
-      policies: this.RETENTION_POLICIES.length,
-      results,
-    });
+    await this.auditService.logAction(
+      'RETENTION_CLEANUP_COMPLETED',
+      'system',
+      'batch',
+      {
+        policies: this.RETENTION_POLICIES.length,
+        results,
+      },
+    );
 
     return results;
   }
@@ -71,9 +81,14 @@ export class DataRetentionService {
     return [...this.RETENTION_POLICIES];
   }
 
-  async updateRetentionPolicy(entity: string, newPolicy: Partial<RetentionPolicy>): Promise<void> {
-    const policyIndex = this.RETENTION_POLICIES.findIndex(p => p.entity === entity);
-    
+  async updateRetentionPolicy(
+    entity: string,
+    newPolicy: Partial<RetentionPolicy>,
+  ): Promise<void> {
+    const policyIndex = this.RETENTION_POLICIES.findIndex(
+      (p) => p.entity === entity,
+    );
+
     if (policyIndex === -1) {
       throw new Error(`Retention policy for entity ${entity} not found`);
     }
@@ -83,13 +98,20 @@ export class DataRetentionService {
       ...newPolicy,
     };
 
-    await this.auditService.logAction('RETENTION_POLICY_UPDATED', 'system', entity, {
-      oldPolicy: this.RETENTION_POLICIES[policyIndex],
-      newPolicy,
-    });
+    await this.auditService.logAction(
+      'RETENTION_POLICY_UPDATED',
+      'system',
+      entity,
+      {
+        oldPolicy: this.RETENTION_POLICIES[policyIndex],
+        newPolicy,
+      },
+    );
   }
 
-  private async processRetentionPolicy(policy: RetentionPolicy): Promise<CleanupResult> {
+  private async processRetentionPolicy(
+    policy: RetentionPolicy,
+  ): Promise<CleanupResult> {
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - policy.retentionDays);
 
@@ -121,7 +143,10 @@ export class DataRetentionService {
     return result;
   }
 
-  private async cleanupAuditLogs(cutoffDate: Date, action: string): Promise<CleanupResult> {
+  private async cleanupAuditLogs(
+    cutoffDate: Date,
+    action: string,
+  ): Promise<CleanupResult> {
     const oldLogs = await this.auditLogRepository.find({
       where: {
         timestamp: new Date(cutoffDate.getTime() - 24 * 60 * 60 * 1000),
@@ -129,7 +154,7 @@ export class DataRetentionService {
     });
 
     let deleted = 0;
-    let archived = 0;
+    const archived = 0;
     let anonymized = 0;
 
     if (action === 'delete') {
@@ -162,7 +187,10 @@ export class DataRetentionService {
     };
   }
 
-  private async cleanupConsents(cutoffDate: Date, action: string): Promise<CleanupResult> {
+  private async cleanupConsents(
+    cutoffDate: Date,
+    action: string,
+  ): Promise<CleanupResult> {
     const oldConsents = await this.consentRepository.find({
       where: {
         grantedAt: new Date(cutoffDate.getTime() - 24 * 60 * 60 * 1000),
@@ -195,7 +223,10 @@ export class DataRetentionService {
     };
   }
 
-  private async cleanupInactiveUsers(cutoffDate: Date, action: string): Promise<CleanupResult> {
+  private async cleanupInactiveUsers(
+    cutoffDate: Date,
+    action: string,
+  ): Promise<CleanupResult> {
     // This would require access to User repository
     // For now, return placeholder result
     return {
@@ -207,7 +238,10 @@ export class DataRetentionService {
     };
   }
 
-  private async cleanupSystemLogs(cutoffDate: Date, action: string): Promise<CleanupResult> {
+  private async cleanupSystemLogs(
+    cutoffDate: Date,
+    action: string,
+  ): Promise<CleanupResult> {
     // System logs cleanup would depend on logging implementation
     // This is a placeholder implementation
     return {
@@ -219,24 +253,34 @@ export class DataRetentionService {
     };
   }
 
-  async getRetentionStatistics(): Promise<Record<string, {
-    total: number;
-    withinRetention: number;
-    expired: number;
-  }>> {
+  async getRetentionStatistics(): Promise<
+    Record<
+      string,
+      {
+        total: number;
+        withinRetention: number;
+        expired: number;
+      }
+    >
+  > {
     const now = new Date();
-    const stats: Record<string, {
-      total: number;
-      withinRetention: number;
-      expired: number;
-    }> = {};
+    const stats: Record<
+      string,
+      {
+        total: number;
+        withinRetention: number;
+        expired: number;
+      }
+    > = {};
 
     // Audit logs statistics
     const auditLogs = await this.auditLogRepository.find();
-    const auditWithinRetention = auditLogs.filter(log => 
-      new Date(log.timestamp) > new Date(now.getTime() - (730 * 24 * 60 * 60 * 1000))
+    const auditWithinRetention = auditLogs.filter(
+      (log) =>
+        new Date(log.timestamp) >
+        new Date(now.getTime() - 730 * 24 * 60 * 60 * 1000),
     );
-    
+
     stats['audit_logs'] = {
       total: auditLogs.length,
       withinRetention: auditWithinRetention.length,
@@ -245,10 +289,12 @@ export class DataRetentionService {
 
     // Consents statistics
     const consents = await this.consentRepository.find();
-    const consentWithinRetention = consents.filter(consent => 
-      new Date(consent.grantedAt) > new Date(now.getTime() - (1825 * 24 * 60 * 60 * 1000))
+    const consentWithinRetention = consents.filter(
+      (consent) =>
+        new Date(consent.grantedAt) >
+        new Date(now.getTime() - 1825 * 24 * 60 * 60 * 1000),
     );
-    
+
     stats['consents'] = {
       total: consents.length,
       withinRetention: consentWithinRetention.length,

@@ -18,8 +18,8 @@ import { TenantUsageService } from './tenant-usage.service';
       Tenant,
       TenantConfig,
       TenantUsage,
-      TenantInvitation
-    ])
+      TenantInvitation,
+    ]),
   ],
   controllers: [TenantController],
   providers: [
@@ -28,7 +28,7 @@ import { TenantUsageService } from './tenant-usage.service';
     TenantUsageService,
     TenantConfigService,
     TenantGuard,
-    TenantContextMiddleware
+    TenantContextMiddleware,
   ],
   exports: [
     TenantService,
@@ -36,7 +36,7 @@ import { TenantUsageService } from './tenant-usage.service';
     TenantUsageService,
     TenantConfigService,
     TenantGuard,
-    TypeOrmModule
-  ]
+    TypeOrmModule,
+  ],
 })
 export class TenantModule {}

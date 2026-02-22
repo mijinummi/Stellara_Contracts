@@ -10,7 +10,9 @@ describe('ConversationStateMachineService', () => {
       providers: [ConversationStateMachineService],
     }).compile();
 
-    service = module.get<ConversationStateMachineService>(ConversationStateMachineService);
+    service = module.get<ConversationStateMachineService>(
+      ConversationStateMachineService,
+    );
   });
 
   it('should be defined', () => {
@@ -19,48 +21,134 @@ describe('ConversationStateMachineService', () => {
 
   describe('canTransition', () => {
     it('should allow valid transitions from IDLE', () => {
-      expect(service.canTransition(ConversationState.IDLE, ConversationState.LISTENING)).toBe(true);
-      expect(service.canTransition(ConversationState.IDLE, ConversationState.THINKING)).toBe(false);
-      expect(service.canTransition(ConversationState.IDLE, ConversationState.RESPONDING)).toBe(false);
+      expect(
+        service.canTransition(
+          ConversationState.IDLE,
+          ConversationState.LISTENING,
+        ),
+      ).toBe(true);
+      expect(
+        service.canTransition(
+          ConversationState.IDLE,
+          ConversationState.THINKING,
+        ),
+      ).toBe(false);
+      expect(
+        service.canTransition(
+          ConversationState.IDLE,
+          ConversationState.RESPONDING,
+        ),
+      ).toBe(false);
     });
 
     it('should allow valid transitions from LISTENING', () => {
-      expect(service.canTransition(ConversationState.LISTENING, ConversationState.THINKING)).toBe(true);
-      expect(service.canTransition(ConversationState.LISTENING, ConversationState.INTERRUPTED)).toBe(true);
-      expect(service.canTransition(ConversationState.LISTENING, ConversationState.RESPONDING)).toBe(false);
+      expect(
+        service.canTransition(
+          ConversationState.LISTENING,
+          ConversationState.THINKING,
+        ),
+      ).toBe(true);
+      expect(
+        service.canTransition(
+          ConversationState.LISTENING,
+          ConversationState.INTERRUPTED,
+        ),
+      ).toBe(true);
+      expect(
+        service.canTransition(
+          ConversationState.LISTENING,
+          ConversationState.RESPONDING,
+        ),
+      ).toBe(false);
     });
 
     it('should allow valid transitions from THINKING', () => {
-      expect(service.canTransition(ConversationState.THINKING, ConversationState.RESPONDING)).toBe(true);
-      expect(service.canTransition(ConversationState.THINKING, ConversationState.INTERRUPTED)).toBe(true);
-      expect(service.canTransition(ConversationState.THINKING, ConversationState.LISTENING)).toBe(false);
+      expect(
+        service.canTransition(
+          ConversationState.THINKING,
+          ConversationState.RESPONDING,
+        ),
+      ).toBe(true);
+      expect(
+        service.canTransition(
+          ConversationState.THINKING,
+          ConversationState.INTERRUPTED,
+        ),
+      ).toBe(true);
+      expect(
+        service.canTransition(
+          ConversationState.THINKING,
+          ConversationState.LISTENING,
+        ),
+      ).toBe(false);
     });
 
     it('should allow valid transitions from RESPONDING', () => {
-      expect(service.canTransition(ConversationState.RESPONDING, ConversationState.LISTENING)).toBe(true);
-      expect(service.canTransition(ConversationState.RESPONDING, ConversationState.INTERRUPTED)).toBe(true);
-      expect(service.canTransition(ConversationState.RESPONDING, ConversationState.IDLE)).toBe(true);
-      expect(service.canTransition(ConversationState.RESPONDING, ConversationState.THINKING)).toBe(false);
+      expect(
+        service.canTransition(
+          ConversationState.RESPONDING,
+          ConversationState.LISTENING,
+        ),
+      ).toBe(true);
+      expect(
+        service.canTransition(
+          ConversationState.RESPONDING,
+          ConversationState.INTERRUPTED,
+        ),
+      ).toBe(true);
+      expect(
+        service.canTransition(
+          ConversationState.RESPONDING,
+          ConversationState.IDLE,
+        ),
+      ).toBe(true);
+      expect(
+        service.canTransition(
+          ConversationState.RESPONDING,
+          ConversationState.THINKING,
+        ),
+      ).toBe(false);
     });
 
     it('should allow valid transitions from INTERRUPTED', () => {
-      expect(service.canTransition(ConversationState.INTERRUPTED, ConversationState.LISTENING)).toBe(true);
-      expect(service.canTransition(ConversationState.INTERRUPTED, ConversationState.IDLE)).toBe(true);
-      expect(service.canTransition(ConversationState.INTERRUPTED, ConversationState.THINKING)).toBe(false);
+      expect(
+        service.canTransition(
+          ConversationState.INTERRUPTED,
+          ConversationState.LISTENING,
+        ),
+      ).toBe(true);
+      expect(
+        service.canTransition(
+          ConversationState.INTERRUPTED,
+          ConversationState.IDLE,
+        ),
+      ).toBe(true);
+      expect(
+        service.canTransition(
+          ConversationState.INTERRUPTED,
+          ConversationState.THINKING,
+        ),
+      ).toBe(false);
     });
   });
 
   describe('transition', () => {
     it('should succeed with valid transition', () => {
-      const result = service.transition(ConversationState.IDLE, ConversationState.LISTENING);
-      
+      const result = service.transition(
+        ConversationState.IDLE,
+        ConversationState.LISTENING,
+      );
+
       expect(result.success).toBe(true);
       expect(result.error).toBeUndefined();
     });
 
     it('should fail with invalid transition', () => {
-      const result = service.transition(ConversationState.IDLE, ConversationState.RESPONDING);
-      
+      const result = service.transition(
+        ConversationState.IDLE,
+        ConversationState.RESPONDING,
+      );
+
       expect(result.success).toBe(false);
       expect(result.error).toBeDefined();
       expect(result.error).toContain('Invalid state transition');
@@ -74,13 +162,24 @@ describe('ConversationStateMachineService', () => {
     });
 
     it('should return valid next states for LISTENING', () => {
-      const nextStates = service.getValidNextStates(ConversationState.LISTENING);
-      expect(nextStates).toEqual([ConversationState.THINKING, ConversationState.INTERRUPTED]);
+      const nextStates = service.getValidNextStates(
+        ConversationState.LISTENING,
+      );
+      expect(nextStates).toEqual([
+        ConversationState.THINKING,
+        ConversationState.INTERRUPTED,
+      ]);
     });
 
     it('should return valid next states for RESPONDING', () => {
-      const nextStates = service.getValidNextStates(ConversationState.RESPONDING);
-      expect(nextStates).toEqual([ConversationState.LISTENING, ConversationState.INTERRUPTED, ConversationState.IDLE]);
+      const nextStates = service.getValidNextStates(
+        ConversationState.RESPONDING,
+      );
+      expect(nextStates).toEqual([
+        ConversationState.LISTENING,
+        ConversationState.INTERRUPTED,
+        ConversationState.IDLE,
+      ]);
     });
   });
 
@@ -93,7 +192,9 @@ describe('ConversationStateMachineService', () => {
     it('should return false for non-interruptible states', () => {
       expect(service.isInterruptible(ConversationState.IDLE)).toBe(false);
       expect(service.isInterruptible(ConversationState.LISTENING)).toBe(false);
-      expect(service.isInterruptible(ConversationState.INTERRUPTED)).toBe(false);
+      expect(service.isInterruptible(ConversationState.INTERRUPTED)).toBe(
+        false,
+      );
     });
   });
 
@@ -103,7 +204,9 @@ describe('ConversationStateMachineService', () => {
       expect(service.isTerminalState(ConversationState.LISTENING)).toBe(false);
       expect(service.isTerminalState(ConversationState.THINKING)).toBe(false);
       expect(service.isTerminalState(ConversationState.RESPONDING)).toBe(false);
-      expect(service.isTerminalState(ConversationState.INTERRUPTED)).toBe(false);
+      expect(service.isTerminalState(ConversationState.INTERRUPTED)).toBe(
+        false,
+      );
     });
   });
 });

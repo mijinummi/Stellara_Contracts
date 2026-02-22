@@ -97,7 +97,9 @@ describe('LlmCacheService', () => {
       mockRedisClient.set.mockRejectedValue(new Error('Redis error'));
 
       // Should not throw
-      await expect(service.set(prompt, response, model)).resolves.toBeUndefined();
+      await expect(
+        service.set(prompt, response, model),
+      ).resolves.toBeUndefined();
     });
 
     it('should normalize prompt for consistent caching', async () => {

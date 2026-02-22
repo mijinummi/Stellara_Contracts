@@ -92,14 +92,14 @@ export interface JobProcessingResult {
 
 export enum JobPriorityLevel {
   LOW = 'low',
-  NORMAL = 'normal', 
+  NORMAL = 'normal',
   HIGH = 'high',
-  CRITICAL = 'critical'
+  CRITICAL = 'critical',
 }
 
 export const PRIORITY_WEIGHTS = {
   [JobPriorityLevel.LOW]: 1,
   [JobPriorityLevel.NORMAL]: 5,
   [JobPriorityLevel.HIGH]: 10,
-  [JobPriorityLevel.CRITICAL]: 20
+  [JobPriorityLevel.CRITICAL]: 20,
 };

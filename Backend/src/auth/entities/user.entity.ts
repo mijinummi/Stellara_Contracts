@@ -14,7 +14,7 @@ import { Consent } from '../../gdpr/entities/consent.entity';
 import { Tenant } from '../../tenancy/entities/tenant.entity';
 import { UserPermission } from './user-permission.entity';
 import { Role } from '../roles.enum';
-import { UserRank } from 'src/reputation/types/reputation.types';
+import { UserRank } from '../../reputation/types/reputation.types';
 
 @Entity('users')
 export class User {
@@ -61,7 +61,7 @@ export class User {
   userPermissions: UserPermission[];
 
   @Column({ type: 'int', default: 0 })
-  reputation: string;
+  reputation: number;
 
   @Column({ type: 'int', default: 0 })
   totalXp: number;

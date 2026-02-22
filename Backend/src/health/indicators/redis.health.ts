@@ -10,7 +10,7 @@ export class RedisHealthIndicator {
 
   async isHealthy(): Promise<HealthIndicatorResult> {
     const startTime = Date.now();
-    
+
     try {
       // Check if Redis service is available
       if (!this.redisService.isRedisAvailable()) {
@@ -25,32 +25,33 @@ export class RedisHealthIndicator {
       // Test Redis connection with a simple ping
       const client = this.redisService.client;
       await client.ping();
-      
+
       const latency = Date.now() - startTime;
-      
+
       // Get Redis info
       const info = await this.getRedisInfo();
-      
+
       const details: RedisHealthDetails = {
         connection: true,
         latency,
         memory: {
           used: info.usedMemory,
           max: info.maxMemory,
-          percentage: info.maxMemory > 0 ? (info.usedMemory / info.maxMemory) * 100 : 0,
+          percentage:
+            info.maxMemory > 0 ? (info.usedMemory / info.maxMemory) * 100 : 0,
         },
         keys: info.keyCount,
       };
 
       let status = 'up';
       let message = 'Redis is healthy';
-      
+
       // Check for potential issues
       if (latency > 500) {
         status = 'degraded';
         message = `Redis latency is high: ${latency}ms`;
       }
-      
+
       if (details.memory.percentage > 90) {
         status = 'degraded';
         message = `Redis memory usage is high: ${details.memory.percentage.toFixed(2)}%`;
@@ -65,7 +66,7 @@ export class RedisHealthIndicator {
       };
     } catch (error) {
       this.logger.error('Redis health check failed', error);
-      
+
       return {
         name: 'redis',
         status: 'down',
@@ -82,15 +83,15 @@ export class RedisHealthIndicator {
   }> {
     try {
       const client = this.redisService.client;
-      
+
       // Get memory info
       const memoryInfo = await client.info('memory');
       const usedMemory = this.parseInfoValue(memoryInfo, 'used_memory') || 0;
       const maxMemory = this.parseInfoValue(memoryInfo, 'maxmemory') || 0;
-      
+
       // Get key count (approximate)
       const keyCount = await client.dbSize();
-      
+
       return {
         usedMemory: parseInt(usedMemory, 10) || 0,
         maxMemory: parseInt(maxMemory, 10) || 0,

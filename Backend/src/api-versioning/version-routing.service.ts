@@ -16,7 +16,7 @@ export class VersionRoutingService {
    */
   isRouteVersionCompatible(context: any): boolean {
     const request = context.switchToHttp().getRequest();
-    const version = (request as any).apiVersion;
+    const version = request.apiVersion;
 
     if (!version) {
       // No version specified, allow route
@@ -24,8 +24,14 @@ export class VersionRoutingService {
     }
 
     // Get version metadata from controller/handler
-    const controllerVersion = this.reflector.get('api-version', context.getClass());
-    const handlerVersion = this.reflector.get('api-version', context.getHandler());
+    const controllerVersion = this.reflector.get(
+      'api-version',
+      context.getClass(),
+    );
+    const handlerVersion = this.reflector.get(
+      'api-version',
+      context.getHandler(),
+    );
 
     // If no version specified on controller or handler, assume it supports all versions
     if (!controllerVersion && !handlerVersion) {
@@ -33,7 +39,7 @@ export class VersionRoutingService {
     }
 
     const versionString = this.versioningService.getVersionString(version);
-    
+
     // Check handler version first (more specific)
     if (handlerVersion) {
       if (this.isVersionMatch(versionString, handlerVersion.version)) {
@@ -51,10 +57,15 @@ export class VersionRoutingService {
     return false;
   }
 
-  private isVersionMatch(requestedVersion: string, supportedVersions: string | string[]): boolean {
-    const versions = Array.isArray(supportedVersions) ? supportedVersions : [supportedVersions];
-    
-    return versions.some(version => {
+  private isVersionMatch(
+    requestedVersion: string,
+    supportedVersions: string | string[],
+  ): boolean {
+    const versions = Array.isArray(supportedVersions)
+      ? supportedVersions
+      : [supportedVersions];
+
+    return versions.some((version) => {
       // Handle exact matches
       if (version === requestedVersion) {
         return true;
@@ -80,13 +91,21 @@ export class VersionRoutingService {
     isCompatible: boolean;
   } {
     const request = context.switchToHttp().getRequest();
-    const version = (request as any).apiVersion;
+    const version = request.apiVersion;
 
-    const controllerVersion = this.reflector.get('api-version', context.getClass());
-    const handlerVersion = this.reflector.get('api-version', context.getHandler());
+    const controllerVersion = this.reflector.get(
+      'api-version',
+      context.getClass(),
+    );
+    const handlerVersion = this.reflector.get(
+      'api-version',
+      context.getHandler(),
+    );
 
     return {
-      requestedVersion: version ? this.versioningService.getVersionString(version) : null,
+      requestedVersion: version
+        ? this.versioningService.getVersionString(version)
+        : null,
       controllerVersion,
       handlerVersion,
       isCompatible: this.isRouteVersionCompatible(context),

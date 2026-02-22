@@ -7,7 +7,12 @@ import { CreateNotificationDto } from '../dto/create-notification.dto';
 import { UpdateNotificationDto } from '../dto/update-notification.dto';
 import { UpdateNotificationPreferencesDto } from '../dto/update-notification-preferences.dto';
 import { NotificationDeliveryService } from './notification-delivery.service';
-import { NotificationType, NotificationStatus, NotificationChannel, NotificationPriority } from '../types/notification.types';
+import {
+  NotificationType,
+  NotificationStatus,
+  NotificationChannel,
+  NotificationPriority,
+} from '../types/notification.types';
 import { User } from '../../auth/entities/user.entity';
 
 @Injectable()
@@ -24,7 +29,9 @@ export class NotificationService {
     private readonly deliveryService: NotificationDeliveryService,
   ) {}
 
-  async createNotification(createDto: CreateNotificationDto): Promise<Notification> {
+  async createNotification(
+    createDto: CreateNotificationDto,
+  ): Promise<Notification> {
     // If userId is not provided, create notification for all users or based on criteria
     if (!createDto.userId) {
       // This would be for system-wide notifications
@@ -39,7 +46,8 @@ export class NotificationService {
       userId: createDto.userId,
     });
 
-    const savedNotification = await this.notificationRepository.save(notification);
+    const savedNotification =
+      await this.notificationRepository.save(notification);
 
     // Deliver immediately if requested
     if (createDto.sendImmediately) {
@@ -51,18 +59,19 @@ export class NotificationService {
 
   async createBulkNotifications(
     createDto: Omit<CreateNotificationDto, 'userId'>,
-    userIds: string[]
+    userIds: string[],
   ): Promise<Notification[]> {
-    const notifications = userIds.map(userId => 
+    const notifications = userIds.map((userId) =>
       this.notificationRepository.create({
         ...createDto,
         status: NotificationStatus.PENDING,
         channels: createDto.channels || [NotificationChannel.IN_APP],
         userId,
-      })
+      }),
     );
 
-    const savedNotifications = await this.notificationRepository.save(notifications);
+    const savedNotifications =
+      await this.notificationRepository.save(notifications);
 
     // Deliver immediately if requested
     if (createDto.sendImmediately) {
@@ -95,7 +104,8 @@ export class NotificationService {
     type?: NotificationType,
     unreadOnly: boolean = false,
   ): Promise<{ notifications: Notification[]; total: number }> {
-    const queryBuilder = this.notificationRepository.createQueryBuilder('notification')
+    const queryBuilder = this.notificationRepository
+      .createQueryBuilder('notification')
       .leftJoinAndSelect('notification.user', 'user')
       .where('notification.userId = :userId', { userId })
       .orderBy('notification.createdAt', 'DESC');
@@ -120,7 +130,10 @@ export class NotificationService {
     return { notifications, total };
   }
 
-  async updateNotification(id: string, updateDto: UpdateNotificationDto): Promise<Notification> {
+  async updateNotification(
+    id: string,
+    updateDto: UpdateNotificationDto,
+  ): Promise<Notification> {
     const notification = await this.getNotificationById(id);
 
     // Update notification
@@ -142,22 +155,22 @@ export class NotificationService {
   async markMultipleAsRead(ids: string[]): Promise<void> {
     await this.notificationRepository.update(
       { id: In(ids) },
-      { 
-        isRead: true, 
+      {
+        isRead: true,
         readAt: new Date(),
-        status: NotificationStatus.READ
-      }
+        status: NotificationStatus.READ,
+      },
     );
   }
 
   async markAllAsRead(userId: string): Promise<void> {
     await this.notificationRepository.update(
       { userId, isRead: false },
-      { 
-        isRead: true, 
+      {
+        isRead: true,
         readAt: new Date(),
-        status: NotificationStatus.READ
-      }
+        status: NotificationStatus.READ,
+      },
     );
   }
 
@@ -180,7 +193,9 @@ export class NotificationService {
     return this.deliveryService.deliverNotification(notification);
   }
 
-  async getNotificationPreferences(userId: string): Promise<NotificationPreference> {
+  async getNotificationPreferences(
+    userId: string,
+  ): Promise<NotificationPreference> {
     let preferences = await this.preferenceRepository.findOne({
       where: { userId },
     });
@@ -195,7 +210,7 @@ export class NotificationService {
 
   async updateNotificationPreferences(
     userId: string,
-    updateDto: UpdateNotificationPreferencesDto
+    updateDto: UpdateNotificationPreferencesDto,
   ): Promise<NotificationPreference> {
     let preferences = await this.preferenceRepository.findOne({
       where: { userId },
@@ -211,7 +226,10 @@ export class NotificationService {
     }
 
     if (updateDto.preferences) {
-      preferences.preferences = { ...preferences.preferences, ...updateDto.preferences };
+      preferences.preferences = {
+        ...preferences.preferences,
+        ...updateDto.preferences,
+      };
     }
 
     if (updateDto.mutedUntil) {
@@ -219,7 +237,10 @@ export class NotificationService {
     }
 
     if (updateDto.customTemplates) {
-      preferences.customTemplates = { ...preferences.customTemplates, ...updateDto.customTemplates };
+      preferences.customTemplates = {
+        ...preferences.customTemplates,
+        ...updateDto.customTemplates,
+      };
     }
 
     return this.preferenceRepository.save(preferences);
@@ -228,10 +249,10 @@ export class NotificationService {
   async toggleNotificationType(
     userId: string,
     notificationType: NotificationType,
-    enabled: boolean
+    enabled: boolean,
   ): Promise<NotificationPreference> {
     const preferences = await this.getNotificationPreferences(userId);
-    
+
     if (!preferences.preferences[notificationType]) {
       // Initialize if not exists
       preferences.preferences[notificationType] = {
@@ -249,17 +270,18 @@ export class NotificationService {
     userId: string,
     searchTerm: string,
     page: number = 1,
-    limit: number = 20
+    limit: number = 20,
   ): Promise<{ notifications: Notification[]; total: number }> {
-    const [notifications, total] = await this.notificationRepository.findAndCount({
-      where: [
-        { userId, title: Like(`%${searchTerm}%`) },
-        { userId, content: Like(`%${searchTerm}%`) },
-      ],
-      order: { createdAt: 'DESC' },
-      skip: (page - 1) * limit,
-      take: limit,
-    });
+    const [notifications, total] =
+      await this.notificationRepository.findAndCount({
+        where: [
+          { userId, title: Like(`%${searchTerm}%`) },
+          { userId, content: Like(`%${searchTerm}%`) },
+        ],
+        order: { createdAt: 'DESC' },
+        skip: (page - 1) * limit,
+        take: limit,
+      });
 
     return { notifications, total };
   }
@@ -273,7 +295,7 @@ export class NotificationService {
   async bulkArchiveNotifications(ids: string[]): Promise<void> {
     await this.notificationRepository.update(
       { id: In(ids) },
-      { status: NotificationStatus.ARCHIVED }
+      { status: NotificationStatus.ARCHIVED },
     );
   }
 
@@ -288,8 +310,8 @@ export class NotificationService {
       this.notificationRepository.count({ where: { userId } }),
       this.notificationRepository.count({ where: { userId, isRead: false } }),
       this.notificationRepository.count({ where: { userId, isRead: true } }),
-      this.notificationRepository.count({ 
-        where: { userId, status: NotificationStatus.ARCHIVED } 
+      this.notificationRepository.count({
+        where: { userId, status: NotificationStatus.ARCHIVED },
       }),
     ]);
 
@@ -302,7 +324,7 @@ export class NotificationService {
       .getRawMany();
 
     const byType: { [type: string]: number } = {};
-    typeCounts.forEach(row => {
+    typeCounts.forEach((row) => {
       byType[row.type] = parseInt(row.count);
     });
 
@@ -315,7 +337,9 @@ export class NotificationService {
     };
   }
 
-  private async createDefaultPreferences(userId: string): Promise<NotificationPreference> {
+  private async createDefaultPreferences(
+    userId: string,
+  ): Promise<NotificationPreference> {
     const defaultPreferences: Partial<NotificationPreference> = {
       userId,
       globalEnabled: true,
@@ -326,7 +350,11 @@ export class NotificationService {
           priorityThreshold: NotificationPriority.NORMAL,
         },
         alert: {
-          channels: [NotificationChannel.IN_APP, NotificationChannel.PUSH, NotificationChannel.EMAIL],
+          channels: [
+            NotificationChannel.IN_APP,
+            NotificationChannel.PUSH,
+            NotificationChannel.EMAIL,
+          ],
           enabled: true,
           priorityThreshold: NotificationPriority.NORMAL,
         },
@@ -351,13 +379,19 @@ export class NotificationService {
           priorityThreshold: NotificationPriority.HIGH,
         },
         security: {
-          channels: [NotificationChannel.IN_APP, NotificationChannel.EMAIL, NotificationChannel.PUSH],
+          channels: [
+            NotificationChannel.IN_APP,
+            NotificationChannel.EMAIL,
+            NotificationChannel.PUSH,
+          ],
           enabled: true,
           priorityThreshold: NotificationPriority.HIGH,
         },
       },
     };
 
-    return this.preferenceRepository.save(defaultPreferences as NotificationPreference);
+    return this.preferenceRepository.save(
+      defaultPreferences as NotificationPreference,
+    );
   }
 }

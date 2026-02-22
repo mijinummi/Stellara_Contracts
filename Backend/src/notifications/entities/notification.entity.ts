@@ -1,6 +1,20 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, CreateDateColumn, UpdateDateColumn, Index } from 'typeorm';
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  ManyToOne,
+  JoinColumn,
+  CreateDateColumn,
+  UpdateDateColumn,
+  Index,
+} from 'typeorm';
 import { User } from '../../auth/entities/user.entity';
-import { NotificationType, NotificationChannel, NotificationPriority, NotificationStatus } from '../types/notification.types';
+import {
+  NotificationType,
+  NotificationChannel,
+  NotificationPriority,
+  NotificationStatus,
+} from '../types/notification.types';
 
 @Entity('notifications')
 export class Notification {

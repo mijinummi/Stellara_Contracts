@@ -94,12 +94,12 @@ describe('RetryStrategyService', () => {
 
       const validationError = new Error('Invalid data');
       validationError.name = 'ValidationError';
-      
+
       expect(service.shouldRetry(validationError, 1, strategy)).toBe(false);
 
       const authError = new Error('Authentication failed');
       authError.name = 'AuthenticationError';
-      
+
       expect(service.shouldRetry(authError, 1, strategy)).toBe(false);
     });
 
@@ -112,7 +112,7 @@ describe('RetryStrategyService', () => {
 
       const networkError = new Error('Network timeout');
       networkError.name = 'NetworkError';
-      
+
       expect(service.shouldRetry(networkError, 1, strategy)).toBe(true);
       expect(service.shouldRetry(networkError, 4, strategy)).toBe(true);
     });
@@ -121,7 +121,7 @@ describe('RetryStrategyService', () => {
   describe('getDefaultStrategy', () => {
     it('should return correct strategy for deploy-contract', () => {
       const strategy = service.getDefaultStrategy('deploy-contract');
-      
+
       expect(strategy.type).toBe('exponential');
       expect(strategy.delay).toBe(5000);
       expect(strategy.maxAttempts).toBe(5);
@@ -131,7 +131,7 @@ describe('RetryStrategyService', () => {
 
     it('should return correct strategy for process-tts', () => {
       const strategy = service.getDefaultStrategy('process-tts');
-      
+
       expect(strategy.type).toBe('exponential');
       expect(strategy.delay).toBe(2000);
       expect(strategy.maxAttempts).toBe(3);
@@ -141,7 +141,7 @@ describe('RetryStrategyService', () => {
 
     it('should return default strategy for unknown job type', () => {
       const strategy = service.getDefaultStrategy('unknown-job');
-      
+
       expect(strategy.type).toBe('exponential');
       expect(strategy.delay).toBe(3000);
       expect(strategy.maxAttempts).toBe(3);

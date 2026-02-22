@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User } from '../../auth/entities/user.entity';
@@ -91,17 +95,18 @@ export class DataExportService {
     });
 
     // Fetch all related data
-    const [wallets, refreshTokens, apiTokens, auditLogs, consents] = await Promise.all([
-      this.walletRepository.find({ where: { userId } }),
-      this.refreshTokenRepository.find({ where: { userId } }),
-      this.apiTokenRepository.find({ where: { userId } }),
-      this.auditLogRepository.find({ 
-        where: { actor_id: userId },
-        order: { timestamp: 'DESC' },
-        take: 1000, // Limit for performance
-      }),
-      this.consentRepository.find({ where: { userId } }),
-    ]);
+    const [wallets, refreshTokens, apiTokens, auditLogs, consents] =
+      await Promise.all([
+        this.walletRepository.find({ where: { userId } }),
+        this.refreshTokenRepository.find({ where: { userId } }),
+        this.apiTokenRepository.find({ where: { userId } }),
+        this.auditLogRepository.find({
+          where: { actor_id: userId },
+          order: { timestamp: 'DESC' },
+          take: 1000, // Limit for performance
+        }),
+        this.consentRepository.find({ where: { userId } }),
+      ]);
 
     const exportData: UserDataExport = {
       user: {
@@ -112,13 +117,13 @@ export class DataExportService {
         updatedAt: user.updatedAt,
         isActive: user.isActive,
       },
-      wallets: wallets.map(wallet => ({
+      wallets: wallets.map((wallet) => ({
         id: wallet.id,
         publicKey: wallet.publicKey,
         createdAt: wallet.boundAt,
         lastUsedAt: wallet.lastUsed,
       })),
-      refreshTokens: refreshTokens.map(token => ({
+      refreshTokens: refreshTokens.map((token) => ({
         id: token.id,
         createdAt: token.createdAt,
         expiresAt: token.expiresAt,
@@ -126,7 +131,7 @@ export class DataExportService {
         revoked: token.revoked,
         revokedAt: token.revokedAt,
       })),
-      apiTokens: apiTokens.map(token => ({
+      apiTokens: apiTokens.map((token) => ({
         id: token.id,
         name: token.name,
         createdAt: token.createdAt,
@@ -134,13 +139,13 @@ export class DataExportService {
         expiresAt: token.expiresAt,
         revoked: token.revoked,
       })),
-      auditLogs: auditLogs.map(log => ({
+      auditLogs: auditLogs.map((log) => ({
         id: log.id,
         action_type: log.action_type,
         timestamp: log.timestamp,
         metadata: log.metadata,
       })),
-      consents: consents.map(consent => ({
+      consents: consents.map((consent) => ({
         id: consent.id,
         consentType: consent.consentType,
         status: consent.status,
@@ -174,10 +179,10 @@ export class DataExportService {
 
   async exportUserDataAsCsv(userId: string): Promise<string> {
     const data = await this.exportUserData(userId);
-    
+
     // Simple CSV export - in production, use a proper CSV library
     let csv = 'Data Type,Data\n';
-    
+
     // User data
     csv += `User ID,${data.user.id}\n`;
     csv += `Email,${data.user.email || 'N/A'}\n`;
@@ -185,14 +190,14 @@ export class DataExportService {
     csv += `Created At,${data.user.createdAt.toISOString()}\n`;
     csv += `Updated At,${data.user.updatedAt.toISOString()}\n`;
     csv += `Is Active,${data.user.isActive}\n`;
-    
+
     // Add section headers and data for other entities
     csv += '\nWallets:\n';
     csv += 'ID,Public Key,Created At,Last Used\n';
-    data.wallets.forEach(wallet => {
+    data.wallets.forEach((wallet) => {
       csv += `${wallet.id},${wallet.publicKey},${wallet.createdAt.toISOString()},${wallet.lastUsedAt?.toISOString() || 'N/A'}\n`;
     });
-    
+
     return csv;
   }
 }

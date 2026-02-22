@@ -2,7 +2,11 @@ import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bull';
 import type { Queue, Job } from 'bull';
 import { RedisService } from '../../redis/redis.service';
-import { JobMetrics, QueueMetrics, EnhancedJobData } from '../types/enhanced-job.types';
+import {
+  JobMetrics,
+  QueueMetrics,
+  EnhancedJobData,
+} from '../types/enhanced-job.types';
 
 export interface AlertConfig {
   threshold: number;
@@ -35,12 +39,15 @@ export class JobMonitoringService implements OnModuleInit {
   private readonly TRENDS_KEY_PREFIX = 'queue:trends:';
   private readonly PREDICTIONS_KEY_PREFIX = 'queue:predictions:';
   private readonly METRICS_RETENTION_DAYS = 30;
-  
+
   // Alert configurations
   private alertConfigs: Map<string, AlertConfig[]> = new Map();
-  
+
   // Active alerts
-  private activeAlerts: Map<string, { timestamp: Date; message: string; severity: string }> = new Map();
+  private activeAlerts: Map<
+    string,
+    { timestamp: Date; message: string; severity: string }
+  > = new Map();
 
   constructor(
     @InjectQueue('deploy-contract') private deployContractQueue: Queue,
@@ -69,15 +76,15 @@ export class JobMonitoringService implements OnModuleInit {
         comparison: 'gt',
         metric: 'failureRate',
         duration: 300000, // 5 minutes
-        alertType: 'critical'
+        alertType: 'critical',
       },
       {
         threshold: 300000, // 5 minutes avg processing time
         comparison: 'gt',
         metric: 'averageProcessingTime',
         duration: 600000, // 10 minutes
-        alertType: 'warning'
-      }
+        alertType: 'warning',
+      },
     ]);
 
     // TTS queue alerts
@@ -87,15 +94,15 @@ export class JobMonitoringService implements OnModuleInit {
         comparison: 'gt',
         metric: 'failureRate',
         duration: 120000, // 2 minutes
-        alertType: 'warning'
+        alertType: 'warning',
       },
       {
         threshold: 30, // 30 jobs/hour
         comparison: 'lt',
         metric: 'throughput',
         duration: 300000, // 5 minutes
-        alertType: 'warning'
-      }
+        alertType: 'warning',
+      },
     ]);
 
     // Market news queue alerts
@@ -105,15 +112,15 @@ export class JobMonitoringService implements OnModuleInit {
         comparison: 'gt',
         metric: 'failureRate',
         duration: 600000, // 10 minutes
-        alertType: 'critical'
+        alertType: 'critical',
       },
       {
         threshold: 100, // 100 items in DLQ
         comparison: 'gt',
         metric: 'dlqSize',
         duration: 300000, // 5 minutes
-        alertType: 'warning'
-      }
+        alertType: 'warning',
+      },
     ]);
   }
 
@@ -122,7 +129,7 @@ export class JobMonitoringService implements OnModuleInit {
    */
   async collectRealTimeMetrics(): Promise<void> {
     const queueNames = ['deploy-contract', 'process-tts', 'index-market-news'];
-    
+
     for (const queueName of queueNames) {
       try {
         await this.getQueueMetrics(queueName);
@@ -130,7 +137,9 @@ export class JobMonitoringService implements OnModuleInit {
         await this.analyzeTrends(queueName);
         await this.generatePredictions(queueName);
       } catch (error) {
-        this.logger.error(`Failed to collect metrics for queue ${queueName}: ${error.message}`);
+        this.logger.error(
+          `Failed to collect metrics for queue ${queueName}: ${error.message}`,
+        );
       }
     }
   }
@@ -149,8 +158,8 @@ export class JobMonitoringService implements OnModuleInit {
 
       // Calculate processing times and success rates
       const processingTimes = this.calculateProcessingTimes(jobs);
-      const completedJobs = jobs.filter(job => job.finishedOn);
-      const failedJobs = jobs.filter(job => job.failedReason);
+      const completedJobs = jobs.filter((job) => job.finishedOn);
+      const failedJobs = jobs.filter((job) => job.failedReason);
 
       const metrics: JobMetrics = {
         totalJobs: jobs.length,
@@ -160,10 +169,12 @@ export class JobMonitoringService implements OnModuleInit {
         delayedJobs: counts.delayed || 0,
         waitingJobs: counts.waiting || 0,
         averageProcessingTime: processingTimes.average,
-        successRate: completedJobs.length > 0 ? completedJobs.length / jobs.length : 0,
-        failureRate: failedJobs.length > 0 ? failedJobs.length / jobs.length : 0,
+        successRate:
+          completedJobs.length > 0 ? completedJobs.length / jobs.length : 0,
+        failureRate:
+          failedJobs.length > 0 ? failedJobs.length / jobs.length : 0,
         throughput: await this.calculateThroughput(queueName),
-        dlqSize: await this.getDLQSize(queueName)
+        dlqSize: await this.getDLQSize(queueName),
       };
 
       // Store metrics for historical tracking
@@ -172,10 +183,12 @@ export class JobMonitoringService implements OnModuleInit {
       return {
         queueName,
         metrics,
-        timestamp
+        timestamp,
       };
     } catch (error) {
-      this.logger.error(`Failed to get metrics for queue ${queueName}: ${error.message}`);
+      this.logger.error(
+        `Failed to get metrics for queue ${queueName}: ${error.message}`,
+      );
       throw error;
     }
   }
@@ -185,9 +198,9 @@ export class JobMonitoringService implements OnModuleInit {
    */
   async getAllQueueMetrics(): Promise<QueueMetrics[]> {
     const queueNames = ['deploy-contract', 'process-tts', 'index-market-news'];
-    
+
     const metrics = await Promise.all(
-      queueNames.map(queueName => this.getQueueMetrics(queueName))
+      queueNames.map((queueName) => this.getQueueMetrics(queueName)),
     );
 
     return metrics;
@@ -199,31 +212,33 @@ export class JobMonitoringService implements OnModuleInit {
   async getHistoricalMetrics(
     queueName: string,
     startDate: Date,
-    endDate: Date
+    endDate: Date,
   ): Promise<QueueMetrics[]> {
     const metricsKey = `${this.METRICS_KEY_PREFIX}${queueName}`;
-    
+
     try {
       const timestamps = await this.redisService.client.zRangeByScore(
         metricsKey,
         startDate.getTime(),
-        endDate.getTime()
+        endDate.getTime(),
       );
 
       const metrics: QueueMetrics[] = [];
-      
+
       for (const timestamp of timestamps) {
         const metricData = await this.redisService.client.hGet(
           `${metricsKey}:data`,
-          timestamp
+          timestamp,
         );
-        
+
         if (metricData) {
           metrics.push(JSON.parse(metricData) as QueueMetrics);
         }
       }
 
-      return metrics.sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
+      return metrics.sort(
+        (a, b) => a.timestamp.getTime() - b.timestamp.getTime(),
+      );
     } catch (error) {
       this.logger.error(`Failed to get historical metrics: ${error.message}`);
       return [];
@@ -250,7 +265,7 @@ export class JobMonitoringService implements OnModuleInit {
       completed: counts.completed || 0,
       failed: counts.failed || 0,
       delayed: counts.delayed || 0,
-      total: Object.values(counts).reduce((sum, count) => sum + count, 0)
+      total: Object.values(counts).reduce((sum, count) => sum + count, 0),
     };
   }
 
@@ -268,34 +283,42 @@ export class JobMonitoringService implements OnModuleInit {
   }> {
     const queue = this.getQueueByName(queueName);
     const jobs = await this.getAllJobs(queue);
-    const completedJobs = jobs.filter(job => job.finishedOn && !job.failedReason);
-    const failedJobs = jobs.filter(job => job.failedReason);
+    const completedJobs = jobs.filter(
+      (job) => job.finishedOn && !job.failedReason,
+    );
+    const failedJobs = jobs.filter((job) => job.failedReason);
 
     const processingTimes = completedJobs
-      .map(job => job.finishedOn! - job.processedOn!)
+      .map((job) => job.finishedOn - job.processedOn)
       .sort((a, b) => a - b);
 
-    const averageProcessingTime = processingTimes.length > 0 
-      ? processingTimes.reduce((sum, time) => sum + time, 0) / processingTimes.length 
-      : 0;
+    const averageProcessingTime =
+      processingTimes.length > 0
+        ? processingTimes.reduce((sum, time) => sum + time, 0) /
+          processingTimes.length
+        : 0;
 
-    const medianProcessingTime = processingTimes.length > 0
-      ? processingTimes[Math.floor(processingTimes.length / 2)]
-      : 0;
+    const medianProcessingTime =
+      processingTimes.length > 0
+        ? processingTimes[Math.floor(processingTimes.length / 2)]
+        : 0;
 
-    const p95ProcessingTime = processingTimes.length > 0
-      ? processingTimes[Math.floor(processingTimes.length * 0.95)]
-      : 0;
+    const p95ProcessingTime =
+      processingTimes.length > 0
+        ? processingTimes[Math.floor(processingTimes.length * 0.95)]
+        : 0;
 
-    const p99ProcessingTime = processingTimes.length > 0
-      ? processingTimes[Math.floor(processingTimes.length * 0.99)]
-      : 0;
+    const p99ProcessingTime =
+      processingTimes.length > 0
+        ? processingTimes[Math.floor(processingTimes.length * 0.99)]
+        : 0;
 
     const jobsPerHour = await this.calculateThroughput(queueName);
     const errorRate = jobs.length > 0 ? failedJobs.length / jobs.length : 0;
-    const retryRate = jobs.length > 0 
-      ? jobs.filter(job => job.attemptsMade > 1).length / jobs.length 
-      : 0;
+    const retryRate =
+      jobs.length > 0
+        ? jobs.filter((job) => job.attemptsMade > 1).length / jobs.length
+        : 0;
 
     return {
       averageProcessingTime,
@@ -304,7 +327,7 @@ export class JobMonitoringService implements OnModuleInit {
       p99ProcessingTime,
       jobsPerHour,
       errorRate,
-      retryRate
+      retryRate,
     };
   }
 
@@ -319,15 +342,18 @@ export class JobMonitoringService implements OnModuleInit {
   }> {
     const [metrics, alerts] = await Promise.all([
       this.getQueueMetrics(queueName),
-      this.getActiveAlerts(queueName)
+      this.getActiveAlerts(queueName),
     ]);
 
     const issues: string[] = [];
     const recommendations: string[] = [];
 
     // Check for high failure rate
-    if (metrics.metrics.failureRate > 0.1) { // 10% failure rate
-      issues.push(`High failure rate: ${(metrics.metrics.failureRate * 100).toFixed(2)}%`);
+    if (metrics.metrics.failureRate > 0.1) {
+      // 10% failure rate
+      issues.push(
+        `High failure rate: ${(metrics.metrics.failureRate * 100).toFixed(2)}%`,
+      );
       recommendations.push('Review failed jobs and adjust retry strategies');
     }
 
@@ -338,34 +364,36 @@ export class JobMonitoringService implements OnModuleInit {
     }
 
     // Check for low throughput
-    if (metrics.metrics.throughput < 1) { // Less than 1 job per hour
+    if (metrics.metrics.throughput < 1) {
+      // Less than 1 job per hour
       issues.push('Low job throughput');
       recommendations.push('Check if workers are processing jobs correctly');
     }
 
     // Check for high average processing time
-    if (metrics.metrics.averageProcessingTime > 300000) { // More than 5 minutes
+    if (metrics.metrics.averageProcessingTime > 300000) {
+      // More than 5 minutes
       issues.push('High average processing time');
       recommendations.push('Optimize job processing or increase timeouts');
     }
 
     let status: 'healthy' | 'warning' | 'critical' = 'healthy';
-    
+
     if (alerts.length >= 2 || metrics.metrics.failureRate > 0.3) {
       status = 'critical';
     } else if (alerts.length > 0 || issues.length > 0) {
       status = 'warning';
     }
 
-    return { 
-      status, 
-      issues, 
+    return {
+      status,
+      issues,
       recommendations,
-      alerts: alerts.map(alert => ({
+      alerts: alerts.map((alert) => ({
         type: alert.severity,
         message: alert.message,
-        timestamp: alert.timestamp
-      }))
+        timestamp: alert.timestamp,
+      })),
     };
   }
 
@@ -377,7 +405,7 @@ export class JobMonitoringService implements OnModuleInit {
     const configs = this.alertConfigs.get(queueName) || [];
 
     for (const config of configs) {
-      const currentValue = metrics.metrics[config.metric] as number;
+      const currentValue = metrics.metrics[config.metric];
       let shouldTrigger = false;
 
       switch (config.comparison) {
@@ -395,11 +423,11 @@ export class JobMonitoringService implements OnModuleInit {
       if (shouldTrigger) {
         const alertId = `${queueName}:${config.metric}:${Date.now()}`;
         const alertMessage = `ALERT: ${queueName} ${config.metric} is ${currentValue} which exceeds threshold of ${config.threshold}`;
-        
+
         this.activeAlerts.set(alertId, {
           timestamp: new Date(),
           message: alertMessage,
-          severity: config.alertType
+          severity: config.alertType,
         });
 
         this.logger.warn(alertMessage);
@@ -410,14 +438,16 @@ export class JobMonitoringService implements OnModuleInit {
   /**
    * Get active alerts for a queue
    */
-  async getActiveAlerts(queueName: string): Promise<Array<{ timestamp: Date; message: string; severity: string }>> {
+  async getActiveAlerts(
+    queueName: string,
+  ): Promise<Array<{ timestamp: Date; message: string; severity: string }>> {
     const alerts = Array.from(this.activeAlerts.entries())
       .filter(([id, alert]) => id.startsWith(queueName + ':'))
       .map(([id, alert]) => alert);
 
     // Filter to last hour only
     const oneHourAgo = new Date(Date.now() - 3600000);
-    return alerts.filter(alert => alert.timestamp > oneHourAgo);
+    return alerts.filter((alert) => alert.timestamp > oneHourAgo);
   }
 
   /**
@@ -434,7 +464,7 @@ export class JobMonitoringService implements OnModuleInit {
     const metrics = await this.getHistoricalMetrics(
       queueName,
       new Date(Date.now() - 7 * 24 * 60 * 60 * 1000), // Last week
-      new Date()
+      new Date(),
     );
 
     if (metrics.length < 2) {
@@ -444,36 +474,36 @@ export class JobMonitoringService implements OnModuleInit {
     const trendAnalyses: TrendAnalysis[] = [];
 
     // Analyze failure rate trend
-    const failureRates = metrics.map(m => m.metrics.failureRate);
+    const failureRates = metrics.map((m) => m.metrics.failureRate);
     const failureRateTrend = this.calculateTrend(failureRates);
     trendAnalyses.push({
       metric: 'failureRate',
       trend: failureRateTrend.direction,
       confidence: failureRateTrend.confidence,
       projectedValue: failureRateTrend.projectedValue,
-      timeframe: 'next_hour'
+      timeframe: 'next_hour',
     });
 
     // Analyze throughput trend
-    const throughputs = metrics.map(m => m.metrics.throughput);
+    const throughputs = metrics.map((m) => m.metrics.throughput);
     const throughputTrend = this.calculateTrend(throughputs);
     trendAnalyses.push({
       metric: 'throughput',
       trend: throughputTrend.direction,
       confidence: throughputTrend.confidence,
       projectedValue: throughputTrend.projectedValue,
-      timeframe: 'next_hour'
+      timeframe: 'next_hour',
     });
 
     // Analyze average processing time trend
-    const processingTimes = metrics.map(m => m.metrics.averageProcessingTime);
+    const processingTimes = metrics.map((m) => m.metrics.averageProcessingTime);
     const processingTimeTrend = this.calculateTrend(processingTimes);
     trendAnalyses.push({
       metric: 'averageProcessingTime',
       trend: processingTimeTrend.direction,
       confidence: processingTimeTrend.confidence,
       projectedValue: processingTimeTrend.projectedValue,
-      timeframe: 'next_hour'
+      timeframe: 'next_hour',
     });
 
     // Store trends in Redis
@@ -485,14 +515,25 @@ export class JobMonitoringService implements OnModuleInit {
   /**
    * Calculate trend direction and projection
    */
-  private calculateTrend(values: number[]): { direction: 'increasing' | 'decreasing' | 'stable'; confidence: number; projectedValue: number } {
+  private calculateTrend(values: number[]): {
+    direction: 'increasing' | 'decreasing' | 'stable';
+    confidence: number;
+    projectedValue: number;
+  } {
     if (values.length < 2) {
-      return { direction: 'stable', confidence: 0, projectedValue: values[0] || 0 };
+      return {
+        direction: 'stable',
+        confidence: 0,
+        projectedValue: values[0] || 0,
+      };
     }
 
     // Simple linear regression to determine trend
     const n = values.length;
-    let sumX = 0, sumY = 0, sumXY = 0, sumXX = 0;
+    let sumX = 0,
+      sumY = 0,
+      sumXY = 0,
+      sumXX = 0;
 
     for (let i = 0; i < n; i++) {
       sumX += i;
@@ -515,8 +556,9 @@ export class JobMonitoringService implements OnModuleInit {
     }
 
     // Confidence based on how consistent the trend is
-    const variance = values.reduce((acc, val) => acc + Math.pow(val - avg, 2), 0) / n;
-    const confidence = Math.max(0, Math.min(1, 1 - (variance / (avg || 1))));
+    const variance =
+      values.reduce((acc, val) => acc + Math.pow(val - avg, 2), 0) / n;
+    const confidence = Math.max(0, Math.min(1, 1 - variance / (avg || 1)));
 
     // Project next value (simple extrapolation)
     const projectedValue = values[values.length - 1] + slope;
@@ -532,9 +574,9 @@ export class JobMonitoringService implements OnModuleInit {
       this.getHistoricalMetrics(
         queueName,
         new Date(Date.now() - 24 * 60 * 60 * 1000), // Last 24 hours
-        new Date()
+        new Date(),
       ),
-      this.analyzeTrends(queueName)
+      this.analyzeTrends(queueName),
     ]);
 
     if (historicalMetrics.length === 0) {
@@ -542,17 +584,25 @@ export class JobMonitoringService implements OnModuleInit {
         predictedThroughput: 0,
         predictedFailureRate: 0,
         confidence: 0,
-        recommendations: ['Insufficient data for predictions']
+        recommendations: ['Insufficient data for predictions'],
       };
     }
 
     // Calculate current averages
-    const avgThroughput = historicalMetrics.reduce((sum, m) => sum + m.metrics.throughput, 0) / historicalMetrics.length;
-    const avgFailureRate = historicalMetrics.reduce((sum, m) => sum + m.metrics.failureRate, 0) / historicalMetrics.length;
+    const avgThroughput =
+      historicalMetrics.reduce((sum, m) => sum + m.metrics.throughput, 0) /
+      historicalMetrics.length;
+    const avgFailureRate =
+      historicalMetrics.reduce((sum, m) => sum + m.metrics.failureRate, 0) /
+      historicalMetrics.length;
 
     // Apply trend adjustments
-    const throughputTrend = trendAnalyses.find(t => t.metric === 'throughput');
-    const failureRateTrend = trendAnalyses.find(t => t.metric === 'failureRate');
+    const throughputTrend = trendAnalyses.find(
+      (t) => t.metric === 'throughput',
+    );
+    const failureRateTrend = trendAnalyses.find(
+      (t) => t.metric === 'failureRate',
+    );
 
     let predictedThroughput = avgThroughput;
     let predictedFailureRate = avgFailureRate;
@@ -576,28 +626,35 @@ export class JobMonitoringService implements OnModuleInit {
     // Calculate confidence based on trend confidence
     const throughputConfidence = throughputTrend?.confidence || 0.5;
     const failureRateConfidence = failureRateTrend?.confidence || 0.5;
-    const overallConfidence = (throughputConfidence + failureRateConfidence) / 2;
+    const overallConfidence =
+      (throughputConfidence + failureRateConfidence) / 2;
 
     // Generate recommendations based on predictions
     const recommendations: string[] = [];
 
     if (predictedFailureRate > 0.1) {
-      recommendations.push('Expected high failure rate - review retry strategies');
+      recommendations.push(
+        'Expected high failure rate - review retry strategies',
+      );
     }
 
     if (predictedThroughput < 5) {
-      recommendations.push('Expected low throughput - consider scaling workers');
+      recommendations.push(
+        'Expected low throughput - consider scaling workers',
+      );
     }
 
     if (predictedFailureRate > 0.2) {
-      recommendations.push('Critical failure rate predicted - immediate action required');
+      recommendations.push(
+        'Critical failure rate predicted - immediate action required',
+      );
     }
 
     const prediction: PerformancePrediction = {
       predictedThroughput: Math.round(predictedThroughput),
       predictedFailureRate: parseFloat(predictedFailureRate.toFixed(4)),
       confidence: parseFloat(overallConfidence.toFixed(2)),
-      recommendations
+      recommendations,
     };
 
     // Store predictions in Redis
@@ -611,7 +668,7 @@ export class JobMonitoringService implements OnModuleInit {
    */
   async getTrendAnalysis(queueName: string): Promise<TrendAnalysis[]> {
     const trendsKey = `${this.TRENDS_KEY_PREFIX}${queueName}`;
-    
+
     try {
       const trendData = await this.redisService.client.get(trendsKey);
       if (trendData) {
@@ -619,7 +676,9 @@ export class JobMonitoringService implements OnModuleInit {
       }
       return [];
     } catch (error) {
-      this.logger.error(`Failed to get trend analysis for ${queueName}: ${error.message}`);
+      this.logger.error(
+        `Failed to get trend analysis for ${queueName}: ${error.message}`,
+      );
       return [];
     }
   }
@@ -629,7 +688,7 @@ export class JobMonitoringService implements OnModuleInit {
    */
   async getPredictions(queueName: string): Promise<PerformancePrediction> {
     const predictionsKey = `${this.PREDICTIONS_KEY_PREFIX}${queueName}`;
-    
+
     try {
       const predictionData = await this.redisService.client.get(predictionsKey);
       if (predictionData) {
@@ -639,15 +698,17 @@ export class JobMonitoringService implements OnModuleInit {
         predictedThroughput: 0,
         predictedFailureRate: 0,
         confidence: 0,
-        recommendations: []
+        recommendations: [],
       };
     } catch (error) {
-      this.logger.error(`Failed to get predictions for ${queueName}: ${error.message}`);
+      this.logger.error(
+        `Failed to get predictions for ${queueName}: ${error.message}`,
+      );
       return {
         predictedThroughput: 0,
         predictedFailureRate: 0,
         confidence: 0,
-        recommendations: []
+        recommendations: [],
       };
     }
   }
@@ -655,34 +716,44 @@ export class JobMonitoringService implements OnModuleInit {
   /**
    * Store trend analysis in Redis
    */
-  private async storeTrends(queueName: string, trends: TrendAnalysis[]): Promise<void> {
+  private async storeTrends(
+    queueName: string,
+    trends: TrendAnalysis[],
+  ): Promise<void> {
     const trendsKey = `${this.TRENDS_KEY_PREFIX}${queueName}`;
-    
+
     try {
       await this.redisService.client.setEx(
         trendsKey,
         3600, // 1 hour expiry
-        JSON.stringify(trends)
+        JSON.stringify(trends),
       );
     } catch (error) {
-      this.logger.error(`Failed to store trends for ${queueName}: ${error.message}`);
+      this.logger.error(
+        `Failed to store trends for ${queueName}: ${error.message}`,
+      );
     }
   }
 
   /**
    * Store performance predictions in Redis
    */
-  private async storePredictions(queueName: string, prediction: PerformancePrediction): Promise<void> {
+  private async storePredictions(
+    queueName: string,
+    prediction: PerformancePrediction,
+  ): Promise<void> {
     const predictionsKey = `${this.PREDICTIONS_KEY_PREFIX}${queueName}`;
-    
+
     try {
       await this.redisService.client.setEx(
         predictionsKey,
         1800, // 30 minutes expiry
-        JSON.stringify(prediction)
+        JSON.stringify(prediction),
       );
     } catch (error) {
-      this.logger.error(`Failed to store predictions for ${queueName}: ${error.message}`);
+      this.logger.error(
+        `Failed to store predictions for ${queueName}: ${error.message}`,
+      );
     }
   }
 
@@ -696,15 +767,17 @@ export class JobMonitoringService implements OnModuleInit {
 
     for (const queueName of queueNames) {
       const metricsKey = `${this.METRICS_KEY_PREFIX}${queueName}`;
-      
+
       try {
         await this.redisService.client.zRemRangeByScore(
           metricsKey,
           0,
-          cutoffDate.getTime()
+          cutoffDate.getTime(),
         );
       } catch (error) {
-        this.logger.error(`Failed to cleanup old metrics for ${queueName}: ${error.message}`);
+        this.logger.error(
+          `Failed to cleanup old metrics for ${queueName}: ${error.message}`,
+        );
       }
     }
   }
@@ -734,15 +807,25 @@ export class JobMonitoringService implements OnModuleInit {
     return jobs;
   }
 
-  private calculateProcessingTimes(jobs: Job[]): { average: number; min: number; max: number } {
-    const completedJobs = jobs.filter(job => job.finishedOn && job.processedOn);
-    
+  private calculateProcessingTimes(jobs: Job[]): {
+    average: number;
+    min: number;
+    max: number;
+  } {
+    const completedJobs = jobs.filter(
+      (job) => job.finishedOn && job.processedOn,
+    );
+
     if (completedJobs.length === 0) {
       return { average: 0, min: 0, max: 0 };
     }
 
-    const processingTimes = completedJobs.map(job => job.finishedOn! - job.processedOn!);
-    const average = processingTimes.reduce((sum, time) => sum + time, 0) / processingTimes.length;
+    const processingTimes = completedJobs.map(
+      (job) => job.finishedOn - job.processedOn,
+    );
+    const average =
+      processingTimes.reduce((sum, time) => sum + time, 0) /
+      processingTimes.length;
     const min = Math.min(...processingTimes);
     const max = Math.max(...processingTimes);
 
@@ -752,30 +835,39 @@ export class JobMonitoringService implements OnModuleInit {
   private async calculateThroughput(queueName: string): Promise<number> {
     const oneHourAgo = Date.now() - 3600000; // 1 hour in milliseconds
     const queue = this.getQueueByName(queueName);
-    
+
     try {
       const jobs = await queue.getJobs(['completed'], 0, -1, true);
-      const recentJobs = jobs.filter(job => job.finishedOn && job.finishedOn > oneHourAgo);
-      
+      const recentJobs = jobs.filter(
+        (job) => job.finishedOn && job.finishedOn > oneHourAgo,
+      );
+
       return recentJobs.length;
     } catch (error) {
-      this.logger.error(`Failed to calculate throughput for ${queueName}: ${error.message}`);
+      this.logger.error(
+        `Failed to calculate throughput for ${queueName}: ${error.message}`,
+      );
       return 0;
     }
   }
 
   private async getDLQSize(queueName: string): Promise<number> {
     const dlqKey = `queue:dlq:${queueName}`;
-    
+
     try {
       return await this.redisService.client.lLen(dlqKey);
     } catch (error) {
-      this.logger.error(`Failed to get DLQ size for ${queueName}: ${error.message}`);
+      this.logger.error(
+        `Failed to get DLQ size for ${queueName}: ${error.message}`,
+      );
       return 0;
     }
   }
 
-  private async storeMetrics(queueName: string, metrics: JobMetrics): Promise<void> {
+  private async storeMetrics(
+    queueName: string,
+    metrics: JobMetrics,
+  ): Promise<void> {
     const metricsKey = `${this.METRICS_KEY_PREFIX}${queueName}`;
     const dataKey = `${metricsKey}:data`;
     const timestamp = Date.now();
@@ -783,16 +875,25 @@ export class JobMonitoringService implements OnModuleInit {
     const queueMetrics: QueueMetrics = {
       queueName,
       metrics,
-      timestamp: new Date(timestamp)
+      timestamp: new Date(timestamp),
     };
 
     try {
       await Promise.all([
-        this.redisService.client.zAdd(metricsKey, { score: timestamp, value: timestamp.toString() }),
-        this.redisService.client.hSet(dataKey, timestamp.toString(), JSON.stringify(queueMetrics))
+        this.redisService.client.zAdd(metricsKey, {
+          score: timestamp,
+          value: timestamp.toString(),
+        }),
+        this.redisService.client.hSet(
+          dataKey,
+          timestamp.toString(),
+          JSON.stringify(queueMetrics),
+        ),
       ]);
     } catch (error) {
-      this.logger.error(`Failed to store metrics for ${queueName}: ${error.message}`);
+      this.logger.error(
+        `Failed to store metrics for ${queueName}: ${error.message}`,
+      );
     }
   }
 }

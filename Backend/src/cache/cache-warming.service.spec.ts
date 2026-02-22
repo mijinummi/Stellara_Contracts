@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { CacheWarmingService } from './cache-warming.service';
 import { CacheService } from './cache.service';
+import { RedisService } from '../redis/redis.service';
 // import { CacheConfigurationService } from './cache-configuration.service';
 
 describe('CacheWarmingService', () => {
@@ -40,6 +41,7 @@ describe('CacheWarmingService', () => {
       providers: [
         CacheWarmingService,
         { provide: CacheService, useValue: mockCacheService },
+        { provide: RedisService, useValue: mockRedisService },
         // { provide: CacheConfigurationService, useValue: mockConfigService },
       ],
     }).compile();
@@ -47,11 +49,6 @@ describe('CacheWarmingService', () => {
     service = module.get<CacheWarmingService>(CacheWarmingService);
     cacheService = module.get<CacheService>(CacheService);
     // configService = module.get<CacheConfigurationService>(CacheConfigurationService);
-
-    // Mock the redisService getter
-    Object.defineProperty(service, 'redisService', {
-      get: () => mockRedisService,
-    });
 
     jest.clearAllMocks();
   });
@@ -82,7 +79,7 @@ describe('CacheWarmingService', () => {
       expect(mockRedisClient.hSet).toHaveBeenCalledWith(
         'cache:warmup:groups',
         'user-data',
-        expect.stringContaining('"name":"user-data"')
+        expect.stringContaining('"name":"user-data"'),
       );
     });
   });
@@ -132,7 +129,7 @@ describe('CacheWarmingService', () => {
       const result = service.getAllWarmupGroups();
 
       expect(result).toHaveLength(2);
-      expect(result.map(g => g.name)).toEqual(['group1', 'group2']);
+      expect(result.map((g) => g.name)).toEqual(['group1', 'group2']);
     });
   });
 
@@ -161,7 +158,7 @@ describe('CacheWarmingService', () => {
       expect(cacheService.set).toHaveBeenCalledWith(
         'test-key',
         'test-data',
-        expect.objectContaining({ strategy: 'cache-aside' })
+        expect.objectContaining({ strategy: 'cache-aside' }),
       );
     });
 
@@ -229,7 +226,7 @@ describe('CacheWarmingService', () => {
       expect(cacheService.set).toHaveBeenCalledWith(
         'single-key',
         'single-data',
-        expect.objectContaining({ strategy: 'cache-aside' })
+        expect.objectContaining({ strategy: 'cache-aside' }),
       );
     });
 

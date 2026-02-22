@@ -14,10 +14,14 @@ export class NonceService {
     private readonly nonceRepository: Repository<LoginNonce>,
   ) {}
 
-  async generateNonce(publicKey: string): Promise<{ nonce: string; expiresAt: Date; message: string }> {
+  async generateNonce(
+    publicKey: string,
+  ): Promise<{ nonce: string; expiresAt: Date; message: string }> {
     const nonce = uuidv4();
     const expiresAt = new Date();
-    expiresAt.setMinutes(expiresAt.getMinutes() + this.NONCE_EXPIRATION_MINUTES);
+    expiresAt.setMinutes(
+      expiresAt.getMinutes() + this.NONCE_EXPIRATION_MINUTES,
+    );
 
     const loginNonce = this.nonceRepository.create({
       nonce,

@@ -1,4 +1,11 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, OneToMany } from 'typeorm';
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  CreateDateColumn,
+  UpdateDateColumn,
+  OneToMany,
+} from 'typeorm';
 import { User } from '../../auth/entities/user.entity';
 import { TenantConfig } from './tenant-config.entity';
 import { TenantUsage } from './tenant-usage.entity';
@@ -7,14 +14,14 @@ export enum TenantStatus {
   ACTIVE = 'active',
   INACTIVE = 'inactive',
   SUSPENDED = 'suspended',
-  PENDING = 'pending'
+  PENDING = 'pending',
 }
 
 export enum BillingPlan {
   FREE = 'free',
   STARTER = 'starter',
   PRO = 'pro',
-  ENTERPRISE = 'enterprise'
+  ENTERPRISE = 'enterprise',
 }
 
 @Entity('tenants')
@@ -34,14 +41,14 @@ export class Tenant {
   @Column({
     type: 'enum',
     enum: TenantStatus,
-    default: TenantStatus.PENDING
+    default: TenantStatus.PENDING,
   })
   status: TenantStatus;
 
   @Column({
     type: 'enum',
     enum: BillingPlan,
-    default: BillingPlan.FREE
+    default: BillingPlan.FREE,
   })
   billingPlan: BillingPlan;
 

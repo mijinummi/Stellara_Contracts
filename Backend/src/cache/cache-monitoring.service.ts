@@ -2,6 +2,7 @@ import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { CacheService } from './cache.service';
 import { CacheInvalidationService } from './cache-invalidation.service';
+import { RedisService } from '../redis/redis.service';
 
 export interface CachePerformanceMetrics {
   timestamp: number;
@@ -50,6 +51,7 @@ export class CacheMonitoringService implements OnModuleInit {
   constructor(
     private readonly cacheService: CacheService,
     private readonly invalidationService: CacheInvalidationService,
+    private readonly redisService: RedisService,
   ) {}
 
   async onModuleInit() {
@@ -82,7 +84,7 @@ export class CacheMonitoringService implements OnModuleInit {
 
     // Store in buffer for aggregation
     this.metricsBuffer.push(metrics);
-    
+
     // Keep only last 1000 metrics
     if (this.metricsBuffer.length > 1000) {
       this.metricsBuffer = this.metricsBuffer.slice(-1000);
@@ -90,16 +92,18 @@ export class CacheMonitoringService implements OnModuleInit {
 
     // Save to Redis for persistence
     await this.saveMetrics(metrics);
-    
+
     return metrics;
   }
 
   /**
    * Get metrics history
    */
-  async getMetricsHistory(hours: number = 24): Promise<CachePerformanceMetrics[]> {
-    const cutoff = Date.now() - (hours * 60 * 60 * 1000);
-    return this.metricsBuffer.filter(metric => metric.timestamp >= cutoff);
+  async getMetricsHistory(
+    hours: number = 24,
+  ): Promise<CachePerformanceMetrics[]> {
+    const cutoff = Date.now() - hours * 60 * 60 * 1000;
+    return this.metricsBuffer.filter((metric) => metric.timestamp >= cutoff);
   }
 
   // ==================== HEALTH CHECKING ====================
@@ -119,28 +123,31 @@ export class CacheMonitoringService implements OnModuleInit {
           'HIT_RATE_LOW',
           'critical',
           `Cache hit rate is low: ${(metrics.hitRate * 100).toFixed(2)}%`,
-          { hitRate: metrics.hitRate }
+          { hitRate: metrics.hitRate },
         );
         alerts.push(alert);
-        recommendations.push('Consider increasing cache TTL or adding more cache warming rules');
+        recommendations.push(
+          'Consider increasing cache TTL or adding more cache warming rules',
+        );
       } else if (metrics.hitRate < 0.7) {
         const alert = this.createAlertSync(
           'HIT_RATE_LOW',
           'medium',
           `Cache hit rate below optimal: ${(metrics.hitRate * 100).toFixed(2)}%`,
-          { hitRate: metrics.hitRate }
+          { hitRate: metrics.hitRate },
         );
         alerts.push(alert);
         recommendations.push('Review cache key patterns and TTL settings');
       }
 
       // Check memory usage
-      if (metrics.memoryUsage > 500 * 1024 * 1024) { // 500MB
+      if (metrics.memoryUsage > 500 * 1024 * 1024) {
+        // 500MB
         const alert = this.createAlertSync(
           'MEMORY_HIGH',
           'high',
           `High cache memory usage: ${(metrics.memoryUsage / 1024 / 1024).toFixed(2)}MB`,
-          { memoryUsage: metrics.memoryUsage }
+          { memoryUsage: metrics.memoryUsage },
         );
         alerts.push(alert);
         recommendations.push('Consider cache eviction or memory optimization');
@@ -152,7 +159,7 @@ export class CacheMonitoringService implements OnModuleInit {
           'EVICT_THRESHOLD',
           'medium',
           `High invalidation rate: ${metrics.invalidations} operations`,
-          { invalidations: metrics.invalidations }
+          { invalidations: metrics.invalidations },
         );
         alerts.push(alert);
         recommendations.push('Review invalidation patterns and dependencies');
@@ -170,23 +177,25 @@ export class CacheMonitoringService implements OnModuleInit {
 
       this.healthStatus = healthStatus;
       await this.saveHealthStatus(healthStatus);
-      
+
       return healthStatus;
     } catch (error) {
       this.logger.error(`Health check failed: ${error.message}`);
-      
+
       const errorAlert = this.createAlertSync(
         'ERROR_RATE_HIGH',
         'critical',
         `Cache monitoring error: ${error.message}`,
-        { error: error.message }
+        { error: error.message },
       );
 
       const healthStatus: CacheHealthStatus = {
         status: 'unhealthy',
         metrics: {} as CachePerformanceMetrics,
         alerts: [errorAlert],
-        recommendations: ['Check cache service connectivity and Redis availability'],
+        recommendations: [
+          'Check cache service connectivity and Redis availability',
+        ],
       };
 
       this.healthStatus = healthStatus;
@@ -210,7 +219,7 @@ export class CacheMonitoringService implements OnModuleInit {
     type: CacheAlert['type'],
     severity: CacheAlert['severity'],
     message: string,
-    metadata?: any
+    metadata?: any,
   ): Promise<CacheAlert> {
     const alert: CacheAlert = {
       id: `alert_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
@@ -224,7 +233,7 @@ export class CacheMonitoringService implements OnModuleInit {
 
     this.alerts.push(alert);
     await this.saveAlert(alert);
-    
+
     this.logger.warn(`New cache alert: ${type} - ${message}`);
     return alert;
   }
@@ -233,7 +242,7 @@ export class CacheMonitoringService implements OnModuleInit {
    * Resolve alert
    */
   async resolveAlert(alertId: string): Promise<boolean> {
-    const alert = this.alerts.find(a => a.id === alertId);
+    const alert = this.alerts.find((a) => a.id === alertId);
     if (alert) {
       alert.resolved = true;
       await this.saveAlerts();
@@ -247,14 +256,16 @@ export class CacheMonitoringService implements OnModuleInit {
    * Get active alerts
    */
   getActiveAlerts(): CacheAlert[] {
-    return this.alerts.filter(alert => !alert.resolved);
+    return this.alerts.filter((alert) => !alert.resolved);
   }
 
   /**
    * Get alerts by severity
    */
   getAlertsBySeverity(severity: CacheAlert['severity']): CacheAlert[] {
-    return this.alerts.filter(alert => alert.severity === severity && !alert.resolved);
+    return this.alerts.filter(
+      (alert) => alert.severity === severity && !alert.resolved,
+    );
   }
 
   // ==================== SCHEDULED MONITORING ====================
@@ -267,7 +278,9 @@ export class CacheMonitoringService implements OnModuleInit {
     try {
       await this.collectMetrics();
     } catch (error) {
-      this.logger.error(`Scheduled metrics collection failed: ${error.message}`);
+      this.logger.error(
+        `Scheduled metrics collection failed: ${error.message}`,
+      );
     }
   }
 
@@ -289,15 +302,17 @@ export class CacheMonitoringService implements OnModuleInit {
   @Cron('0 0 * * *') // Daily at midnight
   async cleanupOldData(): Promise<void> {
     try {
-      const cutoff = Date.now() - (30 * 24 * 60 * 60 * 1000); // 30 days
-      
+      const cutoff = Date.now() - 30 * 24 * 60 * 60 * 1000; // 30 days
+
       // Cleanup old alerts
-      this.alerts = this.alerts.filter(alert => alert.timestamp > cutoff);
+      this.alerts = this.alerts.filter((alert) => alert.timestamp > cutoff);
       await this.saveAlerts();
 
       // Cleanup old metrics
-      this.metricsBuffer = this.metricsBuffer.filter(metric => metric.timestamp > cutoff);
-      
+      this.metricsBuffer = this.metricsBuffer.filter(
+        (metric) => metric.timestamp > cutoff,
+      );
+
       this.logger.log('Cache monitoring data cleanup completed');
     } catch (error) {
       this.logger.error(`Data cleanup failed: ${error.message}`);
@@ -311,7 +326,7 @@ export class CacheMonitoringService implements OnModuleInit {
    */
   async generateReport(periodHours: number = 24): Promise<any> {
     const metricsHistory = await this.getMetricsHistory(periodHours);
-    
+
     if (metricsHistory.length === 0) {
       return {
         period: `${periodHours} hours`,
@@ -321,9 +336,9 @@ export class CacheMonitoringService implements OnModuleInit {
     }
 
     // Calculate aggregates
-    const hitRates = metricsHistory.map(m => m.hitRate);
-    const responseTimes = metricsHistory.map(m => m.avgResponseTime);
-    const memoryUsages = metricsHistory.map(m => m.memoryUsage);
+    const hitRates = metricsHistory.map((m) => m.hitRate);
+    const responseTimes = metricsHistory.map((m) => m.avgResponseTime);
+    const memoryUsages = metricsHistory.map((m) => m.memoryUsage);
 
     const report = {
       period: `${periodHours} hours`,
@@ -332,7 +347,10 @@ export class CacheMonitoringService implements OnModuleInit {
         avgHitRate: this.average(hitRates),
         avgResponseTime: this.average(responseTimes),
         peakMemoryUsage: Math.max(...memoryUsages),
-        totalInvalidations: metricsHistory.reduce((sum, m) => sum + m.invalidations, 0),
+        totalInvalidations: metricsHistory.reduce(
+          (sum, m) => sum + m.invalidations,
+          0,
+        ),
       },
       trends: {
         hitRateTrend: this.calculateTrend(hitRates),
@@ -351,7 +369,7 @@ export class CacheMonitoringService implements OnModuleInit {
     type: CacheAlert['type'],
     severity: CacheAlert['severity'],
     message: string,
-    metadata?: any
+    metadata?: any,
   ): CacheAlert {
     return {
       id: `alert_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
@@ -364,10 +382,12 @@ export class CacheMonitoringService implements OnModuleInit {
     };
   }
 
-  private determineHealthStatus(alerts: CacheAlert[]): CacheHealthStatus['status'] {
-    const criticalAlerts = alerts.filter(a => a.severity === 'critical');
-    const highAlerts = alerts.filter(a => a.severity === 'high');
-    
+  private determineHealthStatus(
+    alerts: CacheAlert[],
+  ): CacheHealthStatus['status'] {
+    const criticalAlerts = alerts.filter((a) => a.severity === 'critical');
+    const highAlerts = alerts.filter((a) => a.severity === 'high');
+
     if (criticalAlerts.length > 0) return 'unhealthy';
     if (highAlerts.length > 2) return 'degraded';
     return 'healthy';
@@ -378,18 +398,20 @@ export class CacheMonitoringService implements OnModuleInit {
     return values.reduce((sum, val) => sum + val, 0) / values.length;
   }
 
-  private calculateTrend(values: number[]): 'improving' | 'declining' | 'stable' {
+  private calculateTrend(
+    values: number[],
+  ): 'improving' | 'declining' | 'stable' {
     if (values.length < 2) return 'stable';
-    
+
     const firstHalf = values.slice(0, Math.floor(values.length / 2));
     const secondHalf = values.slice(Math.floor(values.length / 2));
-    
+
     const firstAvg = this.average(firstHalf);
     const secondAvg = this.average(secondHalf);
-    
+
     const diff = secondAvg - firstAvg;
     const threshold = (Math.max(...values) - Math.min(...values)) * 0.1; // 10% threshold
-    
+
     if (diff > threshold) return 'improving';
     if (diff < -threshold) return 'declining';
     return 'stable';
@@ -397,7 +419,10 @@ export class CacheMonitoringService implements OnModuleInit {
 
   private async saveMetrics(metrics: CachePerformanceMetrics): Promise<void> {
     try {
-      await this.redisService.client.lPush(this.METRICS_HISTORY_KEY, JSON.stringify(metrics));
+      await this.redisService.client.lPush(
+        this.METRICS_HISTORY_KEY,
+        JSON.stringify(metrics),
+      );
       await this.redisService.client.lTrim(this.METRICS_HISTORY_KEY, 0, 9999); // Keep last 10k entries
     } catch (error) {
       this.logger.error(`Error saving metrics: ${error.message}`);
@@ -406,7 +431,10 @@ export class CacheMonitoringService implements OnModuleInit {
 
   private async saveAlert(alert: CacheAlert): Promise<void> {
     try {
-      await this.redisService.client.lPush(this.ALERTS_KEY, JSON.stringify(alert));
+      await this.redisService.client.lPush(
+        this.ALERTS_KEY,
+        JSON.stringify(alert),
+      );
       await this.redisService.client.lTrim(this.ALERTS_KEY, 0, 999); // Keep last 1000 alerts
     } catch (error) {
       this.logger.error(`Error saving alert: ${error.message}`);
@@ -417,11 +445,11 @@ export class CacheMonitoringService implements OnModuleInit {
     try {
       const pipeline = this.redisService.client.multi();
       pipeline.del(this.ALERTS_KEY);
-      
+
       for (const alert of this.alerts) {
         pipeline.lPush(this.ALERTS_KEY, JSON.stringify(alert));
       }
-      
+
       pipeline.lTrim(this.ALERTS_KEY, 0, 999);
       await pipeline.exec();
     } catch (error) {
@@ -431,7 +459,11 @@ export class CacheMonitoringService implements OnModuleInit {
 
   private async saveHealthStatus(status: CacheHealthStatus): Promise<void> {
     try {
-      await this.redisService.client.set(this.HEALTH_KEY, JSON.stringify(status), { EX: 3600 });
+      await this.redisService.client.set(
+        this.HEALTH_KEY,
+        JSON.stringify(status),
+        { EX: 3600 },
+      );
     } catch (error) {
       this.logger.error(`Error saving health status: ${error.message}`);
     }
@@ -439,8 +471,12 @@ export class CacheMonitoringService implements OnModuleInit {
 
   private async loadAlerts(): Promise<void> {
     try {
-      const alertStrings = await this.redisService.client.lRange(this.ALERTS_KEY, 0, -1);
-      this.alerts = alertStrings.map(str => JSON.parse(str));
+      const alertStrings = await this.redisService.client.lRange(
+        this.ALERTS_KEY,
+        0,
+        -1,
+      );
+      this.alerts = alertStrings.map((str) => JSON.parse(str));
       this.logger.log(`Loaded ${this.alerts.length} alerts`);
     } catch (error) {
       this.logger.error(`Error loading alerts: ${error.message}`);
@@ -449,8 +485,12 @@ export class CacheMonitoringService implements OnModuleInit {
 
   private async loadMetricsHistory(): Promise<void> {
     try {
-      const metricStrings = await this.redisService.client.lRange(this.METRICS_HISTORY_KEY, 0, 999);
-      this.metricsBuffer = metricStrings.map(str => JSON.parse(str));
+      const metricStrings = await this.redisService.client.lRange(
+        this.METRICS_HISTORY_KEY,
+        0,
+        999,
+      );
+      this.metricsBuffer = metricStrings.map((str) => JSON.parse(str));
       this.logger.log(`Loaded ${this.metricsBuffer.length} metrics entries`);
     } catch (error) {
       this.logger.error(`Error loading metrics history: ${error.message}`);
@@ -458,21 +498,22 @@ export class CacheMonitoringService implements OnModuleInit {
   }
 
   // Mock redisService for now - will be injected properly
-  private get redisService(): any {
-    return {
-      client: {
-        lPush: async () => {},
-        lTrim: async () => {},
-        lRange: async () => [],
-        set: async () => {},
-        del: async () => {},
-        multi: () => ({
-          del: () => {},
-          lPush: () => {},
-          lTrim: () => {},
-          exec: async () => {},
-        }),
-      }
-    };
-  }
+  // Kept for backward compatibility - now uses proper injection above
+  // private get redisService(): any {
+  //   return {
+  //     client: {
+  //       lPush: async () => {},
+  //       lTrim: async () => {},
+  //       lRange: async () => [],
+  //       set: async () => {},
+  //       del: async () => {},
+  //       multi: () => ({
+  //         del: () => {},
+  //         lPush: () => {},
+  //         lTrim: () => {},
+  //         exec: async () => {},
+  //       }),
+  //     },
+  //   };
+  // }
 }

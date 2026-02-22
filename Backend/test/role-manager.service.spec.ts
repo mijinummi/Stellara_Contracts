@@ -5,7 +5,10 @@ import { RoleManagerService } from '../src/auth/services/role-manager.service';
 import { User } from '../src/auth/entities/user.entity';
 import { Role } from '../src/auth/roles.enum';
 import { RoleHierarchy } from '../src/auth/entities/role-hierarchy.entity';
-import { PermissionAudit, PermissionAction } from '../src/auth/entities/permission-audit.entity';
+import {
+  PermissionAudit,
+  PermissionAction,
+} from '../src/auth/entities/permission-audit.entity';
 import { Permission } from '../src/auth/entities/permission.entity';
 import { UserPermission } from '../src/auth/entities/user-permission.entity';
 
@@ -77,10 +80,18 @@ describe('RoleManagerService', () => {
 
     service = module.get<RoleManagerService>(RoleManagerService);
     userRepository = module.get<Repository<User>>(getRepositoryToken(User));
-    roleHierarchyRepository = module.get<Repository<RoleHierarchy>>(getRepositoryToken(RoleHierarchy));
-    permissionAuditRepository = module.get<Repository<PermissionAudit>>(getRepositoryToken(PermissionAudit));
-    permissionRepository = module.get<Repository<Permission>>(getRepositoryToken(Permission));
-    userPermissionRepository = module.get<Repository<UserPermission>>(getRepositoryToken(UserPermission));
+    roleHierarchyRepository = module.get<Repository<RoleHierarchy>>(
+      getRepositoryToken(RoleHierarchy),
+    );
+    permissionAuditRepository = module.get<Repository<PermissionAudit>>(
+      getRepositoryToken(PermissionAudit),
+    );
+    permissionRepository = module.get<Repository<Permission>>(
+      getRepositoryToken(Permission),
+    );
+    userPermissionRepository = module.get<Repository<UserPermission>>(
+      getRepositoryToken(UserPermission),
+    );
   });
 
   afterEach(() => {
@@ -100,24 +111,27 @@ describe('RoleManagerService', () => {
       const result = await service.assignRole(userId, newRole, assignedBy);
 
       expect(result.role).toBe(newRole);
-      expect(mockUserRepository.save).toHaveBeenCalledWith({ ...mockUser, role: newRole });
+      expect(mockUserRepository.save).toHaveBeenCalledWith({
+        ...mockUser,
+        role: newRole,
+      });
     });
   });
 
   describe('getUserPermissions', () => {
     it('should return user permissions including role-based permissions', async () => {
       const userId = 'user-1';
-      
+
       const mockUser = {
         id: userId,
         role: Role.ADMIN,
         userPermissions: [
-          { 
-            isActive: true, 
+          {
+            isActive: true,
             expiresAt: null,
-            permission: { name: 'custom_permission' }
-          }
-        ]
+            permission: { name: 'custom_permission' },
+          },
+        ],
       } as any;
 
       mockUserRepository.findOne.mockResolvedValue(mockUser);
@@ -139,13 +153,16 @@ describe('RoleManagerService', () => {
       const grantedBy = 'admin-user';
 
       const mockUser = { id: userId } as User;
-      const mockPermission = { id: 'perm-1', name: permissionName } as Permission;
-      const mockUserPermission = { 
-        id: 'user-perm-1', 
-        user: mockUser, 
+      const mockPermission = {
+        id: 'perm-1',
+        name: permissionName,
+      } as Permission;
+      const mockUserPermission = {
+        id: 'user-perm-1',
+        user: mockUser,
         permission: mockPermission,
         grantedBy,
-        isActive: true
+        isActive: true,
       } as UserPermission;
 
       mockUserRepository.findOne.mockResolvedValue(mockUser);
@@ -154,7 +171,11 @@ describe('RoleManagerService', () => {
       mockUserPermissionRepository.create.mockReturnValue(mockUserPermission);
       mockUserPermissionRepository.save.mockResolvedValue(mockUserPermission);
 
-      const result = await service.grantUserPermission(userId, permissionName, grantedBy);
+      const result = await service.grantUserPermission(
+        userId,
+        permissionName,
+        grantedBy,
+      );
 
       expect(result.permission.name).toBe(permissionName);
       expect(result.grantedBy).toBe(grantedBy);
@@ -169,7 +190,7 @@ describe('RoleManagerService', () => {
       mockUserRepository.findOne.mockResolvedValue({
         id: userId,
         role: Role.MODERATOR,
-        userPermissions: []
+        userPermissions: [],
       });
 
       const result = await service.hasPermission(userId, permissionName);

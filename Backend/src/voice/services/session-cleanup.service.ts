@@ -15,19 +15,17 @@ export class SessionCleanupService implements OnModuleInit {
   }
 
   private startCleanupScheduler() {
-    this.cleanupInterval = setInterval(
-      async () => {
-        await this.performCleanup();
-      },
-      this.CLEANUP_INTERVAL_MS,
-    );
+    this.cleanupInterval = setInterval(async () => {
+      await this.performCleanup();
+    }, this.CLEANUP_INTERVAL_MS);
   }
 
   async performCleanup() {
     try {
       this.logger.debug('Starting session cleanup...');
-      const cleanedCount = await this.voiceSessionService.cleanupExpiredSessions();
-      
+      const cleanedCount =
+        await this.voiceSessionService.cleanupExpiredSessions();
+
       if (cleanedCount > 0) {
         this.logger.log(`Cleaned up ${cleanedCount} expired sessions`);
       } else {
@@ -47,7 +45,8 @@ export class SessionCleanupService implements OnModuleInit {
 
   // Manual cleanup trigger for testing or admin use
   async triggerCleanup(): Promise<number> {
-    const cleanedCount = await this.voiceSessionService.cleanupExpiredSessions();
+    const cleanedCount =
+      await this.voiceSessionService.cleanupExpiredSessions();
     return cleanedCount;
   }
 }

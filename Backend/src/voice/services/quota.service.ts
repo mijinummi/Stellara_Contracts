@@ -54,7 +54,11 @@ export class QuotaService {
       await this.checkSessionQuota(sessionId, mergedConfig.perSessionLimit);
 
       // Check requests per minute
-      await this.checkRequestsPerMinute(userId, now, mergedConfig.requestsPerMinute);
+      await this.checkRequestsPerMinute(
+        userId,
+        now,
+        mergedConfig.requestsPerMinute,
+      );
 
       // Get current status
       return await this.getQuotaStatus(userId, sessionId, now, mergedConfig);
@@ -62,8 +66,14 @@ export class QuotaService {
       if (error instanceof HttpException) {
         throw error;
       }
-      this.logger.error(`Unexpected error in quota enforcement: ${error.message}`, error.stack);
-      throw new HttpException('Quota check failed', HttpStatus.INTERNAL_SERVER_ERROR);
+      this.logger.error(
+        `Unexpected error in quota enforcement: ${error.message}`,
+        error.stack,
+      );
+      throw new HttpException(
+        'Quota check failed',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
     }
   }
 
@@ -82,9 +92,13 @@ export class QuotaService {
     const rpmKey = this.getRpmKey(userId, now);
 
     const [monthlyUsage, sessionUsage, rpmUsage] = await Promise.all([
-      this.redisService.client.get(monthKey).then(v => parseInt(v || '0', 10)),
-      this.redisService.client.get(sessionKey).then(v => parseInt(v || '0', 10)),
-      this.redisService.client.get(rpmKey).then(v => parseInt(v || '0', 10)),
+      this.redisService.client
+        .get(monthKey)
+        .then((v) => parseInt(v || '0', 10)),
+      this.redisService.client
+        .get(sessionKey)
+        .then((v) => parseInt(v || '0', 10)),
+      this.redisService.client.get(rpmKey).then((v) => parseInt(v || '0', 10)),
     ]);
 
     return {
@@ -111,12 +125,19 @@ export class QuotaService {
 
     try {
       await Promise.all([
-        this.incrementWithExpiry(monthKey, this.getMonthExpiry(now), 'monthly quota'),
+        this.incrementWithExpiry(
+          monthKey,
+          this.getMonthExpiry(now),
+          'monthly quota',
+        ),
         this.incrementWithExpiry(sessionKey, 604800, 'session quota'), // 7 days
         this.incrementWithExpiry(rpmKey, 60, 'RPM quota'),
       ]);
     } catch (error) {
-      this.logger.error(`Error recording quota usage: ${error.message}`, error.stack);
+      this.logger.error(
+        `Error recording quota usage: ${error.message}`,
+        error.stack,
+      );
       // Don't throw - quota recording failure shouldn't block the request
     }
   }
@@ -126,13 +147,18 @@ export class QuotaService {
    */
   async resetUserQuota(userId: string): Promise<void> {
     try {
-      const keys = await this.redisService.client.keys(`${this.MONTHLY_QUOTA_PREFIX}${userId}:*`);
+      const keys = await this.redisService.client.keys(
+        `${this.MONTHLY_QUOTA_PREFIX}${userId}:*`,
+      );
       if (keys.length > 0) {
         await this.redisService.client.del(keys);
         this.logger.log(`Reset quota for user ${userId}`);
       }
     } catch (error) {
-      this.logger.error(`Error resetting user quota: ${error.message}`, error.stack);
+      this.logger.error(
+        `Error resetting user quota: ${error.message}`,
+        error.stack,
+      );
     }
   }
 
@@ -144,7 +170,10 @@ export class QuotaService {
       const sessionKey = this.getSessionKey(sessionId);
       await this.redisService.client.del(sessionKey);
     } catch (error) {
-      this.logger.error(`Error resetting session quota: ${error.message}`, error.stack);
+      this.logger.error(
+        `Error resetting session quota: ${error.message}`,
+        error.stack,
+      );
     }
   }
 
@@ -157,7 +186,7 @@ export class QuotaService {
       const monthKey = this.getMonthKey(userId, now);
       const currentUsage = await this.redisService.client
         .get(monthKey)
-        .then(v => parseInt(v || '0', 10));
+        .then((v) => parseInt(v || '0', 10));
 
       if (currentUsage >= limit) {
         this.logger.warn(
@@ -172,7 +201,10 @@ export class QuotaService {
       );
       this.logger.log(`Set monthly quota for user ${userId} to ${limit}`);
     } catch (error) {
-      this.logger.error(`Error setting user quota: ${error.message}`, error.stack);
+      this.logger.error(
+        `Error setting user quota: ${error.message}`,
+        error.stack,
+      );
     }
   }
 
@@ -190,14 +222,21 @@ export class QuotaService {
       }
       return this.defaultConfig.monthlyLimit;
     } catch (error) {
-      this.logger.error(`Error getting user quota: ${error.message}`, error.stack);
+      this.logger.error(
+        `Error getting user quota: ${error.message}`,
+        error.stack,
+      );
       return this.defaultConfig.monthlyLimit;
     }
   }
 
   // ========== PRIVATE HELPERS ==========
 
-  private async checkMonthlyQuota(userId: string, now: Date, limit: number): Promise<void> {
+  private async checkMonthlyQuota(
+    userId: string,
+    now: Date,
+    limit: number,
+  ): Promise<void> {
     const monthKey = this.getMonthKey(userId, now);
 
     // Try to get custom quota
@@ -220,7 +259,10 @@ export class QuotaService {
     }
   }
 
-  private async checkSessionQuota(sessionId: string, limit: number): Promise<void> {
+  private async checkSessionQuota(
+    sessionId: string,
+    limit: number,
+  ): Promise<void> {
     const sessionKey = this.getSessionKey(sessionId);
     const currentUsage = await this.redisService.client.get(sessionKey);
     const usage = parseInt(currentUsage || '0', 10);
@@ -236,15 +278,17 @@ export class QuotaService {
     }
   }
 
-  private async checkRequestsPerMinute(userId: string, now: Date, limit: number): Promise<void> {
+  private async checkRequestsPerMinute(
+    userId: string,
+    now: Date,
+    limit: number,
+  ): Promise<void> {
     const rpmKey = this.getRpmKey(userId, now);
     const currentUsage = await this.redisService.client.get(rpmKey);
     const usage = parseInt(currentUsage || '0', 10);
 
     if (usage >= limit) {
-      this.logger.warn(
-        `User ${userId} exceeded RPM limit: ${usage}/${limit}`,
-      );
+      this.logger.warn(`User ${userId} exceeded RPM limit: ${usage}/${limit}`);
       throw new HttpException(
         `Rate limit exceeded. Maximum ${limit} requests per minute.`,
         HttpStatus.TOO_MANY_REQUESTS,
@@ -252,7 +296,11 @@ export class QuotaService {
     }
   }
 
-  private async incrementWithExpiry(key: string, ttlSeconds: number, label: string): Promise<void> {
+  private async incrementWithExpiry(
+    key: string,
+    ttlSeconds: number,
+    label: string,
+  ): Promise<void> {
     const client = this.redisService.client;
     const newValue = await client.incr(key);
 

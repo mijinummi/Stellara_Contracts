@@ -1,5 +1,16 @@
-import { IsObject, IsBoolean, IsEnum, IsArray, IsOptional, IsString } from 'class-validator';
-import { NotificationType, NotificationChannel, NotificationPriority } from '../types/notification.types';
+import {
+  IsObject,
+  IsBoolean,
+  IsEnum,
+  IsArray,
+  IsOptional,
+  IsString,
+} from 'class-validator';
+import {
+  NotificationType,
+  NotificationChannel,
+  NotificationPriority,
+} from '../types/notification.types';
 
 export class UpdateNotificationPreferencesDto {
   @IsObject()

@@ -17,9 +17,7 @@ export class WebsocketGateway
   @WebSocketServer()
   server: Server;
 
-  constructor(
-    private readonly presenceService: PresenceService,
-  ) {}
+  constructor(private readonly presenceService: PresenceService) {}
 
   async handleConnection(client: Socket) {
     const userId = client.handshake.auth.userId;

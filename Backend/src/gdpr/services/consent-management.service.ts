@@ -1,7 +1,11 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Consent, ConsentType, ConsentStatus } from '../entities/consent.entity';
+import {
+  Consent,
+  ConsentType,
+  ConsentStatus,
+} from '../entities/consent.entity';
 import { AuditService } from '../../audit/audit.service';
 
 export interface ConsentData {
@@ -31,7 +35,10 @@ export class ConsentManagementService {
     private readonly auditService: AuditService,
   ) {}
 
-  async getConsentStatus(userId: string, consentType: ConsentType): Promise<Consent | null> {
+  async getConsentStatus(
+    userId: string,
+    consentType: ConsentType,
+  ): Promise<Consent | null> {
     return await this.consentRepository.findOne({
       where: { userId, consentType },
     });
@@ -44,7 +51,10 @@ export class ConsentManagementService {
     });
   }
 
-  async grantConsent(userId: string, consentData: ConsentData): Promise<Consent> {
+  async grantConsent(
+    userId: string,
+    consentData: ConsentData,
+  ): Promise<Consent> {
     const existingConsent = await this.consentRepository.findOne({
       where: { userId, consentType: consentData.consentType },
     });
@@ -58,15 +68,22 @@ export class ConsentManagementService {
       existingConsent.consentText = consentData.consentText;
       existingConsent.grantedAt = new Date();
       existingConsent.withdrawnAt = undefined;
-      existingConsent.expiresAt = this.calculateExpiryDate(consentData.consentType);
+      existingConsent.expiresAt = this.calculateExpiryDate(
+        consentData.consentType,
+      );
 
       const updatedConsent = await this.consentRepository.save(existingConsent);
 
-      await this.auditService.logAction('CONSENT_GRANTED', userId, updatedConsent.id, {
-        consentType: consentData.consentType,
-        version: consentVersion,
-        updated: true,
-      });
+      await this.auditService.logAction(
+        'CONSENT_GRANTED',
+        userId,
+        updatedConsent.id,
+        {
+          consentType: consentData.consentType,
+          version: consentVersion,
+          updated: true,
+        },
+      );
 
       return updatedConsent;
     } else {
@@ -83,17 +100,25 @@ export class ConsentManagementService {
 
       const savedConsent = await this.consentRepository.save(newConsent);
 
-      await this.auditService.logAction('CONSENT_GRANTED', userId, savedConsent.id, {
-        consentType: consentData.consentType,
-        version: consentVersion,
-        updated: false,
-      });
+      await this.auditService.logAction(
+        'CONSENT_GRANTED',
+        userId,
+        savedConsent.id,
+        {
+          consentType: consentData.consentType,
+          version: consentVersion,
+          updated: false,
+        },
+      );
 
       return savedConsent;
     }
   }
 
-  async withdrawConsent(userId: string, consentType: ConsentType): Promise<Consent> {
+  async withdrawConsent(
+    userId: string,
+    consentType: ConsentType,
+  ): Promise<Consent> {
     const consent = await this.consentRepository.findOne({
       where: { userId, consentType },
     });
@@ -111,9 +136,14 @@ export class ConsentManagementService {
 
     const updatedConsent = await this.consentRepository.save(consent);
 
-    await this.auditService.logAction('CONSENT_WITHDRAWN', userId, updatedConsent.id, {
-      consentType,
-    });
+    await this.auditService.logAction(
+      'CONSENT_WITHDRAWN',
+      userId,
+      updatedConsent.id,
+      {
+        consentType,
+      },
+    );
 
     return updatedConsent;
   }
@@ -125,14 +155,14 @@ export class ConsentManagementService {
   ): Promise<number> {
     // Find all active consents of this type
     const activeConsents = await this.consentRepository.find({
-      where: { 
+      where: {
         consentType,
         status: ConsentStatus.GRANTED,
       },
     });
 
     // Update all active consents to the new version
-    const updatePromises = activeConsents.map(consent => {
+    const updatePromises = activeConsents.map((consent) => {
       consent.version = newVersion;
       consent.consentText = consentText;
       consent.expiresAt = this.calculateExpiryDate(consentType);
@@ -141,22 +171,30 @@ export class ConsentManagementService {
 
     await Promise.all(updatePromises);
 
-    await this.auditService.logAction('CONSENT_VERSION_UPDATED', 'system', consentType, {
-      oldVersion: activeConsents[0]?.version || 'N/A',
-      newVersion,
-      affectedCount: activeConsents.length,
-    });
+    await this.auditService.logAction(
+      'CONSENT_VERSION_UPDATED',
+      'system',
+      consentType,
+      {
+        oldVersion: activeConsents[0]?.version || 'N/A',
+        newVersion,
+        affectedCount: activeConsents.length,
+      },
+    );
 
     return activeConsents.length;
   }
 
-  async getConsentHistory(userId: string, consentType: ConsentType): Promise<ConsentHistory> {
+  async getConsentHistory(
+    userId: string,
+    consentType: ConsentType,
+  ): Promise<ConsentHistory> {
     const consents = await this.consentRepository.find({
       where: { userId, consentType },
       order: { grantedAt: 'ASC' },
     });
 
-    const history = consents.map(consent => ({
+    const history = consents.map((consent) => ({
       status: consent.status,
       grantedAt: consent.grantedAt,
       withdrawnAt: consent.withdrawnAt,
@@ -169,29 +207,57 @@ export class ConsentManagementService {
     };
   }
 
-  async getConsentAnalytics(): Promise<Record<ConsentType, {
-    total: number;
-    granted: number;
-    withdrawn: number;
-    expired: number;
-  }>> {
+  async getConsentAnalytics(): Promise<
+    Record<
+      ConsentType,
+      {
+        total: number;
+        granted: number;
+        withdrawn: number;
+        expired: number;
+      }
+    >
+  > {
     const allConsents = await this.consentRepository.find();
 
-    const analytics: Record<ConsentType, {
-      total: number;
-      granted: number;
-      withdrawn: number;
-      expired: number;
-    }> = {
-      [ConsentType.DATA_PROCESSING]: { total: 0, granted: 0, withdrawn: 0, expired: 0 },
-      [ConsentType.MARKETING]: { total: 0, granted: 0, withdrawn: 0, expired: 0 },
-      [ConsentType.ANALYTICS]: { total: 0, granted: 0, withdrawn: 0, expired: 0 },
-      [ConsentType.THIRD_PARTY_SHARING]: { total: 0, granted: 0, withdrawn: 0, expired: 0 },
+    const analytics: Record<
+      ConsentType,
+      {
+        total: number;
+        granted: number;
+        withdrawn: number;
+        expired: number;
+      }
+    > = {
+      [ConsentType.DATA_PROCESSING]: {
+        total: 0,
+        granted: 0,
+        withdrawn: 0,
+        expired: 0,
+      },
+      [ConsentType.MARKETING]: {
+        total: 0,
+        granted: 0,
+        withdrawn: 0,
+        expired: 0,
+      },
+      [ConsentType.ANALYTICS]: {
+        total: 0,
+        granted: 0,
+        withdrawn: 0,
+        expired: 0,
+      },
+      [ConsentType.THIRD_PARTY_SHARING]: {
+        total: 0,
+        granted: 0,
+        withdrawn: 0,
+        expired: 0,
+      },
     };
 
     for (const consent of allConsents) {
       analytics[consent.consentType].total++;
-      
+
       switch (consent.status) {
         case ConsentStatus.GRANTED:
           analytics[consent.consentType].granted++;
@@ -217,7 +283,7 @@ export class ConsentManagementService {
       },
     });
 
-    const updatePromises = expiredConsents.map(consent => {
+    const updatePromises = expiredConsents.map((consent) => {
       consent.status = ConsentStatus.EXPIRED;
       return this.consentRepository.save(consent);
     });
@@ -233,9 +299,12 @@ export class ConsentManagementService {
     return expiredConsents.length;
   }
 
-  async validateConsent(userId: string, consentType: ConsentType): Promise<boolean> {
+  async validateConsent(
+    userId: string,
+    consentType: ConsentType,
+  ): Promise<boolean> {
     const consent = await this.getConsentStatus(userId, consentType);
-    
+
     if (!consent) {
       return false;
     }
@@ -264,7 +333,9 @@ export class ConsentManagementService {
   private calculateExpiryDate(consentType: ConsentType): Date {
     const now = new Date();
     const expiryDays = this.getExpiryDays(consentType);
-    const expiryDate = new Date(now.getTime() + (expiryDays * 24 * 60 * 60 * 1000));
+    const expiryDate = new Date(
+      now.getTime() + expiryDays * 24 * 60 * 60 * 1000,
+    );
     return expiryDate;
   }
 

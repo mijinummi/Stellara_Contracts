@@ -7,25 +7,23 @@ import { HealthIndicatorResult, DatabaseHealthDetails } from '../health.types';
 export class DatabaseHealthIndicator {
   private readonly logger = new Logger(DatabaseHealthIndicator.name);
 
-  constructor(
-    @InjectDataSource() private readonly dataSource: DataSource,
-  ) {}
+  constructor(@InjectDataSource() private readonly dataSource: DataSource) {}
 
   async isHealthy(): Promise<HealthIndicatorResult> {
     const startTime = Date.now();
-    
+
     try {
       // Test database connection
       await this.dataSource.query('SELECT 1');
-      
+
       const latency = Date.now() - startTime;
-      
+
       // Get connection pool info
       const poolInfo = this.getConnectionPoolInfo();
-      
+
       // Check migrations status
       const migrationsOk = await this.checkMigrations();
-      
+
       const details: DatabaseHealthDetails = {
         connection: true,
         latency,
@@ -35,13 +33,13 @@ export class DatabaseHealthIndicator {
 
       let status = 'up';
       let message = 'Database is healthy';
-      
+
       // Check for potential issues
       if (latency > 1000) {
         status = 'degraded';
         message = `Database latency is high: ${latency}ms`;
       }
-      
+
       if (!migrationsOk) {
         status = 'degraded';
         message = 'Database migrations are not up to date';
@@ -56,7 +54,7 @@ export class DatabaseHealthIndicator {
       };
     } catch (error) {
       this.logger.error('Database health check failed', error);
-      
+
       return {
         name: 'database',
         status: 'down',
@@ -66,7 +64,11 @@ export class DatabaseHealthIndicator {
     }
   }
 
-  private getConnectionPoolInfo(): { used: number; free: number; pending: number } {
+  private getConnectionPoolInfo(): {
+    used: number;
+    free: number;
+    pending: number;
+  } {
     try {
       // For PostgreSQL
       if (this.dataSource.options.type === 'postgres') {
@@ -77,7 +79,7 @@ export class DatabaseHealthIndicator {
           pending: 0,
         };
       }
-      
+
       // For other databases or when pool info is not available
       return {
         used: 0,
@@ -99,20 +101,20 @@ export class DatabaseHealthIndicator {
       // Check if migrations table exists and is up to date
       const queryRunner = this.dataSource.createQueryRunner();
       await queryRunner.connect();
-      
+
       try {
         // Check if migrations table exists
         const hasMigrationsTable = await queryRunner.hasTable('migrations');
         if (!hasMigrationsTable) {
           return true; // No migrations table means no migrations to check
         }
-        
+
         // Get pending migrations count
         const pendingMigrations = await this.dataSource.runMigrations({
           dryRun: true,
           transaction: 'none',
         });
-        
+
         return pendingMigrations.length === 0;
       } finally {
         await queryRunner.release();

@@ -284,7 +284,9 @@ export class MigrationBackup {
           `SELECT * FROM "${tableName}" ORDER BY "id" DESC LIMIT 10000`,
         );
         backup[tableName] = data;
-        this.logger.log(`[${migrationName}] Backed up ${data.length} rows from ${tableName}`);
+        this.logger.log(
+          `[${migrationName}] Backed up ${data.length} rows from ${tableName}`,
+        );
       } catch (error) {
         this.logger.warn(
           `[${migrationName}] Failed to backup ${tableName}: ${error instanceof Error ? error.message : String(error)}`,
@@ -318,7 +320,10 @@ export class MigrationBackup {
         // Restore data
         const columns = Object.keys(rows[0]);
         const values = rows
-          .map((row) => `(${columns.map((col) => `'${String(row[col]).replace(/'/g, "''")}'`).join(', ')})`)
+          .map(
+            (row) =>
+              `(${columns.map((col) => `'${String(row[col]).replace(/'/g, "''")}'`).join(', ')})`,
+          )
           .join(', ');
 
         await queryRunner.query(
@@ -328,7 +333,9 @@ export class MigrationBackup {
         // Re-enable foreign keys
         await queryRunner.query('SET CONSTRAINTS ALL IMMEDIATE');
 
-        this.logger.log(`[${migrationName}] Restored ${rows.length} rows to ${tableName}`);
+        this.logger.log(
+          `[${migrationName}] Restored ${rows.length} rows to ${tableName}`,
+        );
       } catch (error) {
         this.logger.error(
           `[${migrationName}] Failed to restore ${tableName}: ${error instanceof Error ? error.message : String(error)}`,
@@ -498,7 +505,11 @@ export class MigrationRollback {
         if (backup && Object.keys(backup).length > 0) {
           this.logger.log(`[${migrationName}] Restoring data from backup...`);
           const backupService = new MigrationBackup();
-          await backupService.restoreFromBackup(queryRunner, backup, migrationName);
+          await backupService.restoreFromBackup(
+            queryRunner,
+            backup,
+            migrationName,
+          );
         }
       } catch (rollbackError) {
         const rollbackMessage =

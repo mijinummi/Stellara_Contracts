@@ -1,4 +1,13 @@
-import { Controller, Get, Post, Body, Query, Logger, HttpCode, HttpStatus } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Query,
+  Logger,
+  HttpCode,
+  HttpStatus,
+} from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiQuery } from '@nestjs/swagger';
 import { MarketDataService } from '../services/market-data.service';
 import { NewsService } from '../services/news.service';
@@ -8,7 +17,11 @@ import {
   MarketSnapshotDto,
   GetMarketSnapshotQueryDto,
 } from '../dto/market-snapshot.dto';
-import { NewsResponseDto, GetNewsQueryDto, NewsCategory } from '../dto/news.dto';
+import {
+  NewsResponseDto,
+  GetNewsQueryDto,
+  NewsCategory,
+} from '../dto/news.dto';
 import {
   CacheStatsDto,
   CacheInvalidateDto,
@@ -33,14 +46,29 @@ export class MarketDataController {
    */
   @Get('snapshot')
   @ApiOperation({ summary: 'Get market snapshot with asset prices' })
-  @ApiResponse({ status: 200, description: 'Market snapshot retrieved', type: MarketSnapshotDto })
-  @ApiQuery({ name: 'assets', required: false, description: 'Comma-separated asset codes' })
-  @ApiQuery({ name: 'bypassCache', required: false, description: 'Bypass cache' })
+  @ApiResponse({
+    status: 200,
+    description: 'Market snapshot retrieved',
+    type: MarketSnapshotDto,
+  })
+  @ApiQuery({
+    name: 'assets',
+    required: false,
+    description: 'Comma-separated asset codes',
+  })
+  @ApiQuery({
+    name: 'bypassCache',
+    required: false,
+    description: 'Bypass cache',
+  })
   async getMarketSnapshot(
     @Query() query: GetMarketSnapshotQueryDto,
   ): Promise<MarketSnapshotDto> {
-    const assetFilter = query.assets ? query.assets.split(',').map((a) => a.trim().toUpperCase()) : undefined;
-    const bypassCache = query.bypassCache === true || query.bypassCache === 'true';
+    const assetFilter = query.assets
+      ? query.assets.split(',').map((a) => a.trim().toUpperCase())
+      : undefined;
+    const bypassCache =
+      query.bypassCache === true || query.bypassCache === 'true';
 
     this.logger.debug(`Fetching market snapshot (bypassCache: ${bypassCache})`);
     return this.marketDataService.getMarketSnapshot(assetFilter, bypassCache);
@@ -51,13 +79,26 @@ export class MarketDataController {
    */
   @Get('news')
   @ApiOperation({ summary: 'Get crypto news articles' })
-  @ApiResponse({ status: 200, description: 'News articles retrieved', type: NewsResponseDto })
+  @ApiResponse({
+    status: 200,
+    description: 'News articles retrieved',
+    type: NewsResponseDto,
+  })
   @ApiQuery({ name: 'category', required: false, enum: NewsCategory })
-  @ApiQuery({ name: 'limit', required: false, description: 'Number of articles (1-100)' })
-  @ApiQuery({ name: 'bypassCache', required: false, description: 'Bypass cache' })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    description: 'Number of articles (1-100)',
+  })
+  @ApiQuery({
+    name: 'bypassCache',
+    required: false,
+    description: 'Bypass cache',
+  })
   async getNews(@Query() query: GetNewsQueryDto): Promise<NewsResponseDto> {
     const limit = query.limit || 20;
-    const bypassCache = query.bypassCache === true || query.bypassCache === 'true';
+    const bypassCache =
+      query.bypassCache === true || query.bypassCache === 'true';
 
     this.logger.debug(
       `Fetching news (category: ${query.category || 'all'}, limit: ${limit}, bypassCache: ${bypassCache})`,
@@ -87,7 +128,11 @@ export class MarketDataController {
    */
   @Get('cache/stats/market')
   @ApiOperation({ summary: 'Get cache statistics for market data' })
-  @ApiResponse({ status: 200, description: 'Market data cache statistics', type: CacheStatsDto })
+  @ApiResponse({
+    status: 200,
+    description: 'Market data cache statistics',
+    type: CacheStatsDto,
+  })
   async getMarketDataCacheStats(): Promise<CacheStatsDto> {
     return this.cacheMetricsService.getMarketDataStats();
   }
@@ -97,7 +142,11 @@ export class MarketDataController {
    */
   @Get('cache/stats/news')
   @ApiOperation({ summary: 'Get cache statistics for news' })
-  @ApiResponse({ status: 200, description: 'News cache statistics', type: CacheStatsDto })
+  @ApiResponse({
+    status: 200,
+    description: 'News cache statistics',
+    type: CacheStatsDto,
+  })
   async getNewsCacheStats(): Promise<CacheStatsDto> {
     return this.cacheMetricsService.getNewsStats();
   }

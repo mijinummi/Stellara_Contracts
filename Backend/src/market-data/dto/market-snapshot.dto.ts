@@ -1,5 +1,11 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsString, IsNumber, IsOptional, IsArray, IsEnum } from 'class-validator';
+import {
+  IsString,
+  IsNumber,
+  IsOptional,
+  IsArray,
+  IsEnum,
+} from 'class-validator';
 
 export class AssetPriceDto {
   @ApiProperty({ description: 'Asset code (e.g., XLM, USDC)' })
@@ -45,7 +51,9 @@ export class MarketSnapshotDto {
 }
 
 export class GetMarketSnapshotQueryDto {
-  @ApiPropertyOptional({ description: 'Comma-separated list of asset codes to filter' })
+  @ApiPropertyOptional({
+    description: 'Comma-separated list of asset codes to filter',
+  })
   @IsOptional()
   @IsString()
   assets?: string;

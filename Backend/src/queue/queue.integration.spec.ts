@@ -20,7 +20,12 @@ describe('Queue Integration - Retries and DLQ', () => {
   ) => ({
     id,
     name,
-    data: { test: 'data', contractName: '', contractCode: '', network: '' } as any,
+    data: {
+      test: 'data',
+      contractName: '',
+      contractCode: '',
+      network: '',
+    } as any,
     returnvalue: failedReason ? undefined : { success: true },
     failedReason,
     timestamp: Date.now(),
@@ -108,7 +113,13 @@ describe('Queue Integration - Retries and DLQ', () => {
     });
 
     it('should allow requeuing job on first attempts', async () => {
-      const failedJob = createMockJob('job-1', 'deploy-contract', 1, 3, 'Connection timeout');
+      const failedJob = createMockJob(
+        'job-1',
+        'deploy-contract',
+        1,
+        3,
+        'Connection timeout',
+      );
       mockQueues.deployContractQueue.getJob.mockResolvedValue(failedJob);
 
       const requeuedJob = createMockJob('job-2', 'deploy-contract', 0, 3);
@@ -117,7 +128,7 @@ describe('Queue Integration - Retries and DLQ', () => {
       const result = await service.requeueJob('deploy-contract', 'job-1');
 
       expect(result).toBeDefined();
-      expect(result!.id).toBe('job-2');
+      expect(result.id).toBe('job-2');
       expect(mockQueues.deployContractQueue.add).toHaveBeenCalledWith(
         'deploy-contract',
         failedJob.data,
@@ -154,7 +165,9 @@ describe('Queue Integration - Retries and DLQ', () => {
 
       // Delay should increase exponentially: 2000ms, 4000ms, 8000ms
       const backoffDelays = [2000, 4000, 8000];
-      const expectedDelays = backoffDelays.map((delay) => Math.pow(2, backoffDelays.indexOf(delay)) * 2000);
+      const expectedDelays = backoffDelays.map(
+        (delay) => Math.pow(2, backoffDelays.indexOf(delay)) * 2000,
+      );
 
       expect(expectedDelays[0]).toBe(2000);
       expect(expectedDelays[1]).toBe(4000);
@@ -323,7 +336,12 @@ describe('Queue Integration - Retries and DLQ', () => {
       const jobAttempts = [0, 1, 1, 2, 3];
 
       for (let i = 0; i < jobStates.length; i++) {
-        const job = createMockJob('job-1', 'deploy-contract', jobAttempts[i], 3);
+        const job = createMockJob(
+          'job-1',
+          'deploy-contract',
+          jobAttempts[i],
+          3,
+        );
         mockQueues.deployContractQueue.getJob.mockResolvedValue(job);
         job.getState.mockResolvedValue(jobStates[i]);
 
@@ -340,7 +358,13 @@ describe('Queue Integration - Retries and DLQ', () => {
         network: 'mainnet',
       };
 
-      const failedJob = createMockJob('job-1', 'deploy-contract', 2, 3, 'Network error');
+      const failedJob = createMockJob(
+        'job-1',
+        'deploy-contract',
+        2,
+        3,
+        'Network error',
+      );
       failedJob.data = { ...failedJob.data, ...originalData };
 
       mockQueues.deployContractQueue.getJob.mockResolvedValue(failedJob);
@@ -406,7 +430,10 @@ describe('Queue Integration - Retries and DLQ', () => {
       mockRedisService.client.rPush.mockResolvedValue(1);
 
       // Simulate failure adding to DLQ
-      const result = await mockRedisService.client.rPush('queue:dlq:deploy-contract', dlqItem);
+      const result = await mockRedisService.client.rPush(
+        'queue:dlq:deploy-contract',
+        dlqItem,
+      );
 
       expect(result).toBe(1);
       expect(mockRedisService.client.rPush).toHaveBeenCalledWith(
@@ -450,7 +477,9 @@ describe('Queue Integration - Retries and DLQ', () => {
         },
       ];
 
-      mockRedisService.client.lRange.mockResolvedValue(dlqItems.map((item) => JSON.stringify(item)));
+      mockRedisService.client.lRange.mockResolvedValue(
+        dlqItems.map((item) => JSON.stringify(item)),
+      );
 
       const dlq = await service.getDeadLetterQueue('deploy-contract', 50);
 

@@ -1,4 +1,13 @@
-import { Controller, Get, Post, Param, Body, Query, UseGuards, Req } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Param,
+  Body,
+  Query,
+  UseGuards,
+  Req,
+} from '@nestjs/common';
 import { DataExportService } from '../services/data-export.service';
 import { DataDeletionService } from '../services/data-deletion.service';
 import { ConsentManagementService } from '../services/consent-management.service';
@@ -37,12 +46,9 @@ export class GdprController {
   // User-facing endpoints
 
   @Get('export')
-  async exportData(
-    @Req() req: any,
-    @Query() query: ExportRequestDto,
-  ) {
+  async exportData(@Req() req: any, @Query() query: ExportRequestDto) {
     const userId = req.user.id;
-    
+
     if (query.format === 'csv') {
       return {
         data: await this.dataExportService.exportUserDataAsCsv(userId),
@@ -57,13 +63,13 @@ export class GdprController {
   }
 
   @Post('delete-request')
-  async requestDeletion(
-    @Req() req: any,
-    @Body() body: DeletionRequestDto,
-  ) {
+  async requestDeletion(@Req() req: any, @Body() body: DeletionRequestDto) {
     const userId = req.user.id;
-    const deletionRequest = await this.dataDeletionService.requestDeletion(userId, body.reason);
-    
+    const deletionRequest = await this.dataDeletionService.requestDeletion(
+      userId,
+      body.reason,
+    );
+
     return {
       success: true,
       message: 'Deletion request submitted successfully',
@@ -76,19 +82,16 @@ export class GdprController {
   async getUserConsents(@Req() req: any) {
     const userId = req.user.id;
     const consents = await this.consentManagementService.getAllConsents(userId);
-    
+
     return {
       consents,
     };
   }
 
   @Post('consent')
-  async updateConsent(
-    @Req() req: any,
-    @Body() body: ConsentUpdateDto,
-  ) {
+  async updateConsent(@Req() req: any, @Body() body: ConsentUpdateDto) {
     const userId = req.user.id;
-    
+
     if (body.granted) {
       const consent = await this.consentManagementService.grantConsent(userId, {
         consentType: body.consentType,
@@ -96,15 +99,18 @@ export class GdprController {
         version: body.version,
         consentText: body.consentText,
       });
-      
+
       return {
         success: true,
         message: 'Consent granted successfully',
         consent,
       };
     } else {
-      const consent = await this.consentManagementService.withdrawConsent(userId, body.consentType);
-      
+      const consent = await this.consentManagementService.withdrawConsent(
+        userId,
+        body.consentType,
+      );
+
       return {
         success: true,
         message: 'Consent withdrawn successfully',
@@ -117,7 +123,7 @@ export class GdprController {
   async getDeletionStatus(@Req() req: any) {
     const userId = req.user.id;
     const status = await this.dataDeletionService.getDeletionStatus(userId);
-    
+
     return {
       isActive: status.isActive,
       deletionRequested: status.deletionRequested,
@@ -151,8 +157,11 @@ export class AdminGdprController {
     @Req() req: any,
   ) {
     const adminId = req.user.id;
-    const stats = await this.dataDeletionService.processDeletion(requestId, adminId);
-    
+    const stats = await this.dataDeletionService.processDeletion(
+      requestId,
+      adminId,
+    );
+
     return {
       success: true,
       message: 'Deletion processed successfully',
@@ -163,7 +172,7 @@ export class AdminGdprController {
   @Post('cancel-deletion/:userId')
   async cancelDeletion(@Param('userId') userId: string) {
     await this.dataDeletionService.cancelDeletion(userId);
-    
+
     return {
       success: true,
       message: 'Deletion cancelled successfully',
@@ -173,7 +182,7 @@ export class AdminGdprController {
   @Get('consent-reports')
   async getConsentReports() {
     const analytics = await this.consentManagementService.getConsentAnalytics();
-    
+
     return {
       analytics,
     };
@@ -181,14 +190,20 @@ export class AdminGdprController {
 
   @Post('update-consent-version')
   async updateConsentVersion(
-    @Body() body: { consentType: ConsentType; newVersion: string; consentText: string },
+    @Body()
+    body: {
+      consentType: ConsentType;
+      newVersion: string;
+      consentText: string;
+    },
   ) {
-    const affectedCount = await this.consentManagementService.updateConsentVersion(
-      body.consentType,
-      body.newVersion,
-      body.consentText,
-    );
-    
+    const affectedCount =
+      await this.consentManagementService.updateConsentVersion(
+        body.consentType,
+        body.newVersion,
+        body.consentText,
+      );
+
     return {
       success: true,
       message: `Updated ${affectedCount} consents to version ${body.newVersion}`,
@@ -199,7 +214,7 @@ export class AdminGdprController {
   @Post('retention-cleanup')
   async executeRetentionCleanup() {
     const results = await this.dataRetentionService.executeRetentionCleanup();
-    
+
     return {
       success: true,
       message: 'Retention cleanup executed successfully',
@@ -210,7 +225,7 @@ export class AdminGdprController {
   @Get('retention-policies')
   async getRetentionPolicies() {
     const policies = await this.dataRetentionService.getRetentionPolicies();
-    
+
     return {
       policies,
     };
@@ -219,7 +234,7 @@ export class AdminGdprController {
   @Get('retention-statistics')
   async getRetentionStatistics() {
     const statistics = await this.dataRetentionService.getRetentionStatistics();
-    
+
     return {
       statistics,
     };
@@ -227,8 +242,9 @@ export class AdminGdprController {
 
   @Post('expire-consents')
   async expireOutdatedConsents() {
-    const expiredCount = await this.consentManagementService.expireOutdatedConsents();
-    
+    const expiredCount =
+      await this.consentManagementService.expireOutdatedConsents();
+
     return {
       success: true,
       message: `Expired ${expiredCount} outdated consents`,

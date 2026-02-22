@@ -14,17 +14,22 @@ export class DLQSchedulerService {
   @Cron(CronExpression.EVERY_MINUTE)
   async processScheduledRetries() {
     const queueNames = ['deploy-contract', 'process-tts', 'index-market-news'];
-    
+
     try {
       for (const queueName of queueNames) {
-        const retriedIds = await this.queueService.processScheduledRetries(queueName);
-        
+        const retriedIds =
+          await this.queueService.processScheduledRetries(queueName);
+
         if (retriedIds.length > 0) {
-          this.logger.log(`Processed ${retriedIds.length} scheduled retries for queue ${queueName}`);
+          this.logger.log(
+            `Processed ${retriedIds.length} scheduled retries for queue ${queueName}`,
+          );
         }
       }
     } catch (error) {
-      this.logger.error(`Failed to process scheduled retries: ${error.message}`);
+      this.logger.error(
+        `Failed to process scheduled retries: ${error.message}`,
+      );
     }
   }
 
@@ -47,13 +52,15 @@ export class DLQSchedulerService {
   @Cron('0 2 * * *') // Daily at 2 AM
   async purgeOldDLQItems() {
     const queueNames = ['deploy-contract', 'process-tts', 'index-market-news'];
-    
+
     try {
       for (const queueName of queueNames) {
         const deletedCount = await this.queueService.purgeDLQ(queueName, 30); // 30 days
-        
+
         if (deletedCount > 0) {
-          this.logger.log(`Purged ${deletedCount} old DLQ items from queue ${queueName}`);
+          this.logger.log(
+            `Purged ${deletedCount} old DLQ items from queue ${queueName}`,
+          );
         }
       }
     } catch (error) {
@@ -67,14 +74,14 @@ export class DLQSchedulerService {
   @Cron(CronExpression.EVERY_5_MINUTES)
   async generateHealthReport() {
     const queueNames = ['deploy-contract', 'process-tts', 'index-market-news'];
-    
+
     try {
       for (const queueName of queueNames) {
         const health = await this.queueService.getQueueHealth(queueName);
-        
+
         if (health.status !== 'healthy') {
           this.logger.warn(
-            `Queue ${queueName} health status: ${health.status}. Issues: ${health.issues.join(', ')}`
+            `Queue ${queueName} health status: ${health.status}. Issues: ${health.issues.join(', ')}`,
           );
         }
       }

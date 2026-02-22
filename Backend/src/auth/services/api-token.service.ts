@@ -1,4 +1,8 @@
-import { Injectable, UnauthorizedException, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  UnauthorizedException,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ApiToken } from '../entities/api-token.entity';
@@ -24,7 +28,7 @@ export class ApiTokenService {
   ): Promise<{ token: string; id: string; expiresAt: Date | null }> {
     // Generate a secure random token
     const plainToken = `stl_${uuidv4()}${uuidv4()}`.replace(/-/g, '');
-    
+
     // Hash the token for storage
     const hashedToken = await bcrypt.hash(plainToken, this.SALT_ROUNDS);
 
@@ -34,7 +38,10 @@ export class ApiTokenService {
       expiresAt = new Date();
       expiresAt.setDate(expiresAt.getDate() + expiresInDays);
     } else {
-      const defaultDays = this.configService.get('API_TOKEN_DEFAULT_EXPIRY_DAYS', 90);
+      const defaultDays = this.configService.get(
+        'API_TOKEN_DEFAULT_EXPIRY_DAYS',
+        90,
+      );
       expiresAt = new Date();
       expiresAt.setDate(expiresAt.getDate() + defaultDays);
     }
@@ -58,7 +65,9 @@ export class ApiTokenService {
     };
   }
 
-  async validateApiToken(plainToken: string): Promise<{ userId: string; role: string; tokenId: string }> {
+  async validateApiToken(
+    plainToken: string,
+  ): Promise<{ userId: string; role: string; tokenId: string }> {
     // Get all non-revoked, non-expired tokens
     const tokens = await this.apiTokenRepository.find({
       where: { revoked: false },
@@ -68,7 +77,7 @@ export class ApiTokenService {
     // Check each token against the plain token
     for (const tokenRecord of tokens) {
       const isMatch = await bcrypt.compare(plainToken, tokenRecord.token);
-      
+
       if (isMatch) {
         // Check expiration
         if (tokenRecord.expiresAt && new Date() > tokenRecord.expiresAt) {
@@ -106,16 +115,21 @@ export class ApiTokenService {
       throw new NotFoundException('API token not found');
     }
 
-    await this.apiTokenRepository.update(
-      { id: tokenId },
-      { revoked: true },
-    );
+    await this.apiTokenRepository.update({ id: tokenId }, { revoked: true });
   }
 
   async listUserApiTokens(userId: string): Promise<ApiToken[]> {
     return await this.apiTokenRepository.find({
       where: { userId },
-      select: ['id', 'name', 'role', 'expiresAt', 'revoked', 'lastUsedAt', 'createdAt'],
+      select: [
+        'id',
+        'name',
+        'role',
+        'expiresAt',
+        'revoked',
+        'lastUsedAt',
+        'createdAt',
+      ],
       order: { createdAt: 'DESC' },
     });
   }

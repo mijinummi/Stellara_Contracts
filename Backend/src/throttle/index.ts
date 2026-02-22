@@ -16,18 +16,12 @@ export type {
 } from './rate-limit-strategies';
 
 // Distributed rate limiting service
-export {
-  DistributedRateLimitService,
-} from './distributed-rate-limit.service';
+export { DistributedRateLimitService } from './distributed-rate-limit.service';
 
-export type {
-  RateLimitIdentifier,
-} from './distributed-rate-limit.service';
+export type { RateLimitIdentifier } from './distributed-rate-limit.service';
 
 // Role-based rate limiting
-export {
-  RoleBasedRateLimitService,
-} from './role-based-rate-limit.service';
+export { RoleBasedRateLimitService } from './role-based-rate-limit.service';
 
 export type {
   UserRole,
@@ -35,13 +29,9 @@ export type {
 } from './role-based-rate-limit.service';
 
 // Guards
-export {
-  DistributedThrottleGuard,
-} from './distributed-throttle.guard';
+export { DistributedThrottleGuard } from './distributed-throttle.guard';
 
-export type {
-  RateLimitMetadata,
-} from './distributed-throttle.guard';
+export type { RateLimitMetadata } from './distributed-throttle.guard';
 export { ThrottleGuard } from './throttle.guard';
 
 // Decorators
@@ -62,13 +52,9 @@ export {
 } from './rate-limit.decorators';
 
 // Metrics
-export {
-  RateLimitMetricsCollector,
-} from './rate-limit-metrics.collector';
+export { RateLimitMetricsCollector } from './rate-limit-metrics.collector';
 
-export type {
-  RateLimitMetrics,
-} from './rate-limit-metrics.collector';
+export type { RateLimitMetrics } from './rate-limit-metrics.collector';
 
 // Configuration
 export {

@@ -26,14 +26,14 @@ import { ErrorResponseDto } from '../dtos/api-response.dto';
 export function ApiDocumented(options: {
   summary: string;
   description?: string;
-  requiresAuth?: boolean;   // default true
+  requiresAuth?: boolean; // default true
   deprecated?: boolean;
 }) {
   const decorators = [
     ApiOperation({
-      summary:     options.summary,
+      summary: options.summary,
       description: options.description,
-      deprecated:  options.deprecated ?? false,
+      deprecated: options.deprecated ?? false,
     }),
     ApiUnauthorizedResponse({
       description: 'Missing or invalid bearer token',
@@ -65,9 +65,6 @@ export function ApiDocumented(options: {
  * @ApiPublic  — convenience alias for unauthenticated endpoints
  * (same as @ApiDocumented({ …, requiresAuth: false }))
  */
-export function ApiPublic(options: {
-  summary: string;
-  description?: string;
-}) {
+export function ApiPublic(options: { summary: string; description?: string }) {
   return ApiDocumented({ ...options, requiresAuth: false });
 }

@@ -1,7 +1,11 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { RedisService } from '../../redis/redis.service';
 import { ConversationStateMachineService } from './conversation-state-machine.service';
-import { VoiceSession, VoiceMessage, VoiceSessionFactory } from '../entities/voice-session.entity';
+import {
+  VoiceSession,
+  VoiceMessage,
+  VoiceSessionFactory,
+} from '../entities/voice-session.entity';
 import { ConversationState } from '../types/conversation-state.enum';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -27,18 +31,25 @@ export class VoiceSessionService implements OnModuleInit {
     walletAddress?: string,
     metadata?: Record<string, any>,
   ): Promise<VoiceSession> {
-    const session = VoiceSessionFactory.create(userId, context, walletAddress, metadata);
-    
+    const session = VoiceSessionFactory.create(
+      userId,
+      context,
+      walletAddress,
+      metadata,
+    );
+
     await this.saveSession(session);
     await this.addUserSession(userId, session.id);
-    
+
     this.logger.log(`Created voice session ${session.id} for user ${userId}`);
     return session;
   }
 
   async getSession(sessionId: string): Promise<VoiceSession | null> {
     try {
-      const sessionData = await this.redisService.client.get(this.SESSION_PREFIX + sessionId);
+      const sessionData = await this.redisService.client.get(
+        this.SESSION_PREFIX + sessionId,
+      );
       if (!sessionData) {
         return null;
       }
@@ -59,7 +70,10 @@ export class VoiceSessionService implements OnModuleInit {
     }
   }
 
-  async updateSessionState(sessionId: string, newState: ConversationState): Promise<boolean> {
+  async updateSessionState(
+    sessionId: string,
+    newState: ConversationState,
+  ): Promise<boolean> {
     const session = await this.getSession(sessionId);
     if (!session) {
       return false;
@@ -73,7 +87,7 @@ export class VoiceSessionService implements OnModuleInit {
 
     session.state = newState;
     session.lastActivityAt = new Date();
-    
+
     await this.saveSession(session);
     return true;
   }
@@ -99,7 +113,7 @@ export class VoiceSessionService implements OnModuleInit {
 
     session.messages.push(message);
     session.lastActivityAt = new Date();
-    
+
     await this.saveSession(session);
     return true;
   }
@@ -110,7 +124,10 @@ export class VoiceSessionService implements OnModuleInit {
       return false;
     }
 
-    return await this.updateSessionState(sessionId, ConversationState.INTERRUPTED);
+    return await this.updateSessionState(
+      sessionId,
+      ConversationState.INTERRUPTED,
+    );
   }
 
   async resumeSession(sessionId: string): Promise<boolean> {
@@ -119,9 +136,10 @@ export class VoiceSessionService implements OnModuleInit {
       return false;
     }
 
-    const targetState = session.state === ConversationState.INTERRUPTED 
-      ? ConversationState.LISTENING 
-      : ConversationState.IDLE;
+    const targetState =
+      session.state === ConversationState.INTERRUPTED
+        ? ConversationState.LISTENING
+        : ConversationState.IDLE;
 
     return await this.updateSessionState(sessionId, targetState);
   }
@@ -135,7 +153,7 @@ export class VoiceSessionService implements OnModuleInit {
 
       await this.redisService.client.del(this.SESSION_PREFIX + sessionId);
       await this.removeUserSession(session.userId, sessionId);
-      
+
       this.logger.log(`Terminated voice session ${sessionId}`);
       return true;
     } catch (error) {
@@ -146,12 +164,16 @@ export class VoiceSessionService implements OnModuleInit {
 
   async getUserActiveSessions(userId: string): Promise<VoiceSession[]> {
     try {
-      const sessionIds = await this.redisService.client.sMembers(this.USER_SESSIONS_PREFIX + userId);
-      const sessions = await Promise.all(
-        sessionIds.map(id => this.getSession(id))
+      const sessionIds = await this.redisService.client.sMembers(
+        this.USER_SESSIONS_PREFIX + userId,
       );
-      
-      return sessions.filter((session): session is VoiceSession => session !== null);
+      const sessions = await Promise.all(
+        sessionIds.map((id) => this.getSession(id)),
+      );
+
+      return sessions.filter(
+        (session): session is VoiceSession => session !== null,
+      );
     } catch (error) {
       this.logger.error(`Error retrieving user sessions for ${userId}:`, error);
       return [];
@@ -163,8 +185,10 @@ export class VoiceSessionService implements OnModuleInit {
     let cleanedCount = 0;
 
     try {
-      const keys = await this.redisService.client.keys(this.SESSION_PREFIX + '*');
-      
+      const keys = await this.redisService.client.keys(
+        this.SESSION_PREFIX + '*',
+      );
+
       for (const key of keys) {
         const sessionData = await this.redisService.client.get(key);
         if (!sessionData) continue;
@@ -190,7 +214,10 @@ export class VoiceSessionService implements OnModuleInit {
     return cleanedCount;
   }
 
-  async updateSessionSocket(sessionId: string, socketId: string): Promise<boolean> {
+  async updateSessionSocket(
+    sessionId: string,
+    socketId: string,
+  ): Promise<boolean> {
     const session = await this.getSession(sessionId);
     if (!session) {
       return false;
@@ -198,7 +225,7 @@ export class VoiceSessionService implements OnModuleInit {
 
     session.socketId = socketId;
     session.lastActivityAt = new Date();
-    
+
     await this.saveSession(session);
     return true;
   }
@@ -212,12 +239,27 @@ export class VoiceSessionService implements OnModuleInit {
     );
   }
 
-  private async addUserSession(userId: string, sessionId: string): Promise<void> {
-    await this.redisService.client.sAdd(this.USER_SESSIONS_PREFIX + userId, sessionId);
-    await this.redisService.client.expire(this.USER_SESSIONS_PREFIX + userId, this.SESSION_TTL);
+  private async addUserSession(
+    userId: string,
+    sessionId: string,
+  ): Promise<void> {
+    await this.redisService.client.sAdd(
+      this.USER_SESSIONS_PREFIX + userId,
+      sessionId,
+    );
+    await this.redisService.client.expire(
+      this.USER_SESSIONS_PREFIX + userId,
+      this.SESSION_TTL,
+    );
   }
 
-  private async removeUserSession(userId: string, sessionId: string): Promise<void> {
-    await this.redisService.client.sRem(this.USER_SESSIONS_PREFIX + userId, sessionId);
+  private async removeUserSession(
+    userId: string,
+    sessionId: string,
+  ): Promise<void> {
+    await this.redisService.client.sRem(
+      this.USER_SESSIONS_PREFIX + userId,
+      sessionId,
+    );
   }
 }

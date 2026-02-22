@@ -10,6 +10,8 @@ import {
   ReputationAction,
   XP_POINTS,
 } from './types/reputation.types';
+import { CreateReputationDto } from './dto/create-reputation.dto';
+import { UpdateReputationDto } from './dto/update-reputation.dto';
 
 @Injectable()
 export class ReputationService {
@@ -18,7 +20,32 @@ export class ReputationService {
     @InjectRepository(ReputationLog) private logRepo: Repository<ReputationLog>,
   ) {}
 
-  async applyAction(userId: number, action: ReputationAction) {
+  async create(createReputationDto: CreateReputationDto) {
+    // Implementation for creating reputation record
+    return { message: 'Create not implemented' };
+  }
+
+  async findAll() {
+    // Implementation for finding all reputation records
+    return { message: 'FindAll not implemented' };
+  }
+
+  async findOne(id: number) {
+    // Implementation for finding one reputation record
+    return { message: 'FindOne not implemented' };
+  }
+
+  async update(id: number, updateReputationDto: UpdateReputationDto) {
+    // Implementation for updating reputation record
+    return { message: 'Update not implemented' };
+  }
+
+  async remove(id: number) {
+    // Implementation for removing reputation record
+    return { message: 'Remove not implemented' };
+  }
+
+  async applyAction(userId: string, action: ReputationAction) {
     const user = await this.userRepo.findOneBy({ id: userId });
     if (!user) throw new NotFoundException('User not found');
 

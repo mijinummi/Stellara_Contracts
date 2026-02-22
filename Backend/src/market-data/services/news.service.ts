@@ -21,7 +21,10 @@ export class NewsService {
 
     // Try cache first (unless bypassed)
     if (!bypassCache) {
-      const cached = await this.cacheService.get<NewsResponseDto>(cacheKey, CacheNamespace.NEWS);
+      const cached = await this.cacheService.get<NewsResponseDto>(
+        cacheKey,
+        CacheNamespace.NEWS,
+      );
 
       if (cached) {
         this.logger.debug('Serving news from cache');
@@ -46,7 +49,10 @@ export class NewsService {
     const cacheKey = `article:${articleId}`;
 
     // Try cache first
-    const cached = await this.cacheService.get<NewsArticleDto>(cacheKey, CacheNamespace.NEWS);
+    const cached = await this.cacheService.get<NewsArticleDto>(
+      cacheKey,
+      CacheNamespace.NEWS,
+    );
 
     if (cached) {
       this.logger.debug(`Serving article ${articleId} from cache`);
@@ -172,7 +178,9 @@ export class NewsService {
     // Filter by category if specified
     let filteredArticles = mockArticles;
     if (category) {
-      filteredArticles = mockArticles.filter((article) => article.category === category);
+      filteredArticles = mockArticles.filter(
+        (article) => article.category === category,
+      );
     }
 
     // Limit results
@@ -190,7 +198,9 @@ export class NewsService {
    * Fetch single article by ID
    * This is a mock implementation - replace with actual API calls
    */
-  private async fetchArticleById(articleId: string): Promise<NewsArticleDto | null> {
+  private async fetchArticleById(
+    articleId: string,
+  ): Promise<NewsArticleDto | null> {
     // Simulate API call delay
     await new Promise((resolve) => setTimeout(resolve, 300));
 

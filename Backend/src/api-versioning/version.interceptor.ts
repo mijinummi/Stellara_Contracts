@@ -1,4 +1,10 @@
-import { Injectable, NestInterceptor, ExecutionContext, CallHandler, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  NestInterceptor,
+  ExecutionContext,
+  CallHandler,
+  Logger,
+} from '@nestjs/common';
 import { Observable } from 'rxjs';
 import { tap } from 'rxjs/operators';
 import { ApiVersioningService } from './api-versioning.service';
@@ -12,16 +18,19 @@ export class VersionInterceptor implements NestInterceptor {
   intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
     const request = context.switchToHttp().getRequest();
     const response = context.switchToHttp().getResponse();
-    const version = (request as any).apiVersion;
+    const version = request.apiVersion;
 
     if (version) {
       // Add version headers to response
-      const versionHeaders = this.versioningService.generateVersionHeaders(version);
+      const versionHeaders =
+        this.versioningService.generateVersionHeaders(version);
       Object.entries(versionHeaders).forEach(([key, value]) => {
         response.setHeader(key, value);
       });
 
-      this.logger.debug(`Added version headers for ${this.versioningService.getVersionString(version)}`);
+      this.logger.debug(
+        `Added version headers for ${this.versioningService.getVersionString(version)}`,
+      );
     }
 
     return next.handle().pipe(

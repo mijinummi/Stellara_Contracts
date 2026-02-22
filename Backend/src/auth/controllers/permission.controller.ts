@@ -1,6 +1,20 @@
-import { Controller, Get, Post, Put, Delete, Param, Body, Query, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Put,
+  Delete,
+  Param,
+  Body,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { RoleManagerService } from '../services/role-manager.service';
-import { EnhancedRolesGuard, Permissions, Roles } from '../guards/enhanced-roles.guard';
+import {
+  EnhancedRolesGuard,
+  Permissions,
+  Roles,
+} from '../guards/enhanced-roles.guard';
 import { Role } from '../roles.enum';
 
 @Controller('permissions')
@@ -82,7 +96,10 @@ export class PermissionController {
     return {
       userId,
       permission: permissionName,
-      hasPermission: await this.roleManagerService.hasPermission(userId, permissionName),
+      hasPermission: await this.roleManagerService.hasPermission(
+        userId,
+        permissionName,
+      ),
     };
   }
 

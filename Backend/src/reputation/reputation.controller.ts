@@ -1,4 +1,12 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+} from '@nestjs/common';
 import { ReputationService } from './reputation.service';
 import { CreateReputationDto } from './dto/create-reputation.dto';
 import { UpdateReputationDto } from './dto/update-reputation.dto';
@@ -23,7 +31,10 @@ export class ReputationController {
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() updateReputationDto: UpdateReputationDto) {
+  update(
+    @Param('id') id: string,
+    @Body() updateReputationDto: UpdateReputationDto,
+  ) {
     return this.reputationService.update(+id, updateReputationDto);
   }
 

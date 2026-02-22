@@ -24,7 +24,10 @@ export class ApiDeprecationService {
 
   private loadDeprecationConfig() {
     // Load from environment or config files
-    const deprecationConfig = this.configService.get<DeprecationConfig[]>('API_DEPRECATIONS', []);
+    const deprecationConfig = this.configService.get<DeprecationConfig[]>(
+      'API_DEPRECATIONS',
+      [],
+    );
     this.deprecations.push(...deprecationConfig);
   }
 
@@ -32,7 +35,9 @@ export class ApiDeprecationService {
    * Check if a version is deprecated
    */
   isDeprecated(versionString: string): boolean {
-    const deprecation = this.deprecations.find(d => d.version === versionString);
+    const deprecation = this.deprecations.find(
+      (d) => d.version === versionString,
+    );
     if (!deprecation) return false;
 
     const now = new Date();
@@ -43,7 +48,9 @@ export class ApiDeprecationService {
    * Check if a version is past its sunset date
    */
   isSunset(versionString: string): boolean {
-    const deprecation = this.deprecations.find(d => d.version === versionString);
+    const deprecation = this.deprecations.find(
+      (d) => d.version === versionString,
+    );
     if (!deprecation) return false;
 
     const now = new Date();
@@ -54,7 +61,7 @@ export class ApiDeprecationService {
    * Get deprecation information for a version
    */
   getDeprecationInfo(versionString: string): DeprecationConfig | null {
-    return this.deprecations.find(d => d.version === versionString) || null;
+    return this.deprecations.find((d) => d.version === versionString) || null;
   }
 
   /**
@@ -85,7 +92,11 @@ export class ApiDeprecationService {
   /**
    * Add a new deprecation
    */
-  addDeprecation(config: Omit<DeprecationConfig, 'warningThresholdDays'> & { warningThresholdDays?: number }) {
+  addDeprecation(
+    config: Omit<DeprecationConfig, 'warningThresholdDays'> & {
+      warningThresholdDays?: number;
+    },
+  ) {
     const deprecation: DeprecationConfig = {
       ...config,
       warningThresholdDays: config.warningThresholdDays || 30,
@@ -104,7 +115,9 @@ export class ApiDeprecationService {
    */
   getActiveDeprecations(): DeprecationConfig[] {
     const now = new Date();
-    return this.deprecations.filter(d => now >= d.deprecationDate && now < d.sunsetDate);
+    return this.deprecations.filter(
+      (d) => now >= d.deprecationDate && now < d.sunsetDate,
+    );
   }
 
   /**
@@ -112,7 +125,7 @@ export class ApiDeprecationService {
    */
   getSunsetVersions(): DeprecationConfig[] {
     const now = new Date();
-    return this.deprecations.filter(d => now >= d.sunsetDate);
+    return this.deprecations.filter((d) => now >= d.sunsetDate);
   }
 
   /**
@@ -125,7 +138,7 @@ export class ApiDeprecationService {
     if (!deprecation) return null;
 
     const daysUntilSunset = this.getDaysUntilSunset(versionString);
-    
+
     if (this.isSunset(versionString)) {
       return `API version ${versionString} has been removed. Please migrate to a supported version.`;
     }

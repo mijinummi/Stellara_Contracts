@@ -10,7 +10,7 @@ import { MetricsController } from './controllers/metrics.controller';
 /**
  * Observability Module
  * Provides comprehensive logging, tracing, and metrics for the application
- * 
+ *
  * Features:
  * - Structured logging with Winston
  * - Distributed tracing with trace ID propagation (Jaeger-compatible)

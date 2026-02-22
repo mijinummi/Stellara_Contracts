@@ -6,21 +6,42 @@ import { StepState } from '../types/step-state.enum';
 export class WorkflowStateMachineService {
   private readonly logger = new Logger(WorkflowStateMachineService.name);
 
-  private readonly workflowTransitions: Record<WorkflowState, WorkflowState[]> = {
-    [WorkflowState.PENDING]: [WorkflowState.RUNNING, WorkflowState.CANCELLED],
-    [WorkflowState.RUNNING]: [WorkflowState.COMPLETED, WorkflowState.FAILED, WorkflowState.CANCELLED, WorkflowState.COMPENSATING],
-    [WorkflowState.COMPLETED]: [WorkflowState.COMPENSATING],
-    [WorkflowState.FAILED]: [WorkflowState.RUNNING, WorkflowState.CANCELLED, WorkflowState.COMPENSATING],
-    [WorkflowState.CANCELLED]: [WorkflowState.COMPENSATING],
-    [WorkflowState.COMPENSATING]: [WorkflowState.COMPENSATED, WorkflowState.FAILED],
-    [WorkflowState.COMPENSATED]: [], // Terminal state
-  };
+  private readonly workflowTransitions: Record<WorkflowState, WorkflowState[]> =
+    {
+      [WorkflowState.PENDING]: [WorkflowState.RUNNING, WorkflowState.CANCELLED],
+      [WorkflowState.RUNNING]: [
+        WorkflowState.COMPLETED,
+        WorkflowState.FAILED,
+        WorkflowState.CANCELLED,
+        WorkflowState.COMPENSATING,
+      ],
+      [WorkflowState.COMPLETED]: [WorkflowState.COMPENSATING],
+      [WorkflowState.FAILED]: [
+        WorkflowState.RUNNING,
+        WorkflowState.CANCELLED,
+        WorkflowState.COMPENSATING,
+      ],
+      [WorkflowState.CANCELLED]: [WorkflowState.COMPENSATING],
+      [WorkflowState.COMPENSATING]: [
+        WorkflowState.COMPENSATED,
+        WorkflowState.FAILED,
+      ],
+      [WorkflowState.COMPENSATED]: [], // Terminal state
+    };
 
   private readonly stepTransitions: Record<StepState, StepState[]> = {
     [StepState.PENDING]: [StepState.RUNNING, StepState.SKIPPED],
-    [StepState.RUNNING]: [StepState.COMPLETED, StepState.FAILED, StepState.SKIPPED],
+    [StepState.RUNNING]: [
+      StepState.COMPLETED,
+      StepState.FAILED,
+      StepState.SKIPPED,
+    ],
     [StepState.COMPLETED]: [StepState.COMPENSATING],
-    [StepState.FAILED]: [StepState.RUNNING, StepState.SKIPPED, StepState.COMPENSATING],
+    [StepState.FAILED]: [
+      StepState.RUNNING,
+      StepState.SKIPPED,
+      StepState.COMPENSATING,
+    ],
     [StepState.SKIPPED]: [StepState.COMPENSATING],
     [StepState.COMPENSATING]: [StepState.COMPENSATED, StepState.FAILED],
     [StepState.COMPENSATED]: [], // Terminal state
@@ -44,7 +65,9 @@ export class WorkflowStateMachineService {
       return { success: false, error };
     }
 
-    this.logger.debug(`Workflow state transition: ${currentState} -> ${newState}`);
+    this.logger.debug(
+      `Workflow state transition: ${currentState} -> ${newState}`,
+    );
     return { success: true };
   }
 
@@ -71,11 +94,19 @@ export class WorkflowStateMachineService {
   }
 
   isWorkflowTerminal(state: WorkflowState): boolean {
-    return state === WorkflowState.COMPLETED || state === WorkflowState.CANCELLED || state === WorkflowState.COMPENSATED;
+    return (
+      state === WorkflowState.COMPLETED ||
+      state === WorkflowState.CANCELLED ||
+      state === WorkflowState.COMPENSATED
+    );
   }
 
   isStepTerminal(state: StepState): boolean {
-    return state === StepState.COMPLETED || state === StepState.SKIPPED || state === StepState.COMPENSATED;
+    return (
+      state === StepState.COMPLETED ||
+      state === StepState.SKIPPED ||
+      state === StepState.COMPENSATED
+    );
   }
 
   isWorkflowRecoverable(state: WorkflowState): boolean {
@@ -87,14 +118,24 @@ export class WorkflowStateMachineService {
   }
 
   canWorkflowCompensate(state: WorkflowState): boolean {
-    return [WorkflowState.COMPLETED, WorkflowState.FAILED, WorkflowState.CANCELLED].includes(state);
+    return [
+      WorkflowState.COMPLETED,
+      WorkflowState.FAILED,
+      WorkflowState.CANCELLED,
+    ].includes(state);
   }
 
   canStepCompensate(state: StepState): boolean {
-    return [StepState.COMPLETED, StepState.FAILED, StepState.SKIPPED].includes(state);
+    return [StepState.COMPLETED, StepState.FAILED, StepState.SKIPPED].includes(
+      state,
+    );
   }
 
-  shouldRetry(state: WorkflowState | StepState, retryCount: number, maxRetries: number): boolean {
+  shouldRetry(
+    state: WorkflowState | StepState,
+    retryCount: number,
+    maxRetries: number,
+  ): boolean {
     if (state === WorkflowState.FAILED || state === StepState.FAILED) {
       return retryCount < maxRetries;
     }
@@ -106,7 +147,7 @@ export class WorkflowStateMachineService {
     const exponentialDelay = baseDelay * Math.pow(2, retryCount);
     const jitter = Math.random() * 0.1 * exponentialDelay; // 10% jitter
     const totalDelay = exponentialDelay + jitter;
-    
+
     return new Date(Date.now() + totalDelay);
   }
 }

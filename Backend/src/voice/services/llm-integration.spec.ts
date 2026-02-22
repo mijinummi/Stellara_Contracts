@@ -60,7 +60,11 @@ describe('LLM Pipeline Integration Tests', () => {
       mockRedisClient.incr.mockResolvedValue(1); // Initialize counters
       mockRedisClient.set.mockResolvedValue('OK'); // Cache write
 
-      const response = await llmService.generateResponse(userId, sessionId, prompt);
+      const response = await llmService.generateResponse(
+        userId,
+        sessionId,
+        prompt,
+      );
 
       expect(response.content).toBeDefined();
       expect(response.cached).toBe(false);
@@ -91,7 +95,11 @@ describe('LLM Pipeline Integration Tests', () => {
       mockRedisClient.get.mockResolvedValueOnce('Cached response'); // Cache hit
       mockRedisClient.incr.mockResolvedValue(1);
 
-      const response = await llmService.generateResponse(userId, sessionId, prompt);
+      const response = await llmService.generateResponse(
+        userId,
+        sessionId,
+        prompt,
+      );
 
       expect(response.cached).toBe(true);
       expect(response.content).toBe('Cached response');
@@ -110,7 +118,11 @@ describe('LLM Pipeline Integration Tests', () => {
       mockRedisClient.incr.mockResolvedValue(1);
       mockRedisClient.set.mockResolvedValue('OK');
 
-      const response1 = await llmService.generateResponse(userId, session1, prompt);
+      const response1 = await llmService.generateResponse(
+        userId,
+        session1,
+        prompt,
+      );
       expect(response1.quotaStatus?.monthlyUsage).toBeDefined();
 
       jest.clearAllMocks();

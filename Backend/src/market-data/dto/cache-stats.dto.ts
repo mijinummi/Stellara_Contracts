@@ -21,10 +21,15 @@ export class CacheStatsDto {
 }
 
 export class CacheInvalidateDto {
-  @ApiPropertyOptional({ description: 'Specific cache keys to invalidate', type: [String] })
+  @ApiPropertyOptional({
+    description: 'Specific cache keys to invalidate',
+    type: [String],
+  })
   keys?: string[];
 
-  @ApiPropertyOptional({ description: 'Pattern to match keys for invalidation' })
+  @ApiPropertyOptional({
+    description: 'Pattern to match keys for invalidation',
+  })
   pattern?: string;
 
   @ApiPropertyOptional({ description: 'Namespace to invalidate' })

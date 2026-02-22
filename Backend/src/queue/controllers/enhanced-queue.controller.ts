@@ -1,7 +1,27 @@
-import { Controller, Get, Post, Delete, Param, Query, Body, HttpCode, HttpStatus } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiQuery } from '@nestjs/swagger';
+import {
+  Controller,
+  Get,
+  Post,
+  Delete,
+  Param,
+  Query,
+  Body,
+  HttpCode,
+  HttpStatus,
+} from '@nestjs/common';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiParam,
+  ApiQuery,
+} from '@nestjs/swagger';
 import { QueueService } from '../services/queue.service';
-import { JobPriorityLevel, JobSchedule, PRIORITY_WEIGHTS } from '../types/enhanced-job.types';
+import {
+  JobPriorityLevel,
+  JobSchedule,
+  PRIORITY_WEIGHTS,
+} from '../types/enhanced-job.types';
 
 @ApiTags('Enhanced Queue Management')
 @Controller('api/v1/queue/enhanced')
@@ -11,14 +31,20 @@ export class EnhancedQueueController {
   @Get(':queueName/metrics')
   @ApiOperation({ summary: 'Get comprehensive queue metrics' })
   @ApiParam({ name: 'queueName', description: 'Name of the queue' })
-  @ApiResponse({ status: 200, description: 'Queue metrics retrieved successfully' })
+  @ApiResponse({
+    status: 200,
+    description: 'Queue metrics retrieved successfully',
+  })
   async getQueueMetrics(@Param('queueName') queueName: string) {
     return this.queueService.getQueueMetrics(queueName);
   }
 
   @Get('metrics/all')
   @ApiOperation({ summary: 'Get metrics for all queues' })
-  @ApiResponse({ status: 200, description: 'All queue metrics retrieved successfully' })
+  @ApiResponse({
+    status: 200,
+    description: 'All queue metrics retrieved successfully',
+  })
   async getAllQueueMetrics() {
     return this.queueService.getAllQueueMetrics();
   }
@@ -26,7 +52,10 @@ export class EnhancedQueueController {
   @Get(':queueName/health')
   @ApiOperation({ summary: 'Get queue health status' })
   @ApiParam({ name: 'queueName', description: 'Name of the queue' })
-  @ApiResponse({ status: 200, description: 'Queue health status retrieved successfully' })
+  @ApiResponse({
+    status: 200,
+    description: 'Queue health status retrieved successfully',
+  })
   async getQueueHealth(@Param('queueName') queueName: string) {
     return this.queueService.getQueueHealth(queueName);
   }
@@ -34,7 +63,10 @@ export class EnhancedQueueController {
   @Get(':queueName/performance')
   @ApiOperation({ summary: 'Get queue performance analytics' })
   @ApiParam({ name: 'queueName', description: 'Name of the queue' })
-  @ApiResponse({ status: 200, description: 'Performance analytics retrieved successfully' })
+  @ApiResponse({
+    status: 200,
+    description: 'Performance analytics retrieved successfully',
+  })
   async getPerformanceAnalytics(@Param('queueName') queueName: string) {
     return this.queueService.getPerformanceAnalytics(queueName);
   }
@@ -42,7 +74,12 @@ export class EnhancedQueueController {
   @Get(':queueName/dlq')
   @ApiOperation({ summary: 'Get enhanced dead letter queue items' })
   @ApiParam({ name: 'queueName', description: 'Name of the queue' })
-  @ApiQuery({ name: 'limit', required: false, description: 'Maximum number of items to return', type: Number })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    description: 'Maximum number of items to return',
+    type: Number,
+  })
   @ApiResponse({ status: 200, description: 'DLQ items retrieved successfully' })
   async getDLQItems(
     @Param('queueName') queueName: string,
@@ -54,7 +91,10 @@ export class EnhancedQueueController {
   @Get(':queueName/dlq/stats')
   @ApiOperation({ summary: 'Get DLQ statistics' })
   @ApiParam({ name: 'queueName', description: 'Name of the queue' })
-  @ApiResponse({ status: 200, description: 'DLQ statistics retrieved successfully' })
+  @ApiResponse({
+    status: 200,
+    description: 'DLQ statistics retrieved successfully',
+  })
   async getDLQStats(@Param('queueName') queueName: string) {
     return this.queueService.getDLQStatistics(queueName);
   }
@@ -69,7 +109,10 @@ export class EnhancedQueueController {
     @Param('queueName') queueName: string,
     @Param('dlqItemId') dlqItemId: string,
   ) {
-    const success = await this.queueService.retryFromEnhancedDLQ(queueName, dlqItemId);
+    const success = await this.queueService.retryFromEnhancedDLQ(
+      queueName,
+      dlqItemId,
+    );
     return {
       success,
       message: success ? 'Job retry initiated' : 'Failed to retry job',
@@ -80,9 +123,13 @@ export class EnhancedQueueController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Process all scheduled retries from DLQ' })
   @ApiParam({ name: 'queueName', description: 'Name of the queue' })
-  @ApiResponse({ status: 200, description: 'Scheduled retries processed successfully' })
+  @ApiResponse({
+    status: 200,
+    description: 'Scheduled retries processed successfully',
+  })
   async processScheduledRetries(@Param('queueName') queueName: string) {
-    const retriedIds = await this.queueService.processScheduledRetries(queueName);
+    const retriedIds =
+      await this.queueService.processScheduledRetries(queueName);
     return {
       retriedCount: retriedIds.length,
       retriedIds,
@@ -94,13 +141,21 @@ export class EnhancedQueueController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Purge old DLQ items' })
   @ApiParam({ name: 'queueName', description: 'Name of the queue' })
-  @ApiQuery({ name: 'olderThanDays', required: false, description: 'Age in days for items to purge', type: Number })
+  @ApiQuery({
+    name: 'olderThanDays',
+    required: false,
+    description: 'Age in days for items to purge',
+    type: Number,
+  })
   @ApiResponse({ status: 200, description: 'DLQ items purged successfully' })
   async purgeDLQ(
     @Param('queueName') queueName: string,
     @Query('olderThanDays') olderThanDays?: number,
   ) {
-    const deletedCount = await this.queueService.purgeDLQ(queueName, olderThanDays || 30);
+    const deletedCount = await this.queueService.purgeDLQ(
+      queueName,
+      olderThanDays || 30,
+    );
     return {
       deletedCount,
       message: `Purged ${deletedCount} old items from DLQ`,
@@ -114,7 +169,8 @@ export class EnhancedQueueController {
   @ApiResponse({ status: 201, description: 'Enhanced job added successfully' })
   async addEnhancedJob(
     @Param('queueName') queueName: string,
-    @Body() jobData: {
+    @Body()
+    jobData: {
       jobName: string;
       data: any;
       schedule?: {
@@ -146,7 +202,7 @@ export class EnhancedQueueController {
       jobData.data,
       schedule,
     );
-    
+
     return {
       jobId: job.id,
       queueName,
@@ -158,7 +214,10 @@ export class EnhancedQueueController {
   @Get(':queueName/priority-distribution')
   @ApiOperation({ summary: 'Get priority distribution for queue jobs' })
   @ApiParam({ name: 'queueName', description: 'Name of the queue' })
-  @ApiResponse({ status: 200, description: 'Priority distribution retrieved successfully' })
+  @ApiResponse({
+    status: 200,
+    description: 'Priority distribution retrieved successfully',
+  })
   async getPriorityDistribution(@Param('queueName') queueName: string) {
     const jobs = await this.queueService.getQueueJobs(queueName);
     // This would need to be implemented in the service

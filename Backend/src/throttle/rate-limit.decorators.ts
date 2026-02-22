@@ -4,10 +4,7 @@
  */
 
 import { SetMetadata } from '@nestjs/common';
-import {
-  EndpointCategory,
-  UserRole,
-} from './role-based-rate-limit.service';
+import { EndpointCategory, UserRole } from './role-based-rate-limit.service';
 import { RateLimitStrategyType } from './distributed-rate-limit.service';
 
 /**

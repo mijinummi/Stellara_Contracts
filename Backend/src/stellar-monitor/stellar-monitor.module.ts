@@ -9,9 +9,7 @@ import { WebhookConsumer } from './entities/webhook-consumer.entity';
 import { StellarEvent } from './entities/stellar-event.entity';
 
 @Module({
-  imports: [
-    TypeOrmModule.forFeature([WebhookConsumer, StellarEvent]),
-  ],
+  imports: [TypeOrmModule.forFeature([WebhookConsumer, StellarEvent])],
   controllers: [StellarMonitorController],
   providers: [
     StellarEventMonitorService,

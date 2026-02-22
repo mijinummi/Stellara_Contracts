@@ -48,7 +48,7 @@ import { RedisModule } from '../redis/redis.module';
     RedisModule,
   ],
   controllers: [
-    QueueAdminController, 
+    QueueAdminController,
     EnhancedQueueController,
     QueueSchedulingController,
   ],

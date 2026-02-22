@@ -1,6 +1,21 @@
-import { IsEnum, IsString, IsOptional, IsBoolean, IsObject, ValidateNested, IsUUID, IsArray, IsNotEmpty, IsIn } from 'class-validator';
+import {
+  IsEnum,
+  IsString,
+  IsOptional,
+  IsBoolean,
+  IsObject,
+  ValidateNested,
+  IsUUID,
+  IsArray,
+  IsNotEmpty,
+  IsIn,
+} from 'class-validator';
 import { Type } from 'class-transformer';
-import { NotificationType, NotificationChannel, NotificationPriority } from '../types/notification.types';
+import {
+  NotificationType,
+  NotificationChannel,
+  NotificationPriority,
+} from '../types/notification.types';
 
 export class CreateNotificationDto {
   @IsEnum(NotificationType)

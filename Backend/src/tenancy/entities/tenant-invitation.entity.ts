@@ -1,11 +1,18 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, ManyToOne } from 'typeorm';
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  CreateDateColumn,
+  UpdateDateColumn,
+  ManyToOne,
+} from 'typeorm';
 import { Tenant } from './tenant.entity';
 
 export enum InvitationStatus {
   PENDING = 'pending',
   ACCEPTED = 'accepted',
   EXPIRED = 'expired',
-  REVOKED = 'revoked'
+  REVOKED = 'revoked',
 }
 
 @Entity('tenant_invitations')
@@ -25,7 +32,7 @@ export class TenantInvitation {
   @Column({
     type: 'enum',
     enum: InvitationStatus,
-    default: InvitationStatus.PENDING
+    default: InvitationStatus.PENDING,
   })
   status: InvitationStatus;
 

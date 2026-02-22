@@ -42,14 +42,19 @@ export class VoiceGateway implements OnGatewayConnection, OnGatewayDisconnect {
       // Resume existing session
       const session = await this.voiceSessionService.getSession(sessionId);
       if (session && session.userId === userId) {
-        await this.voiceSessionService.updateSessionSocket(sessionId, client.id);
+        await this.voiceSessionService.updateSessionSocket(
+          sessionId,
+          client.id,
+        );
         await this.voiceSessionService.resumeSession(sessionId);
-        
+
         client.join(sessionId);
         this.userSessions.set(userId, sessionId);
-        
+
         client.emit('voice:resumed', { sessionId, state: session.state });
-        this.logger.log(`Resumed voice session ${sessionId} for user ${userId}`);
+        this.logger.log(
+          `Resumed voice session ${sessionId} for user ${userId}`,
+        );
       } else {
         client.emit('voice:error', { message: 'Invalid session' });
         client.disconnect();
@@ -61,11 +66,16 @@ export class VoiceGateway implements OnGatewayConnection, OnGatewayDisconnect {
     const userId = client.handshake.auth.userId;
     const sessionId = client.handshake.auth.sessionId;
 
-    this.logger.log(`Voice client disconnected: ${client.id}, userId: ${userId}`);
+    this.logger.log(
+      `Voice client disconnected: ${client.id}, userId: ${userId}`,
+    );
 
     if (userId && sessionId) {
       // Don't terminate session immediately - allow for reconnection
-      await this.voiceSessionService.updateSessionState(sessionId, ConversationState.IDLE);
+      await this.voiceSessionService.updateSessionState(
+        sessionId,
+        ConversationState.IDLE,
+      );
       this.userSessions.delete(userId);
     }
   }
@@ -83,13 +93,17 @@ export class VoiceGateway implements OnGatewayConnection, OnGatewayDisconnect {
       }
 
       // Check if user already has an active session
-      const existingSessions = await this.voiceSessionService.getUserActiveSessions(userId);
+      const existingSessions =
+        await this.voiceSessionService.getUserActiveSessions(userId);
       if (existingSessions.length > 0) {
         const existingSession = existingSessions[0];
-        await this.voiceSessionService.updateSessionSocket(existingSession.id, client.id);
+        await this.voiceSessionService.updateSessionSocket(
+          existingSession.id,
+          client.id,
+        );
         client.join(existingSession.id);
         this.userSessions.set(userId, existingSession.id);
-        
+
         client.emit('voice:session-created', { session: existingSession });
         return;
       }
@@ -135,13 +149,16 @@ export class VoiceGateway implements OnGatewayConnection, OnGatewayDisconnect {
       }
 
       // Start streaming response
-      const streamId = await this.streamingResponseService.startStreamingResponse(
-        this.server,
-        sessionId,
-        messageDto.content,
-      );
+      const streamId =
+        await this.streamingResponseService.startStreamingResponse(
+          this.server,
+          sessionId,
+          messageDto.content,
+        );
 
-      this.logger.log(`Started streaming response ${streamId} for session ${sessionId}`);
+      this.logger.log(
+        `Started streaming response ${streamId} for session ${sessionId}`,
+      );
     } catch (error) {
       this.logger.error('Error handling message:', error);
       client.emit('voice:error', { message: 'Failed to process message' });
@@ -169,7 +186,10 @@ export class VoiceGateway implements OnGatewayConnection, OnGatewayDisconnect {
       );
 
       if (success) {
-        client.emit('voice:interrupt-acknowledged', { sessionId, streamId: data.streamId });
+        client.emit('voice:interrupt-acknowledged', {
+          sessionId,
+          streamId: data.streamId,
+        });
       } else {
         client.emit('voice:error', { message: 'Failed to interrupt' });
       }
@@ -194,7 +214,10 @@ export class VoiceGateway implements OnGatewayConnection, OnGatewayDisconnect {
       }
 
       if (actionDto.interrupt) {
-        await this.streamingResponseService.interruptStream(this.server, sessionId);
+        await this.streamingResponseService.interruptStream(
+          this.server,
+          sessionId,
+        );
       }
 
       if (actionDto.state) {
@@ -202,9 +225,12 @@ export class VoiceGateway implements OnGatewayConnection, OnGatewayDisconnect {
           sessionId,
           actionDto.state,
         );
-        
+
         if (success) {
-          client.emit('voice:state-updated', { sessionId, state: actionDto.state });
+          client.emit('voice:state-updated', {
+            sessionId,
+            state: actionDto.state,
+          });
         } else {
           client.emit('voice:error', { message: 'Invalid state transition' });
         }
@@ -227,16 +253,22 @@ export class VoiceGateway implements OnGatewayConnection, OnGatewayDisconnect {
       }
 
       // Interrupt any active streams
-      await this.streamingResponseService.interruptStream(this.server, sessionId);
+      await this.streamingResponseService.interruptStream(
+        this.server,
+        sessionId,
+      );
 
       // Terminate session
-      const success = await this.voiceSessionService.terminateSession(sessionId);
-      
+      const success =
+        await this.voiceSessionService.terminateSession(sessionId);
+
       if (success) {
         client.leave(sessionId);
         this.userSessions.delete(userId);
         client.emit('voice:terminated', { sessionId });
-        this.logger.log(`Terminated voice session ${sessionId} for user ${userId}`);
+        this.logger.log(
+          `Terminated voice session ${sessionId} for user ${userId}`,
+        );
       } else {
         client.emit('voice:error', { message: 'Failed to terminate session' });
       }

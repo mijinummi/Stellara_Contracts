@@ -1,4 +1,10 @@
-import { Injectable, CanActivate, ExecutionContext, UnauthorizedException, ForbiddenException } from '@nestjs/common';
+import {
+  Injectable,
+  CanActivate,
+  ExecutionContext,
+  UnauthorizedException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { TenantService } from '../tenant.service';
 
@@ -6,29 +12,35 @@ import { TenantService } from '../tenant.service';
 export class TenantGuard implements CanActivate {
   constructor(
     private readonly tenantService: TenantService,
-    private readonly reflector: Reflector
+    private readonly reflector: Reflector,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest();
     const user = request.user;
-    
+
     if (!user) {
       throw new UnauthorizedException('User not authenticated');
     }
 
     // Get tenant ID from request parameters or headers
     const tenantId = this.extractTenantId(request);
-    
+
     if (!tenantId) {
       // If no tenant ID is required for this route, allow access
-      const isPublic = this.reflector.get<boolean>('isPublic', context.getHandler());
+      const isPublic = this.reflector.get<boolean>(
+        'isPublic',
+        context.getHandler(),
+      );
       return isPublic || true;
     }
 
     // Validate tenant access
-    const hasAccess = await this.tenantService.validateTenantAccess(tenantId, user.id);
-    
+    const hasAccess = await this.tenantService.validateTenantAccess(
+      tenantId,
+      user.id,
+    );
+
     if (!hasAccess) {
       throw new ForbiddenException('Access denied to this tenant');
     }

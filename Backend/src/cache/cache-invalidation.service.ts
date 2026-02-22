@@ -33,7 +33,9 @@ export class CacheInvalidationService implements OnModuleInit {
   async onModuleInit() {
     await this.setupPubSub();
     await this.loadInvalidationRules();
-    this.logger.log(`CacheInvalidationService initialized for ${this.instanceId}`);
+    this.logger.log(
+      `CacheInvalidationService initialized for ${this.instanceId}`,
+    );
   }
 
   // ==================== DIRECT INVALIDATION ====================
@@ -69,7 +71,9 @@ export class CacheInvalidationService implements OnModuleInit {
 
     await this.broadcastInvalidation(message);
     await this.cacheService.deleteByTag(tag);
-    this.logger.log(`Invalidated by tag: ${tag}${reason ? ` (${reason})` : ''}`);
+    this.logger.log(
+      `Invalidated by tag: ${tag}${reason ? ` (${reason})` : ''}`,
+    );
   }
 
   /**
@@ -110,14 +114,22 @@ export class CacheInvalidationService implements OnModuleInit {
   /**
    * Add invalidation rule for automatic dependency management
    */
-  async addInvalidationRule(keyPattern: string, dependencies: string[], cascade: boolean = true): Promise<void> {
+  async addInvalidationRule(
+    keyPattern: string,
+    dependencies: string[],
+    cascade: boolean = true,
+  ): Promise<void> {
     const rule: InvalidationRule = {
       pattern: keyPattern,
       dependencies,
       cascade,
     };
 
-    await this.redisService.client.hSet(this.RULES_KEY, keyPattern, JSON.stringify(rule));
+    await this.redisService.client.hSet(
+      this.RULES_KEY,
+      keyPattern,
+      JSON.stringify(rule),
+    );
     this.logger.log(`Added invalidation rule for pattern: ${keyPattern}`);
   }
 
@@ -141,7 +153,9 @@ export class CacheInvalidationService implements OnModuleInit {
         if (rule.pattern.includes('*')) {
           // Pattern-based invalidation
           const count = await this.invalidatePatternLocally(rule.pattern);
-          this.logger.log(`Invalidated ${count} keys matching pattern: ${rule.pattern}`);
+          this.logger.log(
+            `Invalidated ${count} keys matching pattern: ${rule.pattern}`,
+          );
         } else {
           // Direct key invalidation
           await this.cacheService.delete(rule.pattern);
@@ -150,7 +164,10 @@ export class CacheInvalidationService implements OnModuleInit {
 
         // Cascade invalidation if configured
         if (rule.cascade) {
-          const cascaded = await this.invalidateDependents(rule.pattern, `cascade from ${key}`);
+          const cascaded = await this.invalidateDependents(
+            rule.pattern,
+            `cascade from ${key}`,
+          );
           affectedKeys.push(...cascaded);
         }
       }
@@ -174,19 +191,23 @@ export class CacheInvalidationService implements OnModuleInit {
       target: keys.join(','),
       timestamp: Date.now(),
       source: this.instanceId,
-      reason: reason ? `${reason} (batch:${keys.length})` : `batch:${keys.length}`,
+      reason: reason
+        ? `${reason} (batch:${keys.length})`
+        : `batch:${keys.length}`,
     };
 
     await this.broadcastInvalidation(message);
-    
+
     // Use pipeline for efficiency
     const pipeline = this.redisService.client.multi();
     for (const key of keys) {
       pipeline.del(`cache:${key}`);
     }
     await pipeline.exec();
-    
-    this.logger.log(`Invalidated batch of ${keys.length} keys${reason ? ` (${reason})` : ''}`);
+
+    this.logger.log(
+      `Invalidated batch of ${keys.length} keys${reason ? ` (${reason})` : ''}`,
+    );
   }
 
   /**
@@ -194,12 +215,12 @@ export class CacheInvalidationService implements OnModuleInit {
    */
   async invalidateByTags(tags: string[], reason?: string): Promise<number> {
     let totalDeleted = 0;
-    
+
     for (const tag of tags) {
       await this.invalidateByTag(tag, reason);
       totalDeleted++; // invalidateByTag doesn't return count
     }
-    
+
     return totalDeleted;
   }
 
@@ -208,7 +229,11 @@ export class CacheInvalidationService implements OnModuleInit {
   /**
    * Schedule invalidation for specific time
    */
-  async scheduleInvalidation(key: string, delayMs: number, reason?: string): Promise<void> {
+  async scheduleInvalidation(
+    key: string,
+    delayMs: number,
+    reason?: string,
+  ): Promise<void> {
     const timestamp = Date.now() + delayMs;
     const message = JSON.stringify({
       key,
@@ -217,8 +242,13 @@ export class CacheInvalidationService implements OnModuleInit {
       source: this.instanceId,
     });
 
-    await this.redisService.client.zAdd('cache:invalidation:schedule', { score: timestamp, value: message });
-    this.logger.log(`Scheduled invalidation for ${key} at ${new Date(timestamp).toISOString()}`);
+    await this.redisService.client.zAdd('cache:invalidation:schedule', {
+      score: timestamp,
+      value: message,
+    });
+    this.logger.log(
+      `Scheduled invalidation for ${key} at ${new Date(timestamp).toISOString()}`,
+    );
   }
 
   /**
@@ -244,10 +274,12 @@ export class CacheInvalidationService implements OnModuleInit {
     }
 
     await pipeline.exec();
-    
+
     if (keysToDelete.length > 0) {
       await this.invalidateBatch(keysToDelete, 'scheduled');
-      this.logger.log(`Processed ${keysToDelete.length} scheduled invalidations`);
+      this.logger.log(
+        `Processed ${keysToDelete.length} scheduled invalidations`,
+      );
     }
   }
 
@@ -259,8 +291,12 @@ export class CacheInvalidationService implements OnModuleInit {
   async getInvalidationStats(): Promise<any> {
     try {
       const [totalInvalidations, pendingSchedules] = await Promise.all([
-        this.redisService.client.get('cache:stats:invalidations:total').then(v => parseInt(v as string || '0', 10)),
-        this.redisService.client.zCard('cache:invalidation:schedule').then(count => parseInt(count.toString(), 10)),
+        this.redisService.client
+          .get('cache:stats:invalidations:total')
+          .then((v) => parseInt((v as string) || '0', 10)),
+        this.redisService.client
+          .zCard('cache:invalidation:schedule')
+          .then((count) => parseInt(count.toString(), 10)),
       ]);
 
       const recentInvalidations = await this.redisService.client.lRange(
@@ -272,7 +308,9 @@ export class CacheInvalidationService implements OnModuleInit {
       return {
         totalInvalidations,
         pendingSchedules,
-        recentInvalidations: recentInvalidations.map(item => JSON.parse(item as string)),
+        recentInvalidations: recentInvalidations.map((item) =>
+          JSON.parse(item),
+        ),
       };
     } catch (error) {
       this.logger.error(`Error getting invalidation stats: ${error.message}`);
@@ -288,8 +326,10 @@ export class CacheInvalidationService implements OnModuleInit {
 
   private async setupPubSub(): Promise<void> {
     // Type assertion to handle Redis client subscribe method
-    await (this.redisService.subClient as any).subscribe(this.INVALIDATION_CHANNEL);
-    
+    await (this.redisService.subClient as any).subscribe(
+      this.INVALIDATION_CHANNEL,
+    );
+
     this.redisService.subClient.on('message', async (channel, message) => {
       if (channel === this.INVALIDATION_CHANNEL) {
         await this.handleInvalidationMessage(message);
@@ -298,8 +338,10 @@ export class CacheInvalidationService implements OnModuleInit {
 
     // Process scheduled invalidations every minute
     setInterval(() => {
-      this.processScheduledInvalidations().catch(error => {
-        this.logger.error(`Error processing scheduled invalidations: ${error.message}`);
+      this.processScheduledInvalidations().catch((error) => {
+        this.logger.error(
+          `Error processing scheduled invalidations: ${error.message}`,
+        );
       });
     }, 60000);
   }
@@ -307,14 +349,16 @@ export class CacheInvalidationService implements OnModuleInit {
   private async handleInvalidationMessage(message: string): Promise<void> {
     try {
       const msg: InvalidationMessage = JSON.parse(message);
-      
+
       // Skip messages from self
       if (msg.source === this.instanceId) {
         return;
       }
 
-      this.logger.debug(`Received invalidation message: ${msg.type} ${msg.target}`);
-      
+      this.logger.debug(
+        `Received invalidation message: ${msg.type} ${msg.target}`,
+      );
+
       switch (msg.type) {
         case 'key':
           if (msg.target.includes(',')) {
@@ -339,11 +383,15 @@ export class CacheInvalidationService implements OnModuleInit {
       // Record statistic
       await this.recordInvalidationStat(msg);
     } catch (error) {
-      this.logger.error(`Error handling invalidation message: ${error.message}`);
+      this.logger.error(
+        `Error handling invalidation message: ${error.message}`,
+      );
     }
   }
 
-  private async broadcastInvalidation(message: InvalidationMessage): Promise<void> {
+  private async broadcastInvalidation(
+    message: InvalidationMessage,
+  ): Promise<void> {
     try {
       await this.redisService.pubClient.publish(
         this.INVALIDATION_CHANNEL,
@@ -364,7 +412,9 @@ export class CacheInvalidationService implements OnModuleInit {
       target: affectedKeys.join(','),
       timestamp: Date.now(),
       source: this.instanceId,
-      reason: reason ? `${reason} (dependent of ${sourceKey})` : `dependent of ${sourceKey}`,
+      reason: reason
+        ? `${reason} (dependent of ${sourceKey})`
+        : `dependent of ${sourceKey}`,
     };
 
     await this.broadcastInvalidation(message);
@@ -379,12 +429,14 @@ export class CacheInvalidationService implements OnModuleInit {
   }
 
   private async invalidatePatternLocally(pattern: string): Promise<number> {
-    const redisPattern = pattern.startsWith('cache:') ? pattern : `cache:${pattern}`;
+    const redisPattern = pattern.startsWith('cache:')
+      ? pattern
+      : `cache:${pattern}`;
     const keys = await this.redisService.client.keys(redisPattern);
-    
+
     if (keys.length === 0) return 0;
-    
-    const cleanKeys = keys.map(key => key.replace('cache:', ''));
+
+    const cleanKeys = keys.map((key) => key.replace('cache:', ''));
     await this.invalidateBatchLocally(cleanKeys);
     return keys.length;
   }
@@ -398,15 +450,17 @@ export class CacheInvalidationService implements OnModuleInit {
     }
   }
 
-  private async getInvalidationRules(): Promise<Record<string, InvalidationRule>> {
+  private async getInvalidationRules(): Promise<
+    Record<string, InvalidationRule>
+  > {
     try {
       const rules = await this.redisService.client.hGetAll(this.RULES_KEY);
       const parsedRules: Record<string, InvalidationRule> = {};
-      
+
       for (const [key, value] of Object.entries(rules)) {
-        parsedRules[key] = JSON.parse(value as string);
+        parsedRules[key] = JSON.parse(value);
       }
-      
+
       return parsedRules;
     } catch (error) {
       this.logger.error(`Error getting invalidation rules: ${error.message}`);
@@ -414,7 +468,9 @@ export class CacheInvalidationService implements OnModuleInit {
     }
   }
 
-  private async recordInvalidationStat(message: InvalidationMessage): Promise<void> {
+  private async recordInvalidationStat(
+    message: InvalidationMessage,
+  ): Promise<void> {
     try {
       await Promise.all([
         this.redisService.client.incr('cache:stats:invalidations:total'),
@@ -428,7 +484,11 @@ export class CacheInvalidationService implements OnModuleInit {
             reason: message.reason,
           }),
         ),
-        this.redisService.client.lTrim('cache:stats:invalidations:recent', 0, 49),
+        this.redisService.client.lTrim(
+          'cache:stats:invalidations:recent',
+          0,
+          49,
+        ),
       ]);
     } catch (error) {
       this.logger.error(`Error recording invalidation stat: ${error.message}`);

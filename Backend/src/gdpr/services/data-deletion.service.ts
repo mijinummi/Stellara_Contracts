@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In } from 'typeorm';
 import { User } from '../../auth/entities/user.entity';
@@ -45,7 +49,10 @@ export class DataDeletionService {
     private readonly auditService: AuditService,
   ) {}
 
-  async requestDeletion(userId: string, reason?: string): Promise<DeletionRequest> {
+  async requestDeletion(
+    userId: string,
+    reason?: string,
+  ): Promise<DeletionRequest> {
     // Verify user exists and is active
     const user = await this.userRepository.findOne({
       where: { id: userId, isActive: true },
@@ -83,7 +90,10 @@ export class DataDeletionService {
     return deletionRequest;
   }
 
-  async processDeletion(deletionRequestId: string, adminId: string): Promise<DeletionStats> {
+  async processDeletion(
+    deletionRequestId: string,
+    adminId: string,
+  ): Promise<DeletionStats> {
     // In a real implementation, you would fetch the deletion request from a database
     // For now, we'll extract userId from the request ID
     const userId = deletionRequestId.split('_')[2];
@@ -106,17 +116,23 @@ export class DataDeletionService {
     }
 
     // Log admin action
-    await this.auditService.logAction('DELETION_PROCESSING_STARTED', adminId, userId, {
-      deletionRequestId,
-    });
+    await this.auditService.logAction(
+      'DELETION_PROCESSING_STARTED',
+      adminId,
+      userId,
+      {
+        deletionRequestId,
+      },
+    );
 
     // Perform soft deletion of related data
-    const [walletStats, refreshTokenStats, apiTokenStats, consentStats] = await Promise.all([
-      this.softDeleteWallets(userId),
-      this.softDeleteRefreshTokens(userId),
-      this.softDeleteApiTokens(userId),
-      this.softDeleteConsents(userId),
-    ]);
+    const [walletStats, refreshTokenStats, apiTokenStats, consentStats] =
+      await Promise.all([
+        this.softDeleteWallets(userId),
+        this.softDeleteRefreshTokens(userId),
+        this.softDeleteApiTokens(userId),
+        this.softDeleteConsents(userId),
+      ]);
 
     // Update user record with deletion metadata
     await this.userRepository.update(userId, {
@@ -177,10 +193,15 @@ export class DataDeletionService {
       // Perform hard deletion of all user data
       await this.hardDeleteUserData(user.id);
       deletedCount++;
-      
-      await this.auditService.logAction('HARD_DELETION_COMPLETED', 'system', user.id, {
-        reason: 'Retention period expired',
-      });
+
+      await this.auditService.logAction(
+        'HARD_DELETION_COMPLETED',
+        'system',
+        user.id,
+        {
+          reason: 'Retention period expired',
+        },
+      );
     }
 
     return deletedCount;
@@ -189,7 +210,7 @@ export class DataDeletionService {
   private async softDeleteWallets(userId: string): Promise<number> {
     const result = await this.walletRepository.update(
       { userId },
-      { 
+      {
         publicKey: `deleted_${Date.now()}`, // Anonymize
       },
     );
@@ -199,7 +220,7 @@ export class DataDeletionService {
   private async softDeleteRefreshTokens(userId: string): Promise<number> {
     const result = await this.refreshTokenRepository.update(
       { userId },
-      { 
+      {
         revoked: true,
         revokedAt: new Date(),
         token: `deleted_${Date.now()}`, // Anonymize
@@ -211,7 +232,7 @@ export class DataDeletionService {
   private async softDeleteApiTokens(userId: string): Promise<number> {
     const result = await this.apiTokenRepository.update(
       { userId },
-      { 
+      {
         revoked: true,
         token: `deleted_${Date.now()}`, // Anonymize
       },
@@ -222,7 +243,7 @@ export class DataDeletionService {
   private async softDeleteConsents(userId: string): Promise<number> {
     const result = await this.consentRepository.update(
       { userId },
-      { 
+      {
         withdrawnAt: new Date(),
       },
     );
@@ -235,15 +256,15 @@ export class DataDeletionService {
     await this.apiTokenRepository.delete({ userId });
     await this.refreshTokenRepository.delete({ userId });
     await this.walletRepository.delete({ userId });
-    
+
     // Finally delete the user
     await this.userRepository.delete(userId);
   }
 
-  async getDeletionStatus(userId: string): Promise<{ 
-    isActive: boolean; 
-    deletionRequested?: Date; 
-    retentionUntil?: Date 
+  async getDeletionStatus(userId: string): Promise<{
+    isActive: boolean;
+    deletionRequested?: Date;
+    retentionUntil?: Date;
   }> {
     const user = await this.userRepository.findOne({
       where: { id: userId },
@@ -256,8 +277,12 @@ export class DataDeletionService {
     return {
       isActive: user.isActive,
       deletionRequested: user.isActive ? undefined : user.updatedAt,
-      retentionUntil: user.isActive ? undefined : 
-        new Date(user.updatedAt.getTime() + (this.RETENTION_DAYS * 24 * 60 * 60 * 1000)),
+      retentionUntil: user.isActive
+        ? undefined
+        : new Date(
+            user.updatedAt.getTime() +
+              this.RETENTION_DAYS * 24 * 60 * 60 * 1000,
+          ),
     };
   }
 }

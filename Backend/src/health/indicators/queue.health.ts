@@ -15,34 +15,34 @@ export class QueueHealthIndicator {
 
   async isHealthy(): Promise<HealthIndicatorResult> {
     const startTime = Date.now();
-    
+
     try {
       // Test queue connection by getting queue counts
       const queueNames = ['default', 'voice', 'workflow'];
       const queueChecks = await Promise.all(
-        queueNames.map(name => this.checkQueue(name))
+        queueNames.map((name) => this.checkQueue(name)),
       );
-      
+
       const latency = Date.now() - startTime;
-      
+
       const details: QueueHealthDetails = {
         connection: true,
         latency,
         queues: queueChecks,
       };
 
-      const downQueues = queueChecks.filter(q => q.status === 'down');
-      const degradedQueues = queueChecks.filter(q => q.status === 'degraded');
-      
+      const downQueues = queueChecks.filter((q) => q.status === 'down');
+      const degradedQueues = queueChecks.filter((q) => q.status === 'degraded');
+
       let status = 'up';
       let message = 'All queues are healthy';
-      
+
       if (downQueues.length > 0) {
         status = 'down';
-        message = `${downQueues.length} queue(s) are down: ${downQueues.map(q => q.name).join(', ')}`;
+        message = `${downQueues.length} queue(s) are down: ${downQueues.map((q) => q.name).join(', ')}`;
       } else if (degradedQueues.length > 0) {
         status = 'degraded';
-        message = `${degradedQueues.length} queue(s) are degraded: ${degradedQueues.map(q => q.name).join(', ')}`;
+        message = `${degradedQueues.length} queue(s) are degraded: ${degradedQueues.map((q) => q.name).join(', ')}`;
       }
 
       return {
@@ -54,7 +54,7 @@ export class QueueHealthIndicator {
       };
     } catch (error) {
       this.logger.error('Queue health check failed', error);
-      
+
       return {
         name: 'queue',
         status: 'down',
@@ -73,7 +73,7 @@ export class QueueHealthIndicator {
   }> {
     try {
       let queue: Queue;
-      
+
       switch (queueName) {
         case 'default':
           queue = this.defaultQueue;
@@ -96,7 +96,7 @@ export class QueueHealthIndicator {
 
       // Get queue job counts
       const counts = await queue.getJobCounts();
-      
+
       const result = {
         name: queueName,
         active: counts.active || 0,
@@ -109,7 +109,7 @@ export class QueueHealthIndicator {
       if (result.failed > 100) {
         result.status = 'degraded';
       }
-      
+
       if (result.waiting > 1000) {
         result.status = 'degraded';
       }
@@ -117,7 +117,7 @@ export class QueueHealthIndicator {
       return result;
     } catch (error) {
       this.logger.warn(`Queue ${queueName} health check failed`, error);
-      
+
       return {
         name: queueName,
         active: 0,

@@ -94,8 +94,11 @@ describe('GDPR Services', () => {
 
     dataExportService = module.get<DataExportService>(DataExportService);
     dataDeletionService = module.get<DataDeletionService>(DataDeletionService);
-    consentManagementService = module.get<ConsentManagementService>(ConsentManagementService);
-    dataRetentionService = module.get<DataRetentionService>(DataRetentionService);
+    consentManagementService = module.get<ConsentManagementService>(
+      ConsentManagementService,
+    );
+    dataRetentionService =
+      module.get<DataRetentionService>(DataRetentionService);
   });
 
   describe('DataExportService', () => {
@@ -105,8 +108,12 @@ describe('GDPR Services', () => {
 
     it('should export user data', async () => {
       const userId = 'test-user-id';
-      const mockUser = { id: userId, email: 'test@example.com', isActive: true };
-      
+      const mockUser = {
+        id: userId,
+        email: 'test@example.com',
+        isActive: true,
+      };
+
       mockUserRepository.findOne.mockResolvedValue(mockUser);
       mockWalletRepository.find.mockResolvedValue([]);
       mockRefreshTokenRepository.find.mockResolvedValue([]);
@@ -122,7 +129,7 @@ describe('GDPR Services', () => {
         'DATA_EXPORT_REQUESTED',
         userId,
         userId,
-        expect.any(Object)
+        expect.any(Object),
       );
     });
   });
@@ -135,7 +142,7 @@ describe('GDPR Services', () => {
     it('should request deletion', async () => {
       const userId = 'test-user-id';
       const mockUser = { id: userId, isActive: true };
-      
+
       mockUserRepository.findOne.mockResolvedValue(mockUser);
       mockUserRepository.update.mockResolvedValue({ affected: 1 });
 
@@ -147,7 +154,7 @@ describe('GDPR Services', () => {
         'DELETION_REQUESTED',
         userId,
         userId,
-        expect.any(Object)
+        expect.any(Object),
       );
     });
   });
@@ -163,7 +170,7 @@ describe('GDPR Services', () => {
         consentType: ConsentType.DATA_PROCESSING,
         granted: true,
       };
-      
+
       mockConsentRepository.findOne.mockResolvedValue(null);
       mockConsentRepository.create.mockReturnValue({
         id: 'consent-id',
@@ -178,14 +185,17 @@ describe('GDPR Services', () => {
         status: 'granted',
       });
 
-      const result = await consentManagementService.grantConsent(userId, consentData);
+      const result = await consentManagementService.grantConsent(
+        userId,
+        consentData,
+      );
 
       expect(result.status).toBe('granted');
       expect(mockAuditService.logAction).toHaveBeenCalledWith(
         'CONSENT_GRANTED',
         userId,
         expect.any(String),
-        expect.any(Object)
+        expect.any(Object),
       );
     });
   });

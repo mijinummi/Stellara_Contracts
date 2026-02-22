@@ -80,10 +80,14 @@ describe('Enhanced QueueService Integration', () => {
     }).compile();
 
     service = module.get<QueueService>(QueueService);
-    retryStrategyService = module.get<RetryStrategyService>(RetryStrategyService);
-    deadLetterQueueService = module.get<DeadLetterQueueService>(DeadLetterQueueService);
+    retryStrategyService =
+      module.get<RetryStrategyService>(RetryStrategyService);
+    deadLetterQueueService = module.get<DeadLetterQueueService>(
+      DeadLetterQueueService,
+    );
     jobPriorityService = module.get<JobPriorityService>(JobPriorityService);
-    jobMonitoringService = module.get<JobMonitoringService>(JobMonitoringService);
+    jobMonitoringService =
+      module.get<JobMonitoringService>(JobMonitoringService);
   });
 
   describe('Enhanced Job Addition', () => {
@@ -113,7 +117,7 @@ describe('Enhanced QueueService Integration', () => {
           backoff: expect.objectContaining({
             type: 'exponential',
           }),
-        })
+        }),
       );
       expect(result.id).toBe('job-123');
     });
@@ -140,7 +144,12 @@ describe('Enhanced QueueService Integration', () => {
       const mockQueue = service['getQueueByName'](queueName);
       mockQueue.add.mockResolvedValue(mockJob);
 
-      const result = await service.addEnhancedJob(queueName, jobName, jobData, schedule);
+      const result = await service.addEnhancedJob(
+        queueName,
+        jobName,
+        jobData,
+        schedule,
+      );
 
       expect(mockQueue.add).toHaveBeenCalledWith(
         jobName,
@@ -149,7 +158,7 @@ describe('Enhanced QueueService Integration', () => {
           delay: 5000,
           priority: 10,
           attempts: expect.any(Number),
-        })
+        }),
       );
       expect(result.id).toBe('job-456');
     });
@@ -171,39 +180,50 @@ describe('Enhanced QueueService Integration', () => {
         },
       ];
 
-      jest.spyOn(deadLetterQueueService, 'getDLQItems')
+      jest
+        .spyOn(deadLetterQueueService, 'getDLQItems')
         .mockResolvedValue(mockDLQItems);
 
       const result = await service.getEnhancedDLQ(queueName);
 
       expect(result).toEqual(mockDLQItems);
-      expect(deadLetterQueueService.getDLQItems).toHaveBeenCalledWith(queueName, 50);
+      expect(deadLetterQueueService.getDLQItems).toHaveBeenCalledWith(
+        queueName,
+        50,
+      );
     });
 
     it('should retry job from enhanced DLQ', async () => {
       const queueName = 'test-queue';
       const dlqItemId = 'dlq-123';
 
-      jest.spyOn(deadLetterQueueService, 'retryFromDLQ')
+      jest
+        .spyOn(deadLetterQueueService, 'retryFromDLQ')
         .mockResolvedValue(true);
 
       const result = await service.retryFromEnhancedDLQ(queueName, dlqItemId);
 
       expect(result).toBe(true);
-      expect(deadLetterQueueService.retryFromDLQ).toHaveBeenCalledWith(queueName, dlqItemId);
+      expect(deadLetterQueueService.retryFromDLQ).toHaveBeenCalledWith(
+        queueName,
+        dlqItemId,
+      );
     });
 
     it('should process scheduled retries', async () => {
       const queueName = 'test-queue';
       const retriedIds = ['dlq-1', 'dlq-2'];
 
-      jest.spyOn(deadLetterQueueService, 'processScheduledRetries')
+      jest
+        .spyOn(deadLetterQueueService, 'processScheduledRetries')
         .mockResolvedValue(retriedIds);
 
       const result = await service.processScheduledRetries(queueName);
 
       expect(result).toEqual(retriedIds);
-      expect(deadLetterQueueService.processScheduledRetries).toHaveBeenCalledWith(queueName);
+      expect(
+        deadLetterQueueService.processScheduledRetries,
+      ).toHaveBeenCalledWith(queueName);
     });
   });
 
@@ -226,13 +246,16 @@ describe('Enhanced QueueService Integration', () => {
         timestamp: new Date(),
       };
 
-      jest.spyOn(jobMonitoringService, 'getQueueMetrics')
+      jest
+        .spyOn(jobMonitoringService, 'getQueueMetrics')
         .mockResolvedValue(mockMetrics);
 
       const result = await service.getQueueMetrics(queueName);
 
       expect(result).toEqual(mockMetrics);
-      expect(jobMonitoringService.getQueueMetrics).toHaveBeenCalledWith(queueName);
+      expect(jobMonitoringService.getQueueMetrics).toHaveBeenCalledWith(
+        queueName,
+      );
     });
 
     it('should get queue health status', async () => {
@@ -243,13 +266,16 @@ describe('Enhanced QueueService Integration', () => {
         recommendations: [],
       };
 
-      jest.spyOn(jobMonitoringService, 'getQueueHealth')
+      jest
+        .spyOn(jobMonitoringService, 'getQueueHealth')
         .mockResolvedValue(mockHealth);
 
       const result = await service.getQueueHealth(queueName);
 
       expect(result).toEqual(mockHealth);
-      expect(jobMonitoringService.getQueueHealth).toHaveBeenCalledWith(queueName);
+      expect(jobMonitoringService.getQueueHealth).toHaveBeenCalledWith(
+        queueName,
+      );
     });
 
     it('should get performance analytics', async () => {
@@ -264,13 +290,16 @@ describe('Enhanced QueueService Integration', () => {
         retryRate: 0.1,
       };
 
-      jest.spyOn(jobMonitoringService, 'getPerformanceAnalytics')
+      jest
+        .spyOn(jobMonitoringService, 'getPerformanceAnalytics')
         .mockResolvedValue(mockAnalytics);
 
       const result = await service.getPerformanceAnalytics(queueName);
 
       expect(result).toEqual(mockAnalytics);
-      expect(jobMonitoringService.getPerformanceAnalytics).toHaveBeenCalledWith(queueName);
+      expect(jobMonitoringService.getPerformanceAnalytics).toHaveBeenCalledWith(
+        queueName,
+      );
     });
   });
 
@@ -289,10 +318,8 @@ describe('Enhanced QueueService Integration', () => {
       const error = new Error('Network timeout');
       error.name = 'NetworkError';
 
-      jest.spyOn(retryStrategyService, 'shouldRetry')
-        .mockReturnValue(false);
-      jest.spyOn(deadLetterQueueService, 'addToDLQ')
-        .mockResolvedValue();
+      jest.spyOn(retryStrategyService, 'shouldRetry').mockReturnValue(false);
+      jest.spyOn(deadLetterQueueService, 'addToDLQ').mockResolvedValue();
 
       // Call the private method through reflection
       await service['handleJobFailure'](mockJob, error);
@@ -300,14 +327,14 @@ describe('Enhanced QueueService Integration', () => {
       expect(retryStrategyService.shouldRetry).toHaveBeenCalledWith(
         error,
         3,
-        expect.any(Object)
+        expect.any(Object),
       );
       expect(deadLetterQueueService.addToDLQ).toHaveBeenCalledWith(
         queueName,
         mockJob.data,
         error,
         3,
-        expect.any(Object)
+        expect.any(Object),
       );
     });
   });
@@ -330,7 +357,7 @@ describe('Enhanced QueueService Integration', () => {
         productionDeployJob,
         expect.objectContaining({
           priority: 20, // Critical priority
-        })
+        }),
       );
     });
 
@@ -354,7 +381,7 @@ describe('Enhanced QueueService Integration', () => {
         urgentTTSJob,
         expect.objectContaining({
           priority: 10, // High priority due to tags
-        })
+        }),
       );
     });
   });

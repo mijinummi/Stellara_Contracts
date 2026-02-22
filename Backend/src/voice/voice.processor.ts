@@ -21,7 +21,9 @@ export class VoiceProcessor {
     const { jobId } = job.data;
 
     try {
-      const voiceJob = await this.voiceJobRepository.findOne({ where: { id: jobId } });
+      const voiceJob = await this.voiceJobRepository.findOne({
+        where: { id: jobId },
+      });
       if (!voiceJob) throw new Error('Job not found');
 
       await this.voiceService.updateJobStatus(jobId, JobStatus.PROCESSING);
@@ -51,7 +53,9 @@ export class VoiceProcessor {
     const { jobId } = job.data;
 
     try {
-      const voiceJob = await this.voiceJobRepository.findOne({ where: { id: jobId } });
+      const voiceJob = await this.voiceJobRepository.findOne({
+        where: { id: jobId },
+      });
       if (!voiceJob) throw new Error('Job not found');
 
       await this.voiceService.updateJobStatus(jobId, JobStatus.PROCESSING);
@@ -79,7 +83,7 @@ export class VoiceProcessor {
   private async transcribeAudio(audioPath: string | null): Promise<string> {
     // TODO: Integrate with OpenAI Whisper API
     // For now, return mock data
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    await new Promise((resolve) => setTimeout(resolve, 2000));
     return 'Transcribed text from audio';
   }
 

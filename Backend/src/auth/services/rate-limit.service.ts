@@ -26,9 +26,10 @@ export class RateLimitService {
       if (requestCount >= limit) {
         // Rate limit exceeded
         const oldestEntry = await redis.zRange(redisKey, 0, 0, { REV: false });
-        const resetTime = oldestEntry.length > 0 
-          ? parseInt(oldestEntry[0]) + windowSeconds * 1000 
-          : now + windowSeconds * 1000;
+        const resetTime =
+          oldestEntry.length > 0
+            ? parseInt(oldestEntry[0]) + windowSeconds * 1000
+            : now + windowSeconds * 1000;
 
         return {
           allowed: false,

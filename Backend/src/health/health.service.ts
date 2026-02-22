@@ -1,5 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { HealthCheckResult, HealthIndicatorResult, HealthCheckStatus } from './health.types';
+import {
+  HealthCheckResult,
+  HealthIndicatorResult,
+  HealthCheckStatus,
+} from './health.types';
 
 @Injectable()
 export class HealthService {
@@ -14,7 +18,7 @@ export class HealthService {
     try {
       // Basic system check only - just verify the process is alive
       const isHealthy = true;
-      
+
       return {
         status: isHealthy ? 'healthy' : 'unhealthy',
         timestamp: new Date().toISOString(),
@@ -57,7 +61,7 @@ export class HealthService {
     try {
       // Check critical system components
       const checks = await this.performReadinessChecks();
-      const isHealthy = checks.every(check => check.status === 'up');
+      const isHealthy = checks.every((check) => check.status === 'up');
 
       return {
         status: isHealthy ? 'healthy' : 'degraded',
@@ -93,9 +97,11 @@ export class HealthService {
   async checkDetailed(): Promise<HealthCheckResult> {
     try {
       const checks = await this.performDetailedChecks();
-      const healthyChecks = checks.filter(check => check.status === 'up');
-      const degradedChecks = checks.filter(check => check.status === 'degraded');
-      const downChecks = checks.filter(check => check.status === 'down');
+      const healthyChecks = checks.filter((check) => check.status === 'up');
+      const degradedChecks = checks.filter(
+        (check) => check.status === 'degraded',
+      );
+      const downChecks = checks.filter((check) => check.status === 'down');
 
       let overallStatus: HealthCheckStatus = 'healthy';
       if (downChecks.length > 0) {
@@ -172,11 +178,13 @@ export class HealthService {
       },
     };
 
-    return componentMap[component.toLowerCase()] || {
-      name: component,
-      status: 'unknown',
-      message: `Unknown component: ${component}`,
-    };
+    return (
+      componentMap[component.toLowerCase()] || {
+        name: component,
+        status: 'unknown',
+        message: `Unknown component: ${component}`,
+      }
+    );
   }
 
   private async performReadinessChecks(): Promise<HealthIndicatorResult[]> {

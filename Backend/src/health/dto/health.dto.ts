@@ -18,7 +18,10 @@ export class HealthIndicatorDto {
 }
 
 export class HealthDto {
-  @ApiProperty({ example: 'healthy', enum: ['healthy', 'unhealthy', 'degraded'] })
+  @ApiProperty({
+    example: 'healthy',
+    enum: ['healthy', 'unhealthy', 'degraded'],
+  })
   status: string;
 
   @ApiProperty({ example: '2026-01-01T00:00:00.000Z' })

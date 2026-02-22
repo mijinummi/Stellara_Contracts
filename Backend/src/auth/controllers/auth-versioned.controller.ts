@@ -33,7 +33,10 @@ import { JwtAuthGuard } from '../guards/jwt-auth.guard';
 import { RateLimitGuard, RateLimit } from '../guards/rate-limit.guard';
 import { ConfigService } from '@nestjs/config';
 import { AuditService } from '../../audit/audit.service';
-import { ApiVersion, ApiVersionDeprecated } from '../../api-versioning/version.decorators';
+import {
+  ApiVersion,
+  ApiVersionDeprecated,
+} from '../../api-versioning/version.decorators';
 
 @ApiTags('Authentication')
 @Controller('auth')
@@ -142,9 +145,12 @@ export class AuthV1Controller {
       await this.walletService.updateLastUsed(dto.publicKey);
 
       // Generate tokens
-      const accessToken = await this.jwtAuthService.generateAccessToken(user.id);
-      const refreshTokenData =
-        await this.jwtAuthService.generateRefreshToken(user.id);
+      const accessToken = await this.jwtAuthService.generateAccessToken(
+        user.id,
+      );
+      const refreshTokenData = await this.jwtAuthService.generateRefreshToken(
+        user.id,
+      );
 
       return {
         accessToken,
@@ -212,7 +218,9 @@ export class AuthV2Controller {
   @Post('wallet/login')
   @RateLimit({ limit: 10, windowSeconds: 60, keyPrefix: 'login' }) // Increased rate limit
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Login with wallet signature (v2) - Enhanced Security' })
+  @ApiOperation({
+    summary: 'Login with wallet signature (v2) - Enhanced Security',
+  })
   @ApiBody({ type: WalletLoginDto })
   @ApiResponse({
     status: 200,
@@ -232,7 +240,8 @@ export class AuthV2Controller {
             securityLevel: { type: 'string', enum: ['standard', 'enhanced'] }, // New field
           },
         },
-        sessionInfo: { // New object with session details
+        sessionInfo: {
+          // New object with session details
           type: 'object',
           properties: {
             sessionId: { type: 'string' },
@@ -291,9 +300,12 @@ export class AuthV2Controller {
       await this.walletService.updateLastUsed(dto.publicKey);
 
       // Generate tokens
-      const accessToken = await this.jwtAuthService.generateAccessToken(user.id);
-      const refreshTokenData =
-        await this.jwtAuthService.generateRefreshToken(user.id);
+      const accessToken = await this.jwtAuthService.generateAccessToken(
+        user.id,
+      );
+      const refreshTokenData = await this.jwtAuthService.generateRefreshToken(
+        user.id,
+      );
 
       // Log session information
       const sessionInfo = {
@@ -335,7 +347,7 @@ export class AuthV2Controller {
 @Controller('auth')
 @ApiVersionDeprecated('v1', {
   sunsetDate: new Date('2027-03-01'),
-  migrationGuide: 'https://docs.stellara.network/api/migration/v1-to-v2'
+  migrationGuide: 'https://docs.stellara.network/api/migration/v1-to-v2',
 })
 export class AuthDeprecatedController {
   // This controller would contain deprecated endpoints

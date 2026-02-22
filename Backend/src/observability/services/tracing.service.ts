@@ -9,7 +9,8 @@ import { TraceContext, TraceHeaders } from '../types/trace-context.interface';
 @Injectable()
 export class TracingService implements OnModuleDestroy {
   private traceContextMap = new Map<string, TraceContext>();
-  private readonly SERVICE_NAME = process.env.SERVICE_NAME || 'stellara-backend';
+  private readonly SERVICE_NAME =
+    process.env.SERVICE_NAME || 'stellara-backend';
   private jaegerEnabled = process.env.JAEGER_ENABLED === 'true';
   private jaegerAgentHost = process.env.JAEGER_AGENT_HOST || 'localhost';
   private jaegerAgentPort = parseInt(process.env.JAEGER_AGENT_PORT || '6831');
@@ -82,8 +83,7 @@ export class TracingService implements OnModuleDestroy {
 
     // Fallback to custom headers
     traceId = traceId || headers['x-trace-id'] || headers['X-Trace-Id'];
-    parentSpanId =
-      parentSpanId || headers['x-span-id'] || headers['X-Span-Id'];
+    parentSpanId = parentSpanId || headers['x-span-id'] || headers['X-Span-Id'];
 
     const userId = headers['x-user-id'] || headers['X-User-Id'];
     const correlationId =
@@ -141,7 +141,7 @@ export class TracingService implements OnModuleDestroy {
     const traceparent = `00-${context.traceId}-${context.spanId}-${traceFlags}`;
 
     return {
-      'traceparent': traceparent,
+      traceparent: traceparent,
       'x-trace-id': context.traceId,
       'x-span-id': context.spanId,
       'x-request-id': context.traceId, // Use trace ID as request ID
@@ -176,9 +176,7 @@ export class TracingService implements OnModuleDestroy {
    * Sampling decision (configurable ratio)
    */
   private shouldSample(): boolean {
-    const samplingRate = parseFloat(
-      process.env.SAMPLING_RATE || '1.0',
-    );
+    const samplingRate = parseFloat(process.env.SAMPLING_RATE || '1.0');
     return Math.random() < samplingRate;
   }
 

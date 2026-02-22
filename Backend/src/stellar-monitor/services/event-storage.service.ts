@@ -25,7 +25,9 @@ export class EventStorageService {
       });
 
       const savedEvent = await this.eventRepository.save(event);
-      this.logger.log(`Saved event ${savedEvent.id} of type ${savedEvent.eventType}`);
+      this.logger.log(
+        `Saved event ${savedEvent.id} of type ${savedEvent.eventType}`,
+      );
       return savedEvent;
     } catch (error) {
       this.logger.error(`Failed to save event: ${error.message}`, error.stack);
@@ -46,7 +48,7 @@ export class EventStorageService {
     deliveryStatus?: DeliveryStatus,
   ): Promise<[StellarEvent[], number]> {
     const queryBuilder = this.eventRepository.createQueryBuilder('event');
-    
+
     if (eventType) {
       queryBuilder.andWhere('event.eventType = :eventType', { eventType });
     }
@@ -60,7 +62,9 @@ export class EventStorageService {
     }
 
     if (deliveryStatus) {
-      queryBuilder.andWhere('event.deliveryStatus = :deliveryStatus', { deliveryStatus });
+      queryBuilder.andWhere('event.deliveryStatus = :deliveryStatus', {
+        deliveryStatus,
+      });
     }
 
     return queryBuilder
@@ -79,9 +83,9 @@ export class EventStorageService {
 
   async getPendingEvents(limit: number = 50): Promise<StellarEvent[]> {
     return this.eventRepository.find({
-      where: { 
+      where: {
         deliveryStatus: DeliveryStatus.PENDING,
-        isProcessed: false 
+        isProcessed: false,
       },
       order: { createdAt: 'ASC' },
       take: limit,
@@ -144,21 +148,24 @@ export class EventStorageService {
     eventsByDay: Array<{ date: string; count: number }>;
   }> {
     const totalEvents = await this.eventRepository.count();
-    const pendingEvents = await this.eventRepository.count({ 
-      where: { deliveryStatus: DeliveryStatus.PENDING } 
+    const pendingEvents = await this.eventRepository.count({
+      where: { deliveryStatus: DeliveryStatus.PENDING },
     });
-    const deliveredEvents = await this.eventRepository.count({ 
-      where: { deliveryStatus: DeliveryStatus.DELIVERED } 
+    const deliveredEvents = await this.eventRepository.count({
+      where: { deliveryStatus: DeliveryStatus.DELIVERED },
     });
-    const failedEvents = await this.eventRepository.count({ 
-      where: { deliveryStatus: DeliveryStatus.FAILED } 
+    const failedEvents = await this.eventRepository.count({
+      where: { deliveryStatus: DeliveryStatus.FAILED },
     });
 
     // Count by event type
-    const eventsByType: Record<EventType, number> = {} as Record<EventType, number>;
+    const eventsByType: Record<EventType, number> = {} as Record<
+      EventType,
+      number
+    >;
     for (const eventType of Object.values(EventType)) {
-      eventsByType[eventType] = await this.eventRepository.count({ 
-        where: { eventType } 
+      eventsByType[eventType] = await this.eventRepository.count({
+        where: { eventType },
       });
     }
 
@@ -175,7 +182,7 @@ export class EventStorageService {
       .orderBy('date', 'ASC')
       .getRawMany();
 
-    const eventsByDay = dailyCounts.map(row => ({
+    const eventsByDay = dailyCounts.map((row) => ({
       date: row.date,
       count: parseInt(row.count, 10),
     }));

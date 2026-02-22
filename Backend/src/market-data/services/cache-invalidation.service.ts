@@ -31,7 +31,7 @@ export class CacheInvalidationService {
   async handleAssetUpdate(event: AssetUpdateEvent) {
     try {
       this.logger.log(`Asset updated: ${event.assetCode}, ${event.updateType}`);
-      
+
       // Invalidate price data cache for the specific asset
       await this.cacheService.invalidateByPattern(
         event.assetCode,
@@ -39,7 +39,9 @@ export class CacheInvalidationService {
       );
 
       // Invalidate market snapshots (they include all assets)
-      await this.cacheService.invalidateNamespace(CacheNamespace.MARKET_SNAPSHOT);
+      await this.cacheService.invalidateNamespace(
+        CacheNamespace.MARKET_SNAPSHOT,
+      );
 
       this.logger.log(`Cache invalidated for asset: ${event.assetCode}`);
 
@@ -81,22 +83,31 @@ export class CacheInvalidationService {
     pattern?: string;
   }) {
     try {
-      this.logger.log(`Manual cache invalidation requested: ${JSON.stringify(event)}`);
+      this.logger.log(
+        `Manual cache invalidation requested: ${JSON.stringify(event)}`,
+      );
 
       let invalidatedCount = 0;
 
       if (event.namespace) {
-        invalidatedCount = await this.cacheService.invalidateNamespace(event.namespace);
+        invalidatedCount = await this.cacheService.invalidateNamespace(
+          event.namespace,
+        );
       } else if (event.pattern && event.namespace) {
         invalidatedCount = await this.cacheService.invalidateByPattern(
           event.pattern,
           event.namespace,
         );
       } else if (event.keys && event.namespace) {
-        invalidatedCount = await this.cacheService.invalidate(event.keys, event.namespace);
+        invalidatedCount = await this.cacheService.invalidate(
+          event.keys,
+          event.namespace,
+        );
       }
 
-      this.logger.log(`Manual invalidation completed: ${invalidatedCount} keys removed`);
+      this.logger.log(
+        `Manual invalidation completed: ${invalidatedCount} keys removed`,
+      );
 
       // Emit cache invalidation event
       this.eventEmitter.emit('cache.invalidated', {

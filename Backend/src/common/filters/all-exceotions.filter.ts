@@ -20,18 +20,18 @@ export class AllExceptionsFilter implements ExceptionFilter {
   private readonly logger = new Logger(AllExceptionsFilter.name);
 
   catch(exception: unknown, host: ArgumentsHost): void {
-    const ctx      = host.switchToHttp();
+    const ctx = host.switchToHttp();
     const response = ctx.getResponse<Response>();
-    const request  = ctx.getRequest<Request>();
+    const request = ctx.getRequest<Request>();
 
     let statusCode = HttpStatus.INTERNAL_SERVER_ERROR;
-    let message    = 'Internal server error';
-    let error      = 'INTERNAL_SERVER_ERROR';
+    let message = 'Internal server error';
+    let error = 'INTERNAL_SERVER_ERROR';
     let details: string[] | undefined;
 
     if (exception instanceof HttpException) {
       statusCode = exception.getStatus();
-      const res  = exception.getResponse();
+      const res = exception.getResponse();
 
       if (typeof res === 'object' && res !== null) {
         const r = res as Record<string, unknown>;
@@ -46,7 +46,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
         error = String(r['error'] ?? HttpStatus[statusCode]);
       } else {
         message = String(res);
-        error   = HttpStatus[statusCode] ?? 'HTTP_EXCEPTION';
+        error = HttpStatus[statusCode] ?? 'HTTP_EXCEPTION';
       }
     } else if (exception instanceof Error) {
       // Log stack for unknown errors — never expose it to clients
@@ -57,7 +57,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
     }
 
     const body: ErrorResponseDto = {
-      success:   false,
+      success: false,
       statusCode,
       error,
       message,

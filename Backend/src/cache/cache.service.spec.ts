@@ -12,6 +12,7 @@ describe('CacheService', () => {
     get: jest.fn(),
     set: jest.fn(),
     del: jest.fn(),
+    mGet: jest.fn(),
     mget: jest.fn(),
     multi: jest.fn(),
     incr: jest.fn(),
@@ -60,7 +61,9 @@ describe('CacheService', () => {
 
     service = module.get<CacheService>(CacheService);
     redisService = module.get<RedisService>(RedisService);
-    configService = module.get<CacheConfigurationService>(CacheConfigurationService);
+    configService = module.get<CacheConfigurationService>(
+      CacheConfigurationService,
+    );
 
     // Clear all mocks before each test
     jest.clearAllMocks();
@@ -73,8 +76,11 @@ describe('CacheService', () => {
   describe('get', () => {
     it('should return cached data when available', async () => {
       const key = 'test-key';
-      const cachedData = JSON.stringify({ data: 'cached-value', metadata: { createdAt: Date.now() } });
-      
+      const cachedData = JSON.stringify({
+        data: 'cached-value',
+        metadata: { createdAt: Date.now() },
+      });
+
       mockRedisClient.get.mockResolvedValue(cachedData);
       mockRedisClient.incr.mockResolvedValue(1);
 
@@ -88,28 +94,30 @@ describe('CacheService', () => {
     it('should fetch from source and cache when not available', async () => {
       const key = 'test-key';
       const freshData = 'fresh-data';
-      
+
       mockRedisClient.get.mockResolvedValue(null);
       mockRedisClient.incr.mockResolvedValue(1);
       mockRedisClient.set.mockResolvedValue('OK');
-      mockRedisClient.multi = jest.fn().mockReturnValue({
+      
+      const mockPipeline = {
         set: jest.fn().mockReturnThis(),
         incr: jest.fn().mockReturnThis(),
         exec: jest.fn().mockResolvedValue(['OK']),
-      });
+      };
+      mockRedisClient.multi = jest.fn().mockReturnValue(mockPipeline);
 
       const result = await service.get(key, async () => freshData);
 
       expect(result).toBe(freshData);
       expect(mockRedisClient.get).toHaveBeenCalledWith('cache:test-key');
       expect(mockRedisClient.incr).toHaveBeenCalledWith('cache:stats:misses');
-      expect(mockRedisClient.set).toHaveBeenCalled();
+      expect(mockPipeline.set).toHaveBeenCalled();
     });
 
     it('should handle cache errors gracefully', async () => {
       const key = 'test-key';
       const freshData = 'fresh-data';
-      
+
       mockRedisClient.get.mockRejectedValue(new Error('Redis error'));
 
       const result = await service.get(key, async () => freshData);
@@ -123,20 +131,21 @@ describe('CacheService', () => {
     it('should set cache entry with default TTL', async () => {
       const key = 'test-key';
       const data = 'test-data';
-      
-      mockRedisClient.multi = jest.fn().mockReturnValue({
+
+      const mockPipeline = {
         set: jest.fn().mockReturnThis(),
         incr: jest.fn().mockReturnThis(),
         exec: jest.fn().mockResolvedValue(['OK']),
-      });
+      };
+      mockRedisClient.multi = jest.fn().mockReturnValue(mockPipeline);
 
       await service.set(key, data);
 
       expect(mockRedisClient.multi).toHaveBeenCalled();
-      expect(mockRedisClient.set).toHaveBeenCalledWith(
+      expect(mockPipeline.set).toHaveBeenCalledWith(
         'cache:test-key',
         expect.stringContaining('"data":"test-data"'),
-        { EX: 3600 }
+        { EX: 3600 },
       );
     });
 
@@ -144,19 +153,20 @@ describe('CacheService', () => {
       const key = 'test-key';
       const data = 'test-data';
       const ttl = 1800;
-      
-      mockRedisClient.multi = jest.fn().mockReturnValue({
+
+      const mockPipeline = {
         set: jest.fn().mockReturnThis(),
         incr: jest.fn().mockReturnThis(),
         exec: jest.fn().mockResolvedValue(['OK']),
-      });
+      };
+      mockRedisClient.multi = jest.fn().mockReturnValue(mockPipeline);
 
       await service.set(key, data, { ttl });
 
-      expect(mockRedisClient.set).toHaveBeenCalledWith(
+      expect(mockPipeline.set).toHaveBeenCalledWith(
         'cache:test-key',
         expect.any(String),
-        { EX: ttl }
+        { EX: ttl },
       );
     });
 
@@ -164,7 +174,7 @@ describe('CacheService', () => {
       const key = 'test-key';
       const data = 'test-data';
       const tags = ['user', 'profile'];
-      
+
       const mockPipeline = {
         set: jest.fn().mockReturnThis(),
         sAdd: jest.fn().mockReturnThis(),
@@ -172,13 +182,19 @@ describe('CacheService', () => {
         incr: jest.fn().mockReturnThis(),
         exec: jest.fn().mockResolvedValue(['OK']),
       };
-      
+
       mockRedisClient.multi = jest.fn().mockReturnValue(mockPipeline);
 
       await service.set(key, data, { tags });
 
-      expect(mockPipeline.sAdd).toHaveBeenCalledWith('cache:tag:user', 'test-key');
-      expect(mockPipeline.sAdd).toHaveBeenCalledWith('cache:tag:profile', 'test-key');
+      expect(mockPipeline.sAdd).toHaveBeenCalledWith(
+        'cache:tag:user',
+        'test-key',
+      );
+      expect(mockPipeline.sAdd).toHaveBeenCalledWith(
+        'cache:tag:profile',
+        'test-key',
+      );
     });
   });
 
@@ -217,14 +233,14 @@ describe('CacheService', () => {
       expect(mockRedisClient.del).toHaveBeenCalledWith([
         'cache:key1',
         'cache:key2',
-        'cache:tag:user'
+        'cache:tag:user',
       ]);
     });
 
     it('should return 0 when no entries found for tag', async () => {
       const tag = 'user';
       mockRedisClient.sMembers.mockResolvedValue([]);
-      
+
       const result = await service.deleteByTag(tag);
 
       expect(result).toBe(0);
@@ -236,16 +252,19 @@ describe('CacheService', () => {
   describe('mget', () => {
     it('should get multiple entries', async () => {
       const keys = ['key1', 'key2', 'key3'];
-      const cachedData = JSON.stringify({ data: 'value', metadata: { createdAt: Date.now() } });
-      mockRedisClient.mget.mockResolvedValue([cachedData, null, cachedData]);
+      const cachedData = JSON.stringify({
+        data: 'value',
+        metadata: { createdAt: Date.now() },
+      });
+      mockRedisClient.mGet.mockResolvedValue([cachedData, null, cachedData]);
 
       const result = await service.mget(keys);
 
       expect(result).toEqual(['value', null, 'value']);
-      expect(mockRedisClient.mget).toHaveBeenCalledWith([
+      expect(mockRedisClient.mGet).toHaveBeenCalledWith([
         'cache:key1',
-        'cache:key2', 
-        'cache:key3'
+        'cache:key2',
+        'cache:key3',
       ]);
     });
 
@@ -263,7 +282,7 @@ describe('CacheService', () => {
         { key: 'key1', value: 'value1' },
         { key: 'key2', value: 'value2', options: { ttl: 1800 } },
       ];
-      
+
       const mockPipeline = {
         set: jest.fn().mockReturnThis(),
         exec: jest.fn().mockResolvedValue(['OK']),
@@ -287,10 +306,14 @@ describe('CacheService', () => {
     it('should return cache statistics', async () => {
       mockRedisClient.get.mockImplementation((key) => {
         switch (key) {
-          case 'cache:stats:hits': return Promise.resolve('100');
-          case 'cache:stats:misses': return Promise.resolve('50');
-          case 'cache:stats:total-keys': return Promise.resolve('200');
-          default: return Promise.resolve('0');
+          case 'cache:stats:hits':
+            return Promise.resolve('100');
+          case 'cache:stats:misses':
+            return Promise.resolve('50');
+          case 'cache:stats:total-keys':
+            return Promise.resolve('200');
+          default:
+            return Promise.resolve('0');
         }
       });
       mockRedisClient.info.mockResolvedValue('used_memory:104857600');
@@ -340,7 +363,7 @@ describe('CacheService', () => {
       expect(mockRedisClient.del).toHaveBeenCalledWith([
         'cache:key1',
         'cache:key2',
-        'cache:tag:user'
+        'cache:tag:user',
       ]);
     });
 

@@ -55,23 +55,26 @@ export class CacheController {
 
   @Get('entry/:key')
   @ApiOperation({ summary: 'Get cache entry' })
-  @ApiResponse({ status: 200, description: 'Cache entry retrieved successfully' })
+  @ApiResponse({
+    status: 200,
+    description: 'Cache entry retrieved successfully',
+  })
   @ApiResponse({ status: 404, description: 'Cache entry not found' })
   async getEntry(@Param('key') key: string) {
     try {
       const result = await this.cacheService.get(key, async () => null);
       if (result === null) {
-        return { 
-          success: false, 
+        return {
+          success: false,
           message: 'Cache entry not found',
-          key 
+          key,
         };
       }
-      
-      return { 
-        success: true, 
+
+      return {
+        success: true,
         data: result,
-        key 
+        key,
       };
     } catch (error) {
       this.logger.error(`Error getting cache entry ${key}: ${error.message}`);
@@ -89,14 +92,16 @@ export class CacheController {
         ttl: entry.ttl,
         tags: entry.tags,
       });
-      
-      return { 
-        success: true, 
+
+      return {
+        success: true,
         message: 'Cache entry created',
-        key: entry.key 
+        key: entry.key,
       };
     } catch (error) {
-      this.logger.error(`Error setting cache entry ${entry.key}: ${error.message}`);
+      this.logger.error(
+        `Error setting cache entry ${entry.key}: ${error.message}`,
+      );
       throw error;
     }
   }
@@ -109,17 +114,17 @@ export class CacheController {
     try {
       const result = await this.cacheService.delete(key);
       if (!result) {
-        return { 
-          success: false, 
+        return {
+          success: false,
           message: 'Cache entry not found or already deleted',
-          key 
+          key,
         };
       }
-      
-      return { 
-        success: true, 
+
+      return {
+        success: true,
         message: 'Cache entry deleted',
-        key 
+        key,
       };
     } catch (error) {
       this.logger.error(`Error deleting cache entry ${key}: ${error.message}`);
@@ -134,11 +139,11 @@ export class CacheController {
   async deleteByTag(@Param('tag') tag: string) {
     try {
       const count = await this.cacheService.deleteByTag(tag);
-      return { 
-        success: true, 
+      return {
+        success: true,
         message: `Deleted ${count} cache entries with tag: ${tag}`,
         deletedCount: count,
-        tag 
+        tag,
       };
     } catch (error) {
       this.logger.error(`Error deleting by tag ${tag}: ${error.message}`);
@@ -154,12 +159,12 @@ export class CacheController {
     try {
       const count = await this.cacheService.clear();
       await this.invalidationService.clearAll(reason);
-      
-      return { 
-        success: true, 
+
+      return {
+        success: true,
         message: `Cache cleared (${count} entries)`,
         clearedCount: count,
-        reason 
+        reason,
       };
     } catch (error) {
       this.logger.error(`Error clearing cache: ${error.message}`);
@@ -180,11 +185,11 @@ export class CacheController {
         value: results[index],
         found: results[index] !== null,
       }));
-      
-      return { 
-        success: true, 
+
+      return {
+        success: true,
         entries,
-        foundCount: entries.filter(e => e.found).length 
+        foundCount: entries.filter((e) => e.found).length,
       };
     } catch (error) {
       this.logger.error(`Error in batch get: ${error.message}`);
@@ -199,20 +204,20 @@ export class CacheController {
   async batchSet(@Body() entries: CacheEntryDto[]) {
     try {
       await this.cacheService.mset(
-        entries.map(entry => ({
+        entries.map((entry) => ({
           key: entry.key,
           value: entry.value,
           options: {
             ttl: entry.ttl,
             tags: entry.tags,
           },
-        }))
+        })),
       );
-      
-      return { 
-        success: true, 
+
+      return {
+        success: true,
         message: `Set ${entries.length} cache entries`,
-        count: entries.length 
+        count: entries.length,
       };
     } catch (error) {
       this.logger.error(`Error in batch set: ${error.message}`);
@@ -228,15 +233,15 @@ export class CacheController {
   @ApiResponse({ status: 200, description: 'Cache key invalidated' })
   async invalidateKey(
     @Param('key') key: string,
-    @Query('reason') reason?: string
+    @Query('reason') reason?: string,
   ) {
     try {
       await this.invalidationService.invalidateKey(key, reason);
-      return { 
-        success: true, 
+      return {
+        success: true,
         message: `Invalidated cache key: ${key}`,
         key,
-        reason 
+        reason,
       };
     } catch (error) {
       this.logger.error(`Error invalidating key ${key}: ${error.message}`);
@@ -250,15 +255,15 @@ export class CacheController {
   @ApiResponse({ status: 200, description: 'Cache entries invalidated by tag' })
   async invalidateByTag(
     @Param('tag') tag: string,
-    @Query('reason') reason?: string
+    @Query('reason') reason?: string,
   ) {
     try {
       await this.invalidationService.invalidateByTag(tag, reason);
-      return { 
-        success: true, 
+      return {
+        success: true,
         message: `Invalidated cache entries by tag: ${tag}`,
         tag,
-        reason 
+        reason,
       };
     } catch (error) {
       this.logger.error(`Error invalidating by tag ${tag}: ${error.message}`);
@@ -269,22 +274,30 @@ export class CacheController {
   @Post('invalidate/pattern/:pattern')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Invalidate cache entries by pattern' })
-  @ApiResponse({ status: 200, description: 'Cache entries invalidated by pattern' })
+  @ApiResponse({
+    status: 200,
+    description: 'Cache entries invalidated by pattern',
+  })
   async invalidateByPattern(
     @Param('pattern') pattern: string,
-    @Query('reason') reason?: string
+    @Query('reason') reason?: string,
   ) {
     try {
-      const count = await this.invalidationService.invalidateByPattern(pattern, reason);
-      return { 
-        success: true, 
+      const count = await this.invalidationService.invalidateByPattern(
+        pattern,
+        reason,
+      );
+      return {
+        success: true,
         message: `Invalidated ${count} cache entries matching pattern: ${pattern}`,
         pattern,
         deletedCount: count,
-        reason 
+        reason,
       };
     } catch (error) {
-      this.logger.error(`Error invalidating by pattern ${pattern}: ${error.message}`);
+      this.logger.error(
+        `Error invalidating by pattern ${pattern}: ${error.message}`,
+      );
       throw error;
     }
   }
@@ -299,7 +312,7 @@ export class CacheController {
     try {
       await this.warmingService.registerWarmupGroup({
         name: group.name,
-        entries: group.entries.map(entry => ({
+        entries: group.entries.map((entry) => ({
           key: entry.key,
           // In a real implementation, you'd need to deserialize the loader function
           loader: async () => ({ message: 'Mock data' }),
@@ -310,14 +323,16 @@ export class CacheController {
         })),
         enabled: group.enabled,
       });
-      
-      return { 
-        success: true, 
+
+      return {
+        success: true,
         message: `Registered warmup group: ${group.name}`,
-        groupName: group.name 
+        groupName: group.name,
       };
     } catch (error) {
-      this.logger.error(`Error registering warmup group ${group.name}: ${error.message}`);
+      this.logger.error(
+        `Error registering warmup group ${group.name}: ${error.message}`,
+      );
       throw error;
     }
   }
@@ -329,14 +344,16 @@ export class CacheController {
   async executeWarmupGroup(@Param('name') name: string) {
     try {
       const result = await this.warmingService.warmupGroup(name);
-      return { 
-        success: true, 
+      return {
+        success: true,
         message: `Warmup completed for group: ${name}`,
         groupName: name,
-        ...result 
+        ...result,
       };
     } catch (error) {
-      this.logger.error(`Error executing warmup group ${name}: ${error.message}`);
+      this.logger.error(
+        `Error executing warmup group ${name}: ${error.message}`,
+      );
       throw error;
     }
   }
@@ -347,9 +364,9 @@ export class CacheController {
   async getWarmupGroups() {
     try {
       const groups = this.warmingService.getAllWarmupGroups();
-      return { 
-        success: true, 
-        groups 
+      return {
+        success: true,
+        groups,
       };
     } catch (error) {
       this.logger.error(`Error getting warmup groups: ${error.message}`);
@@ -364,16 +381,16 @@ export class CacheController {
     try {
       const details = await this.warmingService.getWarmupGroupDetails(name);
       if (!details) {
-        return { 
-          success: false, 
+        return {
+          success: false,
           message: 'Warmup group not found',
-          groupName: name 
+          groupName: name,
         };
       }
-      
-      return { 
-        success: true, 
-        group: details 
+
+      return {
+        success: true,
+        group: details,
       };
     } catch (error) {
       this.logger.error(`Error getting warmup group ${name}: ${error.message}`);
@@ -389,9 +406,9 @@ export class CacheController {
   async getStats() {
     try {
       const stats = await this.cacheService.getStats();
-      return { 
-        success: true, 
-        stats 
+      return {
+        success: true,
+        stats,
       };
     } catch (error) {
       this.logger.error(`Error getting cache stats: ${error.message}`);
@@ -405,9 +422,9 @@ export class CacheController {
   async getHealth() {
     try {
       const health = await this.monitoringService.performHealthCheck();
-      return { 
-        success: true, 
-        health 
+      return {
+        success: true,
+        health,
       };
     } catch (error) {
       this.logger.error(`Error getting cache health: ${error.message}`);
@@ -417,15 +434,21 @@ export class CacheController {
 
   @Get('metrics')
   @ApiOperation({ summary: 'Get cache metrics history' })
-  @ApiQuery({ name: 'hours', required: false, description: 'Hours of history to retrieve' })
+  @ApiQuery({
+    name: 'hours',
+    required: false,
+    description: 'Hours of history to retrieve',
+  })
   @ApiResponse({ status: 200, description: 'Cache metrics retrieved' })
   async getMetrics(@Query('hours') hours?: number) {
     try {
-      const metrics = await this.monitoringService.getMetricsHistory(hours || 24);
-      return { 
-        success: true, 
+      const metrics = await this.monitoringService.getMetricsHistory(
+        hours || 24,
+      );
+      return {
+        success: true,
         metrics,
-        periodHours: hours || 24 
+        periodHours: hours || 24,
       };
     } catch (error) {
       this.logger.error(`Error getting cache metrics: ${error.message}`);
@@ -435,7 +458,11 @@ export class CacheController {
 
   @Get('alerts')
   @ApiOperation({ summary: 'Get cache alerts' })
-  @ApiQuery({ name: 'severity', required: false, description: 'Filter by severity' })
+  @ApiQuery({
+    name: 'severity',
+    required: false,
+    description: 'Filter by severity',
+  })
   @ApiResponse({ status: 200, description: 'Cache alerts retrieved' })
   async getAlerts(@Query('severity') severity?: string) {
     try {
@@ -445,11 +472,11 @@ export class CacheController {
       } else {
         alerts = this.monitoringService.getActiveAlerts();
       }
-      
-      return { 
-        success: true, 
+
+      return {
+        success: true,
         alerts,
-        count: alerts.length 
+        count: alerts.length,
       };
     } catch (error) {
       this.logger.error(`Error getting cache alerts: ${error.message}`);
@@ -464,10 +491,12 @@ export class CacheController {
   async resolveAlert(@Param('id') id: string) {
     try {
       const result = await this.monitoringService.resolveAlert(id);
-      return { 
-        success: result, 
-        message: result ? 'Alert resolved' : 'Alert not found or already resolved',
-        alertId: id 
+      return {
+        success: result,
+        message: result
+          ? 'Alert resolved'
+          : 'Alert not found or already resolved',
+        alertId: id,
       };
     } catch (error) {
       this.logger.error(`Error resolving alert ${id}: ${error.message}`);
@@ -477,15 +506,19 @@ export class CacheController {
 
   @Get('report')
   @ApiOperation({ summary: 'Generate cache performance report' })
-  @ApiQuery({ name: 'period', required: false, description: 'Report period in hours' })
+  @ApiQuery({
+    name: 'period',
+    required: false,
+    description: 'Report period in hours',
+  })
   @ApiResponse({ status: 200, description: 'Cache report generated' })
   async getReport(@Query('period') period?: number) {
     try {
       const report = await this.monitoringService.generateReport(period || 24);
-      return { 
-        success: true, 
+      return {
+        success: true,
         report,
-        periodHours: period || 24 
+        periodHours: period || 24,
       };
     } catch (error) {
       this.logger.error(`Error generating cache report: ${error.message}`);
@@ -502,11 +535,11 @@ export class CacheController {
     try {
       const config = this.configService.getCacheConfig();
       const strategies = this.configService.getAllStrategies();
-      
-      return { 
-        success: true, 
+
+      return {
+        success: true,
         config,
-        strategies 
+        strategies,
       };
     } catch (error) {
       this.logger.error(`Error getting cache config: ${error.message}`);
@@ -521,9 +554,9 @@ export class CacheController {
   async updateConfig(@Body() config: any) {
     try {
       await this.configService.updateConfig(config);
-      return { 
-        success: true, 
-        message: 'Cache configuration updated' 
+      return {
+        success: true,
+        message: 'Cache configuration updated',
       };
     } catch (error) {
       this.logger.error(`Error updating cache config: ${error.message}`);
@@ -538,9 +571,9 @@ export class CacheController {
   async resetConfig() {
     try {
       await this.configService.resetToDefault();
-      return { 
-        success: true, 
-        message: 'Cache configuration reset to defaults' 
+      return {
+        success: true,
+        message: 'Cache configuration reset to defaults',
       };
     } catch (error) {
       this.logger.error(`Error resetting cache config: ${error.message}`);

@@ -24,7 +24,7 @@ export class CompensationService {
    */
   async compensateWorkflow(workflowId: string): Promise<void> {
     this.logger.log(`Initiating compensation for workflow: ${workflowId}`);
-    
+
     const workflow = await this.workflowRepository.findOne({
       where: { id: workflowId },
       relations: ['steps'],
@@ -36,11 +36,16 @@ export class CompensationService {
 
     // Check if workflow can be compensated
     if (!this.stateMachine.canWorkflowCompensate(workflow.state)) {
-      throw new Error(`Workflow ${workflowId} cannot be compensated in state: ${workflow.state}`);
+      throw new Error(
+        `Workflow ${workflowId} cannot be compensated in state: ${workflow.state}`,
+      );
     }
 
     // Transition workflow to compensating state
-    const transition = this.stateMachine.transitionWorkflow(workflow.state, WorkflowState.COMPENSATING);
+    const transition = this.stateMachine.transitionWorkflow(
+      workflow.state,
+      WorkflowState.COMPENSATING,
+    );
     if (!transition.success) {
       throw new Error(`Cannot start compensation: ${transition.error}`);
     }
@@ -52,7 +57,10 @@ export class CompensationService {
     try {
       // Execute compensation in reverse order
       const completedSteps = workflow.steps
-        .filter(step => step.state === StepState.COMPLETED && step.requiresCompensation)
+        .filter(
+          (step) =>
+            step.state === StepState.COMPLETED && step.requiresCompensation,
+        )
         .sort((a, b) => b.stepIndex - a.stepIndex); // Reverse order
 
       this.logger.log(`Found ${completedSteps.length} steps to compensate`);
@@ -67,15 +75,16 @@ export class CompensationService {
       workflow.completedAt = new Date();
       await this.workflowRepository.save(workflow);
 
-      this.logger.log(`Workflow compensation completed successfully: ${workflowId}`);
-
+      this.logger.log(
+        `Workflow compensation completed successfully: ${workflowId}`,
+      );
     } catch (error) {
       this.logger.error(`Workflow compensation failed: ${workflowId}`, error);
-      
+
       workflow.state = WorkflowState.FAILED;
       workflow.failureReason = `Compensation failed: ${error.message}`;
       await this.workflowRepository.save(workflow);
-      
+
       throw error;
     }
   }
@@ -83,11 +92,19 @@ export class CompensationService {
   /**
    * Compensate a specific step
    */
-  private async compensateStep(workflow: Workflow, step: WorkflowStep): Promise<void> {
-    this.logger.log(`Compensating step: ${step.stepName} for workflow: ${workflow.id}`);
+  private async compensateStep(
+    workflow: Workflow,
+    step: WorkflowStep,
+  ): Promise<void> {
+    this.logger.log(
+      `Compensating step: ${step.stepName} for workflow: ${workflow.id}`,
+    );
 
     // Transition step to compensating state
-    const transition = this.stateMachine.transitionStep(step.state, StepState.COMPENSATING);
+    const transition = this.stateMachine.transitionStep(
+      step.state,
+      StepState.COMPENSATING,
+    );
     if (!transition.success) {
       throw new Error(`Cannot start step compensation: ${transition.error}`);
     }
@@ -100,9 +117,9 @@ export class CompensationService {
       // Execute compensation logic
       // Note: In a real implementation, you would retrieve the step definition
       // and execute its compensate function. For now, we'll simulate it.
-      
+
       // Simulate compensation execution
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await new Promise((resolve) => setTimeout(resolve, 1000));
 
       // Mark step as compensated
       step.state = StepState.COMPENSATED;
@@ -110,14 +127,13 @@ export class CompensationService {
       await this.stepRepository.save(step);
 
       this.logger.log(`Step compensation completed: ${step.stepName}`);
-
     } catch (error) {
       this.logger.error(`Step compensation failed: ${step.stepName}`, error);
-      
+
       step.state = StepState.FAILED;
       step.failureReason = `Compensation failed: ${error.message}`;
       await this.stepRepository.save(step);
-      
+
       throw error;
     }
   }
@@ -128,8 +144,16 @@ export class CompensationService {
   async getCompensatableWorkflows(): Promise<Workflow[]> {
     return await this.workflowRepository.find({
       where: [
-        { state: WorkflowState.FAILED, requiresCompensation: true, isCompensated: false },
-        { state: WorkflowState.CANCELLED, requiresCompensation: true, isCompensated: false },
+        {
+          state: WorkflowState.FAILED,
+          requiresCompensation: true,
+          isCompensated: false,
+        },
+        {
+          state: WorkflowState.CANCELLED,
+          requiresCompensation: true,
+          isCompensated: false,
+        },
       ],
       relations: ['steps'],
       order: { createdAt: 'DESC' },
@@ -156,7 +180,7 @@ export class CompensationService {
    */
   async forceCompensateWorkflow(workflowId: string): Promise<void> {
     this.logger.warn(`Force compensating workflow: ${workflowId}`);
-    
+
     const workflow = await this.workflowRepository.findOne({
       where: { id: workflowId },
       relations: ['steps'],
@@ -172,7 +196,10 @@ export class CompensationService {
     await this.workflowRepository.save(workflow);
 
     const completedSteps = workflow.steps
-      .filter(step => step.state === StepState.COMPLETED && step.requiresCompensation)
+      .filter(
+        (step) =>
+          step.state === StepState.COMPLETED && step.requiresCompensation,
+      )
       .sort((a, b) => b.stepIndex - a.stepIndex);
 
     for (const step of completedSteps) {
@@ -195,7 +222,7 @@ export class CompensationService {
     await this.stepRepository.save(step);
 
     // Simulate compensation
-    await new Promise(resolve => setTimeout(resolve, 500));
+    await new Promise((resolve) => setTimeout(resolve, 500));
 
     step.state = StepState.COMPENSATED;
     step.isCompensated = true;

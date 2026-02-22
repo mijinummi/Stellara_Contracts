@@ -60,7 +60,7 @@ export class CacheService implements OnModuleInit {
     options: CacheOptions = {},
   ): Promise<T> {
     const startTime = Date.now();
-    
+
     try {
       // Try cache first
       const cached = await this.getFromCache<T>(key);
@@ -81,10 +81,12 @@ export class CacheService implements OnModuleInit {
 
       const latency = Date.now() - startTime;
       await this.recordLatency(key, latency);
-      
+
       return data;
     } catch (error) {
-      this.logger.error(`Error in cache-aside for key ${key}: ${error.message}`);
+      this.logger.error(
+        `Error in cache-aside for key ${key}: ${error.message}`,
+      );
       // Fallback to source on cache failure
       return await fetcher();
     }
@@ -104,14 +106,14 @@ export class CacheService implements OnModuleInit {
     const config = this.configService.getCacheConfig();
     const ttl = options.ttl || config.defaultTTL;
     const strategy = options.strategy || 'cache-aside';
-    
+
     try {
       // Store in cache with metadata
       const cacheEntry: CacheEntry<T> = {
         data,
         metadata: {
           createdAt: Date.now(),
-          expiresAt: Date.now() + (ttl * 1000),
+          expiresAt: Date.now() + ttl * 1000,
           ttl,
           version: options.version,
           tags: options.tags,
@@ -119,7 +121,7 @@ export class CacheService implements OnModuleInit {
       };
 
       const serializedData = this.serializeData(cacheEntry, options.compress);
-      
+
       const pipeline = this.redisService.client.multi();
       pipeline.set(`${this.CACHE_PREFIX}${key}`, serializedData, { EX: ttl });
 
@@ -159,14 +161,16 @@ export class CacheService implements OnModuleInit {
   ): Promise<void> {
     // Immediate cache write
     await this.set(key, data, { ...options, strategy: 'cache-aside' });
-    
+
     // Background write to persistent storage
     if (this.configService.getCacheConfig().writeBehindEnabled) {
       setImmediate(async () => {
         try {
           await this.executeWriteBehind(key, data);
         } catch (error) {
-          this.logger.error(`Write-behind failed for key ${key}: ${error.message}`);
+          this.logger.error(
+            `Write-behind failed for key ${key}: ${error.message}`,
+          );
         }
       });
     }
@@ -179,21 +183,21 @@ export class CacheService implements OnModuleInit {
    */
   async mget<T>(keys: string[]): Promise<Array<T | null>> {
     if (keys.length === 0) return [];
-    
+
     try {
-      const cacheKeys = keys.map(key => `${this.CACHE_PREFIX}${key}`);
+      const cacheKeys = keys.map((key) => `${this.CACHE_PREFIX}${key}`);
       const results = await this.redisService.client.mGet(cacheKeys);
-      
+
       return await Promise.all(
         results.map(async (result, index) => {
           if (result === null) {
             await this.recordMiss(keys[index]);
             return null;
           }
-          
+
           await this.recordHit(keys[index]);
           return this.deserializeData<T>(result as string);
-        })
+        }),
       );
     } catch (error) {
       this.logger.error(`Error in mget: ${error.message}`);
@@ -204,29 +208,36 @@ export class CacheService implements OnModuleInit {
   /**
    * Set multiple key-value pairs
    */
-  async mset<T>(entries: Array<{ key: string; value: T; options?: CacheOptions }>): Promise<void> {
+  async mset<T>(
+    entries: Array<{ key: string; value: T; options?: CacheOptions }>,
+  ): Promise<void> {
     if (entries.length === 0) return;
-    
+
     try {
       const pipeline = this.redisService.client.multi();
-      
+
       for (const entry of entries) {
         const cacheEntry: CacheEntry<T> = {
           data: entry.value,
           metadata: {
             createdAt: Date.now(),
-            expiresAt: Date.now() + ((entry.options?.ttl || 3600) * 1000),
+            expiresAt: Date.now() + (entry.options?.ttl || 3600) * 1000,
             ttl: entry.options?.ttl || 3600,
             version: entry.options?.version,
             tags: entry.options?.tags,
           },
         };
-        
-        const serializedData = this.serializeData(cacheEntry, entry.options?.compress);
+
+        const serializedData = this.serializeData(
+          cacheEntry,
+          entry.options?.compress,
+        );
         const ttl = entry.options?.ttl || 3600;
-        
-        pipeline.set(`${this.CACHE_PREFIX}${entry.key}`, serializedData, { EX: ttl });
-        
+
+        pipeline.set(`${this.CACHE_PREFIX}${entry.key}`, serializedData, {
+          EX: ttl,
+        });
+
         if (entry.options?.tags?.length) {
           for (const tag of entry.options.tags) {
             pipeline.sAdd(`${this.TAG_PREFIX}${tag}`, entry.key);
@@ -234,7 +245,7 @@ export class CacheService implements OnModuleInit {
           }
         }
       }
-      
+
       await pipeline.exec();
       this.logger.debug(`Batch set ${entries.length} cache entries`);
     } catch (error) {
@@ -250,7 +261,9 @@ export class CacheService implements OnModuleInit {
    */
   async delete(key: string): Promise<boolean> {
     try {
-      const result = await this.redisService.client.del(`${this.CACHE_PREFIX}${key}`);
+      const result = await this.redisService.client.del(
+        `${this.CACHE_PREFIX}${key}`,
+      );
       return result > 0;
     } catch (error) {
       this.logger.error(`Error deleting cache key ${key}: ${error.message}`);
@@ -265,12 +278,12 @@ export class CacheService implements OnModuleInit {
     try {
       const tagKey = `${this.TAG_PREFIX}${tag}`;
       const keys = await this.redisService.client.sMembers(tagKey);
-      
+
       if (keys.length === 0) return 0;
-      
-      const cacheKeys = keys.map(key => `${this.CACHE_PREFIX}${key}`);
+
+      const cacheKeys = keys.map((key) => `${this.CACHE_PREFIX}${key}`);
       const result = await this.redisService.client.del([...cacheKeys, tagKey]);
-      
+
       this.logger.log(`Deleted ${keys.length} cache entries by tag: ${tag}`);
       return keys.length;
     } catch (error) {
@@ -285,10 +298,12 @@ export class CacheService implements OnModuleInit {
   async clear(): Promise<number> {
     try {
       const keys = await this.redisService.client.keys(`${this.CACHE_PREFIX}*`);
-      const tagKeys = await this.redisService.client.keys(`${this.TAG_PREFIX}*`);
-      
+      const tagKeys = await this.redisService.client.keys(
+        `${this.TAG_PREFIX}*`,
+      );
+
       if (keys.length === 0 && tagKeys.length === 0) return 0;
-      
+
       const result = await this.redisService.client.del([...keys, ...tagKeys]);
       this.logger.log(`Cleared ${keys.length} cache entries`);
       return keys.length;
@@ -306,9 +321,15 @@ export class CacheService implements OnModuleInit {
   async getStats(): Promise<CacheStats> {
     try {
       const [hits, misses, totalKeys, memoryUsage] = await Promise.all([
-        this.redisService.client.get(`${this.STATS_PREFIX}hits`).then(v => parseInt(v as string || '0', 10)),
-        this.redisService.client.get(`${this.STATS_PREFIX}misses`).then(v => parseInt(v as string || '0', 10)),
-        this.redisService.client.get(`${this.STATS_PREFIX}total-keys`).then(v => parseInt(v as string || '0', 10)),
+        this.redisService.client
+          .get(`${this.STATS_PREFIX}hits`)
+          .then((v) => parseInt((v as string) || '0', 10)),
+        this.redisService.client
+          .get(`${this.STATS_PREFIX}misses`)
+          .then((v) => parseInt((v as string) || '0', 10)),
+        this.redisService.client
+          .get(`${this.STATS_PREFIX}total-keys`)
+          .then((v) => parseInt((v as string) || '0', 10)),
         this.getMemoryUsage(),
       ]);
 
@@ -342,9 +363,11 @@ export class CacheService implements OnModuleInit {
 
   private async getFromCache<T>(key: string): Promise<T | null> {
     try {
-      const result = await this.redisService.client.get(`${this.CACHE_PREFIX}${key}`);
+      const result = await this.redisService.client.get(
+        `${this.CACHE_PREFIX}${key}`,
+      );
       if (result === null) return null;
-      
+
       return this.deserializeData<T>(result as string);
     } catch (error) {
       this.logger.error(`Error getting from cache: ${error.message}`);
@@ -354,12 +377,20 @@ export class CacheService implements OnModuleInit {
 
   private async recordHit(key: string): Promise<void> {
     await this.redisService.client.incr(`${this.STATS_PREFIX}hits`);
-    await this.redisService.client.hIncrBy(`${this.STATS_PREFIX}key-hits`, key, 1);
+    await this.redisService.client.hIncrBy(
+      `${this.STATS_PREFIX}key-hits`,
+      key,
+      1,
+    );
   }
 
   private async recordMiss(key: string): Promise<void> {
     await this.redisService.client.incr(`${this.STATS_PREFIX}misses`);
-    await this.redisService.client.hIncrBy(`${this.STATS_PREFIX}key-misses`, key, 1);
+    await this.redisService.client.hIncrBy(
+      `${this.STATS_PREFIX}key-misses`,
+      key,
+      1,
+    );
   }
 
   private async recordLatency(key: string, latency: number): Promise<void> {
@@ -392,7 +423,10 @@ export class CacheService implements OnModuleInit {
     await pipeline.exec();
   }
 
-  private serializeData<T>(entry: CacheEntry<T>, compress: boolean = false): string {
+  private serializeData<T>(
+    entry: CacheEntry<T>,
+    compress: boolean = false,
+  ): string {
     const json = JSON.stringify(entry);
     if (compress && json.length > 1024) {
       // In a real implementation, you'd use zlib or similar

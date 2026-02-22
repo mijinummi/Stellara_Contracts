@@ -12,12 +12,14 @@ export class TenantConfigService {
     private readonly configRepository: Repository<TenantConfig>,
     @InjectRepository(Tenant)
     private readonly tenantRepository: Repository<Tenant>,
-    private readonly auditService: AuditService
+    private readonly auditService: AuditService,
   ) {}
 
   async getConfig(tenantId: string, key: string): Promise<any> {
     // Verify tenant exists
-    const tenant = await this.tenantRepository.findOne({ where: { id: tenantId } });
+    const tenant = await this.tenantRepository.findOne({
+      where: { id: tenantId },
+    });
     if (!tenant) {
       throw new NotFoundException(`Tenant with ID ${tenantId} not found`);
     }
@@ -26,23 +28,28 @@ export class TenantConfigService {
       where: {
         tenant: { id: tenantId },
         key,
-        isActive: true
-      }
+        isActive: true,
+      },
     });
 
     return config ? config.value : null;
   }
 
-  async getAllConfig(tenantId: string, configType?: ConfigType): Promise<Record<string, any>> {
+  async getAllConfig(
+    tenantId: string,
+    configType?: ConfigType,
+  ): Promise<Record<string, any>> {
     // Verify tenant exists
-    const tenant = await this.tenantRepository.findOne({ where: { id: tenantId } });
+    const tenant = await this.tenantRepository.findOne({
+      where: { id: tenantId },
+    });
     if (!tenant) {
       throw new NotFoundException(`Tenant with ID ${tenantId} not found`);
     }
 
     const where: any = {
       tenant: { id: tenantId },
-      isActive: true
+      isActive: true,
     };
 
     if (configType) {
@@ -52,7 +59,7 @@ export class TenantConfigService {
     const configs = await this.configRepository.find({ where });
 
     const configMap: Record<string, any> = {};
-    configs.forEach(config => {
+    configs.forEach((config) => {
       configMap[config.key] = config.value;
     });
 
@@ -63,10 +70,12 @@ export class TenantConfigService {
     tenantId: string,
     key: string,
     value: any,
-    configType: ConfigType = ConfigType.GENERAL
+    configType: ConfigType = ConfigType.GENERAL,
   ): Promise<TenantConfig> {
     // Verify tenant exists
-    const tenant = await this.tenantRepository.findOne({ where: { id: tenantId } });
+    const tenant = await this.tenantRepository.findOne({
+      where: { id: tenantId },
+    });
     if (!tenant) {
       throw new NotFoundException(`Tenant with ID ${tenantId} not found`);
     }
@@ -76,9 +85,9 @@ export class TenantConfigService {
       {
         tenant: { id: tenantId },
         key,
-        isActive: true
+        isActive: true,
       },
-      { isActive: false }
+      { isActive: false },
     );
 
     // Create new config
@@ -87,7 +96,7 @@ export class TenantConfigService {
       key,
       value,
       configType,
-      isActive: true
+      isActive: true,
     });
 
     const savedConfig = await this.configRepository.save(config);
@@ -97,7 +106,7 @@ export class TenantConfigService {
       'tenant.config.updated',
       'system',
       tenantId,
-      { key, value, configType }
+      { key, value, configType },
     );
 
     return savedConfig;
@@ -106,10 +115,12 @@ export class TenantConfigService {
   async updateConfig(
     tenantId: string,
     key: string,
-    value: any
+    value: any,
   ): Promise<TenantConfig> {
     // Verify tenant exists
-    const tenant = await this.tenantRepository.findOne({ where: { id: tenantId } });
+    const tenant = await this.tenantRepository.findOne({
+      where: { id: tenantId },
+    });
     if (!tenant) {
       throw new NotFoundException(`Tenant with ID ${tenantId} not found`);
     }
@@ -118,12 +129,14 @@ export class TenantConfigService {
       where: {
         tenant: { id: tenantId },
         key,
-        isActive: true
-      }
+        isActive: true,
+      },
     });
 
     if (!config) {
-      throw new NotFoundException(`Config key ${key} not found for tenant ${tenantId}`);
+      throw new NotFoundException(
+        `Config key ${key} not found for tenant ${tenantId}`,
+      );
     }
 
     config.value = value;
@@ -134,7 +147,7 @@ export class TenantConfigService {
       'tenant.config.updated',
       'system',
       tenantId,
-      { key, value, updated: true }
+      { key, value, updated: true },
     );
 
     return updatedConfig;
@@ -142,7 +155,9 @@ export class TenantConfigService {
 
   async deleteConfig(tenantId: string, key: string): Promise<void> {
     // Verify tenant exists
-    const tenant = await this.tenantRepository.findOne({ where: { id: tenantId } });
+    const tenant = await this.tenantRepository.findOne({
+      where: { id: tenantId },
+    });
     if (!tenant) {
       throw new NotFoundException(`Tenant with ID ${tenantId} not found`);
     }
@@ -150,9 +165,9 @@ export class TenantConfigService {
     await this.configRepository.update(
       {
         tenant: { id: tenantId },
-        key
+        key,
       },
-      { isActive: false }
+      { isActive: false },
     );
 
     // Audit log
@@ -160,11 +175,14 @@ export class TenantConfigService {
       'tenant.config.deleted',
       'system',
       tenantId,
-      { key }
+      { key },
     );
   }
 
-  async getConfigByType(tenantId: string, configType: ConfigType): Promise<Record<string, any>> {
+  async getConfigByType(
+    tenantId: string,
+    configType: ConfigType,
+  ): Promise<Record<string, any>> {
     return this.getAllConfig(tenantId, configType);
   }
 
@@ -189,7 +207,10 @@ export class TenantConfigService {
     return this.getConfigByType(tenantId, ConfigType.INTEGRATIONS);
   }
 
-  async setAuthConfig(tenantId: string, config: Record<string, any>): Promise<TenantConfig[]> {
+  async setAuthConfig(
+    tenantId: string,
+    config: Record<string, any>,
+  ): Promise<TenantConfig[]> {
     const configs: TenantConfig[] = [];
     for (const [key, value] of Object.entries(config)) {
       configs.push(await this.setConfig(tenantId, key, value, ConfigType.AUTH));
@@ -197,57 +218,82 @@ export class TenantConfigService {
     return configs;
   }
 
-  async setBillingConfig(tenantId: string, config: Record<string, any>): Promise<TenantConfig[]> {
+  async setBillingConfig(
+    tenantId: string,
+    config: Record<string, any>,
+  ): Promise<TenantConfig[]> {
     const configs: TenantConfig[] = [];
     for (const [key, value] of Object.entries(config)) {
-      configs.push(await this.setConfig(tenantId, key, value, ConfigType.BILLING));
+      configs.push(
+        await this.setConfig(tenantId, key, value, ConfigType.BILLING),
+      );
     }
     return configs;
   }
 
-  async setFeaturesConfig(tenantId: string, config: Record<string, any>): Promise<TenantConfig[]> {
+  async setFeaturesConfig(
+    tenantId: string,
+    config: Record<string, any>,
+  ): Promise<TenantConfig[]> {
     const configs: TenantConfig[] = [];
     for (const [key, value] of Object.entries(config)) {
-      configs.push(await this.setConfig(tenantId, key, value, ConfigType.FEATURES));
+      configs.push(
+        await this.setConfig(tenantId, key, value, ConfigType.FEATURES),
+      );
     }
     return configs;
   }
 
-  async setIntegrationsConfig(tenantId: string, config: Record<string, any>): Promise<TenantConfig[]> {
+  async setIntegrationsConfig(
+    tenantId: string,
+    config: Record<string, any>,
+  ): Promise<TenantConfig[]> {
     const configs: TenantConfig[] = [];
     for (const [key, value] of Object.entries(config)) {
-      configs.push(await this.setConfig(tenantId, key, value, ConfigType.INTEGRATIONS));
+      configs.push(
+        await this.setConfig(tenantId, key, value, ConfigType.INTEGRATIONS),
+      );
     }
     return configs;
   }
 
-  async getConfigKeys(tenantId: string, configType?: ConfigType): Promise<string[]> {
+  async getConfigKeys(
+    tenantId: string,
+    configType?: ConfigType,
+  ): Promise<string[]> {
     // Verify tenant exists
-    const tenant = await this.tenantRepository.findOne({ where: { id: tenantId } });
+    const tenant = await this.tenantRepository.findOne({
+      where: { id: tenantId },
+    });
     if (!tenant) {
       throw new NotFoundException(`Tenant with ID ${tenantId} not found`);
     }
 
     const where: any = {
       tenant: { id: tenantId },
-      isActive: true
+      isActive: true,
     };
 
     if (configType) {
       where.configType = configType;
     }
 
-    const configs = await this.configRepository.find({ 
+    const configs = await this.configRepository.find({
       where,
-      select: ['key']
+      select: ['key'],
     });
 
-    return configs.map(config => config.key);
+    return configs.map((config) => config.key);
   }
 
-  async migrateConfig(tenantId: string, newConfigs: Record<string, any>): Promise<void> {
+  async migrateConfig(
+    tenantId: string,
+    newConfigs: Record<string, any>,
+  ): Promise<void> {
     // Verify tenant exists
-    const tenant = await this.tenantRepository.findOne({ where: { id: tenantId } });
+    const tenant = await this.tenantRepository.findOne({
+      where: { id: tenantId },
+    });
     if (!tenant) {
       throw new NotFoundException(`Tenant with ID ${tenantId} not found`);
     }
@@ -256,22 +302,32 @@ export class TenantConfigService {
     const existingConfigs = await this.configRepository.find({
       where: {
         tenant: { id: tenantId },
-        isActive: true
-      }
+        isActive: true,
+      },
     });
 
     // Create map of existing config keys
-    const existingConfigKeys = new Set(existingConfigs.map(config => config.key));
+    const existingConfigKeys = new Set(
+      existingConfigs.map((config) => config.key),
+    );
 
     // Update or create configs
     const configEntries = Object.entries(newConfigs);
-    const configsToUpdate: Array<{key: string, value: any, type: ConfigType}> = [];
-    const configsToCreate: Array<{key: string, value: any, type: ConfigType}> = [];
+    const configsToUpdate: Array<{
+      key: string;
+      value: any;
+      type: ConfigType;
+    }> = [];
+    const configsToCreate: Array<{
+      key: string;
+      value: any;
+      type: ConfigType;
+    }> = [];
 
     for (const [key, configObject] of configEntries) {
       const value = configObject.value;
       const type = configObject.type || ConfigType.GENERAL;
-      
+
       if (existingConfigKeys.has(key)) {
         configsToUpdate.push({ key, value, type });
       } else {
@@ -284,7 +340,7 @@ export class TenantConfigService {
       await this.updateConfig(tenantId, key, value);
       // Update type if needed
       const config = await this.configRepository.findOne({
-        where: { tenant: { id: tenantId }, key, isActive: true }
+        where: { tenant: { id: tenantId }, key, isActive: true },
       });
       if (config && config.configType !== type) {
         config.configType = type;
@@ -302,11 +358,11 @@ export class TenantConfigService {
       'tenant.config.migrated',
       'system',
       tenantId,
-      { 
+      {
         updated: configsToUpdate.length,
         created: configsToCreate.length,
-        total: configEntries.length
-      }
+        total: configEntries.length,
+      },
     );
   }
 }

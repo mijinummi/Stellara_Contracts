@@ -17,8 +17,8 @@ async function bootstrap() {
 
   // monkey‑patch Nest's Logger prototype so `new Logger()` instances
   // also use the structured logger logic and include correlation IDs.
-  const nestProto: any = (require('@nestjs/common').Logger as any).prototype;
-  ['log', 'error', 'warn', 'debug', 'verbose'].forEach(method => {
+  const nestProto: any = require('@nestjs/common').Logger.prototype;
+  ['log', 'error', 'warn', 'debug', 'verbose'].forEach((method) => {
     const orig = nestProto[method];
     nestProto[method] = function (message: any, ...args: any[]) {
       // delegate to our global structured logger
@@ -38,7 +38,9 @@ async function bootstrap() {
   // Configure Swagger
   const config = new DocumentBuilder()
     .setTitle('Stellara API')
-    .setDescription('API for authentication, monitoring Stellar network events, and delivering webhooks')
+    .setDescription(
+      'API for authentication, monitoring Stellar network events, and delivering webhooks',
+    )
     .setVersion('1.0')
     .addTag('Authentication')
     .addTag('Stellar Monitor')

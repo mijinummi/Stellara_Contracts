@@ -22,7 +22,10 @@ export class ThrottleService {
   async checkBan(identifier: string) {
     const banned = await this.redis.client.get(buildBanKey(identifier));
     if (banned) {
-      throw new HttpException('Temporarily banned', HttpStatus.TOO_MANY_REQUESTS);
+      throw new HttpException(
+        'Temporarily banned',
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
     }
   }
 
@@ -38,11 +41,7 @@ export class ThrottleService {
       const banSeconds =
         BAN_RULES.BASE_BAN_SECONDS * Math.pow(2, violations - 1);
 
-      await this.redis.client.setEx(
-        buildBanKey(identifier),
-        banSeconds,
-        '1',
-      );
+      await this.redis.client.setEx(buildBanKey(identifier), banSeconds, '1');
     }
   }
 }

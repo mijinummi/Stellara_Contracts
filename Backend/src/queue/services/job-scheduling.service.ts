@@ -45,10 +45,10 @@ export class JobSchedulingService {
     queueName: string,
     jobName: string,
     data: EnhancedJobData,
-    schedule: JobSchedule
+    schedule: JobSchedule,
   ): Promise<ScheduledJob> {
     const jobId = this.generateJobId();
-    
+
     // Create scheduled job object
     const scheduledJob: ScheduledJob = {
       id: jobId,
@@ -58,7 +58,7 @@ export class JobSchedulingService {
       schedule,
       createdAt: new Date(),
       isActive: true,
-      runCount: 0
+      runCount: 0,
     };
 
     // Calculate next run time based on schedule
@@ -68,7 +68,7 @@ export class JobSchedulingService {
     await this.redisService.client.hSet(
       this.SCHEDULED_JOBS_KEY,
       jobId,
-      JSON.stringify(scheduledJob)
+      JSON.stringify(scheduledJob),
     );
 
     this.logger.log(`Scheduled job ${jobId} for queue ${queueName}`);
@@ -84,13 +84,13 @@ export class JobSchedulingService {
     jobName: string,
     data: EnhancedJobData,
     cronExpression: string,
-    maxRuns?: number
+    maxRuns?: number,
   ): Promise<ScheduledJob> {
     const schedule: JobSchedule = {
       repeat: {
         cron: cronExpression,
-        limit: maxRuns
-      }
+        limit: maxRuns,
+      },
     };
 
     return this.scheduleJob(queueName, jobName, data, schedule);
@@ -104,26 +104,39 @@ export class JobSchedulingService {
     jobName: string,
     data: EnhancedJobData,
     schedule: JobSchedule,
-    dependsOn: string[]
+    dependsOn: string[],
   ): Promise<ScheduledJob> {
-    const scheduledJob = await this.scheduleJob(queueName, jobName, data, schedule);
-    
+    const scheduledJob = await this.scheduleJob(
+      queueName,
+      jobName,
+      data,
+      schedule,
+    );
+
     // Store dependencies
     scheduledJob.dependsOn = dependsOn;
     await this.redisService.client.hSet(
       this.SCHEDULED_JOBS_KEY,
       scheduledJob.id,
-      JSON.stringify(scheduledJob)
+      JSON.stringify(scheduledJob),
     );
 
     // Add to dependencies mapping
     for (const dependencyId of dependsOn) {
-      const existingDeps = await this.redisService.client.sMembers(`${this.JOB_DEPENDENCIES_KEY}:${dependencyId}`) || [];
+      const existingDeps =
+        (await this.redisService.client.sMembers(
+          `${this.JOB_DEPENDENCIES_KEY}:${dependencyId}`,
+        )) || [];
       existingDeps.push(scheduledJob.id);
-      await this.redisService.client.sAdd(`${this.JOB_DEPENDENCIES_KEY}:${dependencyId}`, scheduledJob.id);
+      await this.redisService.client.sAdd(
+        `${this.JOB_DEPENDENCIES_KEY}:${dependencyId}`,
+        scheduledJob.id,
+      );
     }
 
-    this.logger.log(`Scheduled job ${scheduledJob.id} with dependencies: ${dependsOn.join(', ')}`);
+    this.logger.log(
+      `Scheduled job ${scheduledJob.id} with dependencies: ${dependsOn.join(', ')}`,
+    );
 
     return scheduledJob;
   }
@@ -143,12 +156,22 @@ export class JobSchedulingService {
       jobName: string;
       data: EnhancedJobData;
       schedule?: JobSchedule;
-    }
+    },
   ): Promise<{ firstJob: ScheduledJob; secondJob: ScheduledJob }> {
     // Schedule the first job
     const firstScheduledJob = firstJob.schedule
-      ? await this.scheduleJob(firstJob.queueName, firstJob.jobName, firstJob.data, firstJob.schedule)
-      : await this.scheduleJob(firstJob.queueName, firstJob.jobName, firstJob.data, {});
+      ? await this.scheduleJob(
+          firstJob.queueName,
+          firstJob.jobName,
+          firstJob.data,
+          firstJob.schedule,
+        )
+      : await this.scheduleJob(
+          firstJob.queueName,
+          firstJob.jobName,
+          firstJob.data,
+          {},
+        );
 
     // Schedule the second job to depend on the first
     const secondScheduledJob = await this.scheduleJobWithDependencies(
@@ -156,20 +179,22 @@ export class JobSchedulingService {
       secondJob.jobName,
       secondJob.data,
       secondJob.schedule || {},
-      [firstScheduledJob.id]
+      [firstScheduledJob.id],
     );
 
     // Store the chain relationship
     await this.redisService.client.sAdd(
       `${this.CHAINED_JOBS_KEY}:${firstScheduledJob.id}`,
-      secondScheduledJob.id
+      secondScheduledJob.id,
     );
 
-    this.logger.log(`Chained jobs: ${firstScheduledJob.id} -> ${secondScheduledJob.id}`);
+    this.logger.log(
+      `Chained jobs: ${firstScheduledJob.id} -> ${secondScheduledJob.id}`,
+    );
 
     return {
       firstJob: firstScheduledJob,
-      secondJob: secondScheduledJob
+      secondJob: secondScheduledJob,
     };
   }
 
@@ -181,17 +206,22 @@ export class JobSchedulingService {
     jobName: string,
     data: EnhancedJobData,
     schedule: JobSchedule,
-    condition: (data: any) => boolean
+    condition: (data: any) => boolean,
   ): Promise<ScheduledJob> {
-    const scheduledJob = await this.scheduleJob(queueName, jobName, data, schedule);
-    
+    const scheduledJob = await this.scheduleJob(
+      queueName,
+      jobName,
+      data,
+      schedule,
+    );
+
     // Store condition as a serialized function or logic
     scheduledJob.condition = condition;
-    
+
     await this.redisService.client.hSet(
       this.SCHEDULED_JOBS_KEY,
       scheduledJob.id,
-      JSON.stringify(scheduledJob)
+      JSON.stringify(scheduledJob),
     );
 
     this.logger.log(`Scheduled conditional job ${scheduledJob.id}`);
@@ -203,8 +233,12 @@ export class JobSchedulingService {
    * Get all scheduled jobs
    */
   async getScheduledJobs(): Promise<ScheduledJob[]> {
-    const jobEntries = await this.redisService.client.hGetAll(this.SCHEDULED_JOBS_KEY);
-    return Object.values(jobEntries).map(entry => JSON.parse(entry) as ScheduledJob);
+    const jobEntries = await this.redisService.client.hGetAll(
+      this.SCHEDULED_JOBS_KEY,
+    );
+    return Object.values(jobEntries).map(
+      (entry) => JSON.parse(entry) as ScheduledJob,
+    );
   }
 
   /**
@@ -212,15 +246,18 @@ export class JobSchedulingService {
    */
   async getScheduledJobsByQueue(queueName: string): Promise<ScheduledJob[]> {
     const allJobs = await this.getScheduledJobs();
-    return allJobs.filter(job => job.queueName === queueName);
+    return allJobs.filter((job) => job.queueName === queueName);
   }
 
   /**
    * Get a specific scheduled job
    */
   async getScheduledJob(jobId: string): Promise<ScheduledJob | null> {
-    const jobData = await this.redisService.client.hGet(this.SCHEDULED_JOBS_KEY, jobId);
-    return jobData ? JSON.parse(jobData) as ScheduledJob : null;
+    const jobData = await this.redisService.client.hGet(
+      this.SCHEDULED_JOBS_KEY,
+      jobId,
+    );
+    return jobData ? (JSON.parse(jobData) as ScheduledJob) : null;
   }
 
   /**
@@ -236,7 +273,7 @@ export class JobSchedulingService {
     await this.redisService.client.hSet(
       this.SCHEDULED_JOBS_KEY,
       jobId,
-      JSON.stringify(job)
+      JSON.stringify(job),
     );
 
     this.logger.log(`Cancelled scheduled job ${jobId}`);
@@ -288,7 +325,7 @@ export class JobSchedulingService {
           await this.redisService.client.hSet(
             this.SCHEDULED_JOBS_KEY,
             job.id,
-            JSON.stringify(job)
+            JSON.stringify(job),
           );
         } else {
           // No more runs scheduled, cancel the job
@@ -317,12 +354,12 @@ export class JobSchedulingService {
   private async executeScheduledJob(job: ScheduledJob): Promise<void> {
     try {
       const queue = this.getQueueByName(job.queueName);
-      
+
       // Determine priority
       const priority = this.jobPriorityService.determineJobPriority(
         job.name,
         job.data,
-        job.data.metadata
+        job.data.metadata,
       );
 
       // merge schedule without carrying over its own `priority` property
@@ -345,15 +382,19 @@ export class JobSchedulingService {
       await this.redisService.client.hSet(
         this.SCHEDULED_JOBS_KEY,
         job.id,
-        JSON.stringify(job)
+        JSON.stringify(job),
       );
 
-      this.logger.log(`Executed scheduled job ${job.id} (run #${job.runCount})`);
+      this.logger.log(
+        `Executed scheduled job ${job.id} (run #${job.runCount})`,
+      );
 
       // Process chained jobs
       await this.processChainedJobs(job.id);
     } catch (error) {
-      this.logger.error(`Failed to execute scheduled job ${job.id}: ${error.message}`);
+      this.logger.error(
+        `Failed to execute scheduled job ${job.id}: ${error.message}`,
+      );
     }
   }
 
@@ -361,8 +402,10 @@ export class JobSchedulingService {
    * Process chained jobs after a job completes
    */
   private async processChainedJobs(parentJobId: string): Promise<void> {
-    const chainedJobIds = await this.redisService.client.sMembers(`${this.CHAINED_JOBS_KEY}:${parentJobId}`);
-    
+    const chainedJobIds = await this.redisService.client.sMembers(
+      `${this.CHAINED_JOBS_KEY}:${parentJobId}`,
+    );
+
     for (const chainedJobId of chainedJobIds) {
       const chainedJob = await this.getScheduledJob(chainedJobId);
       if (chainedJob) {
@@ -433,7 +476,10 @@ export class JobSchedulingService {
   /**
    * Update a scheduled job
    */
-  async updateScheduledJob(jobId: string, updates: Partial<ScheduledJob>): Promise<boolean> {
+  async updateScheduledJob(
+    jobId: string,
+    updates: Partial<ScheduledJob>,
+  ): Promise<boolean> {
     const job = await this.getScheduledJob(jobId);
     if (!job) {
       return false;
@@ -441,11 +487,11 @@ export class JobSchedulingService {
 
     // Update job properties
     Object.assign(job, updates);
-    
+
     await this.redisService.client.hSet(
       this.SCHEDULED_JOBS_KEY,
       jobId,
-      JSON.stringify(job)
+      JSON.stringify(job),
     );
 
     this.logger.log(`Updated scheduled job ${jobId}`);

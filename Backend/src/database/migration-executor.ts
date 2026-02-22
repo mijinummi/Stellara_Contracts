@@ -43,15 +43,16 @@ export class MigrationExecutor {
     const startTime = Date.now();
 
     try {
-      this.logger.log(
-        `========== MIGRATION: ${migration.name} ==========`,
-      );
+      this.logger.log(`========== MIGRATION: ${migration.name} ==========`);
       this.logger.log(`Description: ${migration.description || 'N/A'}`);
       this.logger.log(`Version: ${migration.version}`);
       this.logger.log(`Dry Run: ${isDryRun}`);
 
       // Step 1: Pre-migration validation
-      if (migration.preValidationRules && migration.preValidationRules.length > 0) {
+      if (
+        migration.preValidationRules &&
+        migration.preValidationRules.length > 0
+      ) {
         this.logger.log('Step 1: Running pre-migration validation checks...');
         const validationResult = await this.validator.validatePreMigration(
           queryRunner,
@@ -111,7 +112,10 @@ export class MigrationExecutor {
       }
 
       // Step 4: Post-migration validation
-      if (migration.postValidationRules && migration.postValidationRules.length > 0) {
+      if (
+        migration.postValidationRules &&
+        migration.postValidationRules.length > 0
+      ) {
         this.logger.log('Step 4: Running post-migration validation checks...');
         const validationResult = await this.validator.validatePostMigration(
           queryRunner,
@@ -138,13 +142,9 @@ export class MigrationExecutor {
     } catch (error) {
       context.status = 'failed';
       context.duration = Date.now() - startTime;
-      context.errors = [
-        error instanceof Error ? error.message : String(error),
-      ];
+      context.errors = [error instanceof Error ? error.message : String(error)];
 
-      this.logger.error(
-        `❌ Migration failed after ${context.duration}ms`,
-      );
+      this.logger.error(`❌ Migration failed after ${context.duration}ms`);
       this.logger.error(`Error: ${context.errors[0]}`);
 
       // Attempt rollback if migration has rollback function
@@ -187,7 +187,11 @@ export class MigrationExecutor {
 
     for (const migration of migrations) {
       try {
-        const result = await this.executeMigration(queryRunner, migration, isDryRun);
+        const result = await this.executeMigration(
+          queryRunner,
+          migration,
+          isDryRun,
+        );
         results.push(result);
       } catch (error) {
         allSuccessful = false;
@@ -246,8 +250,7 @@ export class MigrationExecutor {
         await queryRunner.rollbackTransaction();
       }
 
-      const errorMsg =
-        error instanceof Error ? error.message : String(error);
+      const errorMsg = error instanceof Error ? error.message : String(error);
       this.logger.error(`Rollback failed: ${errorMsg}`);
       throw error;
     }
@@ -328,9 +331,7 @@ export class MigrationExecutor {
       );
 
       if (result.errors && result.errors.length > 0) {
-        result.errors.forEach((err) =>
-          this.logger.error(`   └─ ${err}`),
-        );
+        result.errors.forEach((err) => this.logger.error(`   └─ ${err}`));
       }
     }
 

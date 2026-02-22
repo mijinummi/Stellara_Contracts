@@ -33,20 +33,29 @@ export class ErrorTrackingService {
   async track(error: TrackedError) {
     // attach correlation id if not provided
     if (!error.correlationId) {
-      // eslint-disable-next-line @typescript-eslint/no-var-requires
       const RequestContext = require('./request-context').RequestContext;
       error.correlationId = RequestContext.get('correlationId');
     }
 
     // increment metric by severity/category
-    this.metrics.incrementError(error.severity || ErrorSeverity.MEDIUM, error.category || 'general');
+    this.metrics.incrementError(
+      error.severity || ErrorSeverity.MEDIUM,
+      error.category || 'general',
+    );
 
     // for now just log the object; in real world we'd send to remote
-    this.logger.error('Tracked error', JSON.stringify(error), ErrorTrackingService.name);
+    this.logger.error(
+      'Tracked error',
+      JSON.stringify(error),
+      ErrorTrackingService.name,
+    );
 
     if (error.severity === ErrorSeverity.CRITICAL) {
       // fire alert, e.g. slack, pagerduty etc.
-      this.logger.warn('Critical error alert triggered', ErrorTrackingService.name);
+      this.logger.warn(
+        'Critical error alert triggered',
+        ErrorTrackingService.name,
+      );
     }
   }
 }

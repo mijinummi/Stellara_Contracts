@@ -44,10 +44,7 @@ export interface RateLimitStrategy {
 export class SlidingWindowLogStrategy implements RateLimitStrategy {
   constructor(private redis: RedisClientType) {}
 
-  async check(
-    key: string,
-    config: RateLimitConfig,
-  ): Promise<RateLimitResult> {
+  async check(key: string, config: RateLimitConfig): Promise<RateLimitResult> {
     const now = Date.now();
     const windowStart = now - config.window * 1000;
     const logKey = `swl:${key}`;
@@ -62,7 +59,9 @@ export class SlidingWindowLogStrategy implements RateLimitStrategy {
 
     // Add current request if allowed
     if (allowed) {
-      await this.redis.zAdd(logKey, [{ score: now, value: `${now}:${Math.random()}` }]);
+      await this.redis.zAdd(logKey, [
+        { score: now, value: `${now}:${Math.random()}` },
+      ]);
     }
 
     // Set expiration
@@ -102,10 +101,7 @@ export class SlidingWindowLogStrategy implements RateLimitStrategy {
 export class SlidingWindowCounterStrategy implements RateLimitStrategy {
   constructor(private redis: RedisClientType) {}
 
-  async check(
-    key: string,
-    config: RateLimitConfig,
-  ): Promise<RateLimitResult> {
+  async check(key: string, config: RateLimitConfig): Promise<RateLimitResult> {
     const now = Date.now();
     const currentWindow = Math.floor(now / (config.window * 1000));
     const previousWindow = currentWindow - 1;
@@ -178,17 +174,14 @@ export class SlidingWindowCounterStrategy implements RateLimitStrategy {
 export class TokenBucketStrategy implements RateLimitStrategy {
   constructor(private redis: RedisClientType) {}
 
-  async check(
-    key: string,
-    config: RateLimitConfig,
-  ): Promise<RateLimitResult> {
+  async check(key: string, config: RateLimitConfig): Promise<RateLimitResult> {
     const now = Date.now();
     const bucketKey = `tb:${key}:bucket`;
     const lastRefillKey = `tb:${key}:refill`;
 
     // Get current state
-    let tokens = parseInt(await this.redis.get(bucketKey) || '0', 10);
-    let lastRefill = parseInt(await this.redis.get(lastRefillKey) || '0', 10);
+    let tokens = parseInt((await this.redis.get(bucketKey)) || '0', 10);
+    let lastRefill = parseInt((await this.redis.get(lastRefillKey)) || '0', 10);
 
     if (lastRefill === 0) {
       lastRefill = now;
@@ -208,7 +201,11 @@ export class TokenBucketStrategy implements RateLimitStrategy {
     }
 
     // Store updated state
-    await this.redis.setEx(bucketKey, config.window * 2, Math.floor(tokens).toString());
+    await this.redis.setEx(
+      bucketKey,
+      config.window * 2,
+      Math.floor(tokens).toString(),
+    );
     await this.redis.setEx(lastRefillKey, config.window * 2, now.toString());
 
     const resetTime = now + config.window * 1000;
@@ -246,10 +243,7 @@ export class TokenBucketStrategy implements RateLimitStrategy {
 export class LeakyBucketStrategy implements RateLimitStrategy {
   constructor(private redis: RedisClientType) {}
 
-  async check(
-    key: string,
-    config: RateLimitConfig,
-  ): Promise<RateLimitResult> {
+  async check(key: string, config: RateLimitConfig): Promise<RateLimitResult> {
     const now = Date.now();
     const queueKey = `lb:${key}:queue`;
     const lastLeakKey = `lb:${key}:leak`;
@@ -257,7 +251,7 @@ export class LeakyBucketStrategy implements RateLimitStrategy {
 
     // Get current queue size
     let queueSize = await this.redis.lLen(queueKey);
-    let lastLeak = parseInt(await this.redis.get(lastLeakKey) || '0', 10);
+    let lastLeak = parseInt((await this.redis.get(lastLeakKey)) || '0', 10);
 
     if (lastLeak === 0) {
       lastLeak = now;

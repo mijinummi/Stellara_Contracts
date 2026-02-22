@@ -11,7 +11,9 @@ describe('WorkflowStateMachineService', () => {
       providers: [WorkflowStateMachineService],
     }).compile();
 
-    service = module.get<WorkflowStateMachineService>(WorkflowStateMachineService);
+    service = module.get<WorkflowStateMachineService>(
+      WorkflowStateMachineService,
+    );
   });
 
   it('should be defined', () => {
@@ -21,62 +23,188 @@ describe('WorkflowStateMachineService', () => {
   describe('Workflow State Transitions', () => {
     describe('canTransitionWorkflow', () => {
       it('should allow valid transitions from PENDING', () => {
-        expect(service.canTransitionWorkflow(WorkflowState.PENDING, WorkflowState.RUNNING)).toBe(true);
-        expect(service.canTransitionWorkflow(WorkflowState.PENDING, WorkflowState.CANCELLED)).toBe(true);
-        expect(service.canTransitionWorkflow(WorkflowState.PENDING, WorkflowState.COMPLETED)).toBe(false);
-        expect(service.canTransitionWorkflow(WorkflowState.PENDING, WorkflowState.FAILED)).toBe(false);
+        expect(
+          service.canTransitionWorkflow(
+            WorkflowState.PENDING,
+            WorkflowState.RUNNING,
+          ),
+        ).toBe(true);
+        expect(
+          service.canTransitionWorkflow(
+            WorkflowState.PENDING,
+            WorkflowState.CANCELLED,
+          ),
+        ).toBe(true);
+        expect(
+          service.canTransitionWorkflow(
+            WorkflowState.PENDING,
+            WorkflowState.COMPLETED,
+          ),
+        ).toBe(false);
+        expect(
+          service.canTransitionWorkflow(
+            WorkflowState.PENDING,
+            WorkflowState.FAILED,
+          ),
+        ).toBe(false);
       });
 
       it('should allow valid transitions from RUNNING', () => {
-        expect(service.canTransitionWorkflow(WorkflowState.RUNNING, WorkflowState.COMPLETED)).toBe(true);
-        expect(service.canTransitionWorkflow(WorkflowState.RUNNING, WorkflowState.FAILED)).toBe(true);
-        expect(service.canTransitionWorkflow(WorkflowState.RUNNING, WorkflowState.CANCELLED)).toBe(true);
-        expect(service.canTransitionWorkflow(WorkflowState.RUNNING, WorkflowState.COMPENSATING)).toBe(true);
-        expect(service.canTransitionWorkflow(WorkflowState.RUNNING, WorkflowState.PENDING)).toBe(false);
+        expect(
+          service.canTransitionWorkflow(
+            WorkflowState.RUNNING,
+            WorkflowState.COMPLETED,
+          ),
+        ).toBe(true);
+        expect(
+          service.canTransitionWorkflow(
+            WorkflowState.RUNNING,
+            WorkflowState.FAILED,
+          ),
+        ).toBe(true);
+        expect(
+          service.canTransitionWorkflow(
+            WorkflowState.RUNNING,
+            WorkflowState.CANCELLED,
+          ),
+        ).toBe(true);
+        expect(
+          service.canTransitionWorkflow(
+            WorkflowState.RUNNING,
+            WorkflowState.COMPENSATING,
+          ),
+        ).toBe(true);
+        expect(
+          service.canTransitionWorkflow(
+            WorkflowState.RUNNING,
+            WorkflowState.PENDING,
+          ),
+        ).toBe(false);
       });
 
       it('should allow valid transitions from COMPLETED', () => {
-        expect(service.canTransitionWorkflow(WorkflowState.COMPLETED, WorkflowState.COMPENSATING)).toBe(true);
-        expect(service.canTransitionWorkflow(WorkflowState.COMPLETED, WorkflowState.RUNNING)).toBe(false);
-        expect(service.canTransitionWorkflow(WorkflowState.COMPLETED, WorkflowState.FAILED)).toBe(false);
+        expect(
+          service.canTransitionWorkflow(
+            WorkflowState.COMPLETED,
+            WorkflowState.COMPENSATING,
+          ),
+        ).toBe(true);
+        expect(
+          service.canTransitionWorkflow(
+            WorkflowState.COMPLETED,
+            WorkflowState.RUNNING,
+          ),
+        ).toBe(false);
+        expect(
+          service.canTransitionWorkflow(
+            WorkflowState.COMPLETED,
+            WorkflowState.FAILED,
+          ),
+        ).toBe(false);
       });
 
       it('should allow valid transitions from FAILED', () => {
-        expect(service.canTransitionWorkflow(WorkflowState.FAILED, WorkflowState.RUNNING)).toBe(true);
-        expect(service.canTransitionWorkflow(WorkflowState.FAILED, WorkflowState.CANCELLED)).toBe(true);
-        expect(service.canTransitionWorkflow(WorkflowState.FAILED, WorkflowState.COMPENSATING)).toBe(true);
-        expect(service.canTransitionWorkflow(WorkflowState.FAILED, WorkflowState.COMPLETED)).toBe(false);
+        expect(
+          service.canTransitionWorkflow(
+            WorkflowState.FAILED,
+            WorkflowState.RUNNING,
+          ),
+        ).toBe(true);
+        expect(
+          service.canTransitionWorkflow(
+            WorkflowState.FAILED,
+            WorkflowState.CANCELLED,
+          ),
+        ).toBe(true);
+        expect(
+          service.canTransitionWorkflow(
+            WorkflowState.FAILED,
+            WorkflowState.COMPENSATING,
+          ),
+        ).toBe(true);
+        expect(
+          service.canTransitionWorkflow(
+            WorkflowState.FAILED,
+            WorkflowState.COMPLETED,
+          ),
+        ).toBe(false);
       });
 
       it('should allow valid transitions from CANCELLED', () => {
-        expect(service.canTransitionWorkflow(WorkflowState.CANCELLED, WorkflowState.COMPENSATING)).toBe(true);
-        expect(service.canTransitionWorkflow(WorkflowState.CANCELLED, WorkflowState.RUNNING)).toBe(false);
+        expect(
+          service.canTransitionWorkflow(
+            WorkflowState.CANCELLED,
+            WorkflowState.COMPENSATING,
+          ),
+        ).toBe(true);
+        expect(
+          service.canTransitionWorkflow(
+            WorkflowState.CANCELLED,
+            WorkflowState.RUNNING,
+          ),
+        ).toBe(false);
       });
 
       it('should allow valid transitions from COMPENSATING', () => {
-        expect(service.canTransitionWorkflow(WorkflowState.COMPENSATING, WorkflowState.COMPENSATED)).toBe(true);
-        expect(service.canTransitionWorkflow(WorkflowState.COMPENSATING, WorkflowState.FAILED)).toBe(true);
-        expect(service.canTransitionWorkflow(WorkflowState.COMPENSATING, WorkflowState.RUNNING)).toBe(false);
+        expect(
+          service.canTransitionWorkflow(
+            WorkflowState.COMPENSATING,
+            WorkflowState.COMPENSATED,
+          ),
+        ).toBe(true);
+        expect(
+          service.canTransitionWorkflow(
+            WorkflowState.COMPENSATING,
+            WorkflowState.FAILED,
+          ),
+        ).toBe(true);
+        expect(
+          service.canTransitionWorkflow(
+            WorkflowState.COMPENSATING,
+            WorkflowState.RUNNING,
+          ),
+        ).toBe(false);
       });
 
       it('should not allow transitions from COMPENSATED', () => {
-        expect(service.canTransitionWorkflow(WorkflowState.COMPENSATED, WorkflowState.RUNNING)).toBe(false);
-        expect(service.canTransitionWorkflow(WorkflowState.COMPENSATED, WorkflowState.FAILED)).toBe(false);
-        expect(service.canTransitionWorkflow(WorkflowState.COMPENSATED, WorkflowState.PENDING)).toBe(false);
+        expect(
+          service.canTransitionWorkflow(
+            WorkflowState.COMPENSATED,
+            WorkflowState.RUNNING,
+          ),
+        ).toBe(false);
+        expect(
+          service.canTransitionWorkflow(
+            WorkflowState.COMPENSATED,
+            WorkflowState.FAILED,
+          ),
+        ).toBe(false);
+        expect(
+          service.canTransitionWorkflow(
+            WorkflowState.COMPENSATED,
+            WorkflowState.PENDING,
+          ),
+        ).toBe(false);
       });
     });
 
     describe('transitionWorkflow', () => {
       it('should succeed with valid transition', () => {
-        const result = service.transitionWorkflow(WorkflowState.PENDING, WorkflowState.RUNNING);
-        
+        const result = service.transitionWorkflow(
+          WorkflowState.PENDING,
+          WorkflowState.RUNNING,
+        );
+
         expect(result.success).toBe(true);
         expect(result.error).toBeUndefined();
       });
 
       it('should fail with invalid transition', () => {
-        const result = service.transitionWorkflow(WorkflowState.PENDING, WorkflowState.COMPLETED);
-        
+        const result = service.transitionWorkflow(
+          WorkflowState.PENDING,
+          WorkflowState.COMPLETED,
+        );
+
         expect(result.success).toBe(false);
         expect(result.error).toBeDefined();
         expect(result.error).toContain('Invalid workflow state transition');
@@ -85,17 +213,31 @@ describe('WorkflowStateMachineService', () => {
 
     describe('getValidWorkflowTransitions', () => {
       it('should return valid transitions for PENDING', () => {
-        const transitions = service.getValidWorkflowTransitions(WorkflowState.PENDING);
-        expect(transitions).toEqual([WorkflowState.RUNNING, WorkflowState.CANCELLED]);
+        const transitions = service.getValidWorkflowTransitions(
+          WorkflowState.PENDING,
+        );
+        expect(transitions).toEqual([
+          WorkflowState.RUNNING,
+          WorkflowState.CANCELLED,
+        ]);
       });
 
       it('should return valid transitions for RUNNING', () => {
-        const transitions = service.getValidWorkflowTransitions(WorkflowState.RUNNING);
-        expect(transitions).toEqual([WorkflowState.COMPLETED, WorkflowState.FAILED, WorkflowState.CANCELLED, WorkflowState.COMPENSATING]);
+        const transitions = service.getValidWorkflowTransitions(
+          WorkflowState.RUNNING,
+        );
+        expect(transitions).toEqual([
+          WorkflowState.COMPLETED,
+          WorkflowState.FAILED,
+          WorkflowState.CANCELLED,
+          WorkflowState.COMPENSATING,
+        ]);
       });
 
       it('should return empty array for COMPENSATED', () => {
-        const transitions = service.getValidWorkflowTransitions(WorkflowState.COMPENSATED);
+        const transitions = service.getValidWorkflowTransitions(
+          WorkflowState.COMPENSATED,
+        );
         expect(transitions).toEqual([]);
       });
     });
@@ -104,50 +246,95 @@ describe('WorkflowStateMachineService', () => {
   describe('Step State Transitions', () => {
     describe('canTransitionStep', () => {
       it('should allow valid transitions from PENDING', () => {
-        expect(service.canTransitionStep(StepState.PENDING, StepState.RUNNING)).toBe(true);
-        expect(service.canTransitionStep(StepState.PENDING, StepState.SKIPPED)).toBe(true);
-        expect(service.canTransitionStep(StepState.PENDING, StepState.COMPLETED)).toBe(false);
-        expect(service.canTransitionStep(StepState.PENDING, StepState.FAILED)).toBe(false);
+        expect(
+          service.canTransitionStep(StepState.PENDING, StepState.RUNNING),
+        ).toBe(true);
+        expect(
+          service.canTransitionStep(StepState.PENDING, StepState.SKIPPED),
+        ).toBe(true);
+        expect(
+          service.canTransitionStep(StepState.PENDING, StepState.COMPLETED),
+        ).toBe(false);
+        expect(
+          service.canTransitionStep(StepState.PENDING, StepState.FAILED),
+        ).toBe(false);
       });
 
       it('should allow valid transitions from RUNNING', () => {
-        expect(service.canTransitionStep(StepState.RUNNING, StepState.COMPLETED)).toBe(true);
-        expect(service.canTransitionStep(StepState.RUNNING, StepState.FAILED)).toBe(true);
-        expect(service.canTransitionStep(StepState.RUNNING, StepState.SKIPPED)).toBe(true);
-        expect(service.canTransitionStep(StepState.RUNNING, StepState.PENDING)).toBe(false);
+        expect(
+          service.canTransitionStep(StepState.RUNNING, StepState.COMPLETED),
+        ).toBe(true);
+        expect(
+          service.canTransitionStep(StepState.RUNNING, StepState.FAILED),
+        ).toBe(true);
+        expect(
+          service.canTransitionStep(StepState.RUNNING, StepState.SKIPPED),
+        ).toBe(true);
+        expect(
+          service.canTransitionStep(StepState.RUNNING, StepState.PENDING),
+        ).toBe(false);
       });
 
       it('should allow valid transitions from COMPLETED', () => {
-        expect(service.canTransitionStep(StepState.COMPLETED, StepState.COMPENSATING)).toBe(true);
-        expect(service.canTransitionStep(StepState.COMPLETED, StepState.RUNNING)).toBe(false);
-        expect(service.canTransitionStep(StepState.COMPLETED, StepState.FAILED)).toBe(false);
+        expect(
+          service.canTransitionStep(
+            StepState.COMPLETED,
+            StepState.COMPENSATING,
+          ),
+        ).toBe(true);
+        expect(
+          service.canTransitionStep(StepState.COMPLETED, StepState.RUNNING),
+        ).toBe(false);
+        expect(
+          service.canTransitionStep(StepState.COMPLETED, StepState.FAILED),
+        ).toBe(false);
       });
 
       it('should allow valid transitions from FAILED', () => {
-        expect(service.canTransitionStep(StepState.FAILED, StepState.RUNNING)).toBe(true);
-        expect(service.canTransitionStep(StepState.FAILED, StepState.SKIPPED)).toBe(true);
-        expect(service.canTransitionStep(StepState.FAILED, StepState.COMPENSATING)).toBe(true);
-        expect(service.canTransitionStep(StepState.FAILED, StepState.COMPLETED)).toBe(false);
+        expect(
+          service.canTransitionStep(StepState.FAILED, StepState.RUNNING),
+        ).toBe(true);
+        expect(
+          service.canTransitionStep(StepState.FAILED, StepState.SKIPPED),
+        ).toBe(true);
+        expect(
+          service.canTransitionStep(StepState.FAILED, StepState.COMPENSATING),
+        ).toBe(true);
+        expect(
+          service.canTransitionStep(StepState.FAILED, StepState.COMPLETED),
+        ).toBe(false);
       });
 
       it('should not allow transitions from COMPENSATED', () => {
-        expect(service.canTransitionStep(StepState.COMPENSATED, StepState.RUNNING)).toBe(false);
-        expect(service.canTransitionStep(StepState.COMPENSATED, StepState.FAILED)).toBe(false);
-        expect(service.canTransitionStep(StepState.COMPENSATED, StepState.PENDING)).toBe(false);
+        expect(
+          service.canTransitionStep(StepState.COMPENSATED, StepState.RUNNING),
+        ).toBe(false);
+        expect(
+          service.canTransitionStep(StepState.COMPENSATED, StepState.FAILED),
+        ).toBe(false);
+        expect(
+          service.canTransitionStep(StepState.COMPENSATED, StepState.PENDING),
+        ).toBe(false);
       });
     });
 
     describe('transitionStep', () => {
       it('should succeed with valid transition', () => {
-        const result = service.transitionStep(StepState.PENDING, StepState.RUNNING);
-        
+        const result = service.transitionStep(
+          StepState.PENDING,
+          StepState.RUNNING,
+        );
+
         expect(result.success).toBe(true);
         expect(result.error).toBeUndefined();
       });
 
       it('should fail with invalid transition', () => {
-        const result = service.transitionStep(StepState.PENDING, StepState.COMPLETED);
-        
+        const result = service.transitionStep(
+          StepState.PENDING,
+          StepState.COMPLETED,
+        );
+
         expect(result.success).toBe(false);
         expect(result.error).toBeDefined();
         expect(result.error).toContain('Invalid step state transition');
@@ -162,11 +349,17 @@ describe('WorkflowStateMachineService', () => {
 
       it('should return valid transitions for RUNNING', () => {
         const transitions = service.getValidStepTransitions(StepState.RUNNING);
-        expect(transitions).toEqual([StepState.COMPLETED, StepState.FAILED, StepState.SKIPPED]);
+        expect(transitions).toEqual([
+          StepState.COMPLETED,
+          StepState.FAILED,
+          StepState.SKIPPED,
+        ]);
       });
 
       it('should return empty array for COMPENSATED', () => {
-        const transitions = service.getValidStepTransitions(StepState.COMPENSATED);
+        const transitions = service.getValidStepTransitions(
+          StepState.COMPENSATED,
+        );
         expect(transitions).toEqual([]);
       });
     });
@@ -177,14 +370,18 @@ describe('WorkflowStateMachineService', () => {
       it('should return true for terminal states', () => {
         expect(service.isWorkflowTerminal(WorkflowState.COMPLETED)).toBe(true);
         expect(service.isWorkflowTerminal(WorkflowState.CANCELLED)).toBe(true);
-        expect(service.isWorkflowTerminal(WorkflowState.COMPENSATED)).toBe(true);
+        expect(service.isWorkflowTerminal(WorkflowState.COMPENSATED)).toBe(
+          true,
+        );
       });
 
       it('should return false for non-terminal states', () => {
         expect(service.isWorkflowTerminal(WorkflowState.PENDING)).toBe(false);
         expect(service.isWorkflowTerminal(WorkflowState.RUNNING)).toBe(false);
         expect(service.isWorkflowTerminal(WorkflowState.FAILED)).toBe(false);
-        expect(service.isWorkflowTerminal(WorkflowState.COMPENSATING)).toBe(false);
+        expect(service.isWorkflowTerminal(WorkflowState.COMPENSATING)).toBe(
+          false,
+        );
       });
     });
 
@@ -206,9 +403,15 @@ describe('WorkflowStateMachineService', () => {
     describe('isWorkflowRecoverable', () => {
       it('should return true only for FAILED state', () => {
         expect(service.isWorkflowRecoverable(WorkflowState.FAILED)).toBe(true);
-        expect(service.isWorkflowRecoverable(WorkflowState.PENDING)).toBe(false);
-        expect(service.isWorkflowRecoverable(WorkflowState.RUNNING)).toBe(false);
-        expect(service.isWorkflowRecoverable(WorkflowState.COMPLETED)).toBe(false);
+        expect(service.isWorkflowRecoverable(WorkflowState.PENDING)).toBe(
+          false,
+        );
+        expect(service.isWorkflowRecoverable(WorkflowState.RUNNING)).toBe(
+          false,
+        );
+        expect(service.isWorkflowRecoverable(WorkflowState.COMPLETED)).toBe(
+          false,
+        );
       });
     });
 
@@ -223,16 +426,28 @@ describe('WorkflowStateMachineService', () => {
 
     describe('canWorkflowCompensate', () => {
       it('should return true for compensable states', () => {
-        expect(service.canWorkflowCompensate(WorkflowState.COMPLETED)).toBe(true);
+        expect(service.canWorkflowCompensate(WorkflowState.COMPLETED)).toBe(
+          true,
+        );
         expect(service.canWorkflowCompensate(WorkflowState.FAILED)).toBe(true);
-        expect(service.canWorkflowCompensate(WorkflowState.CANCELLED)).toBe(true);
+        expect(service.canWorkflowCompensate(WorkflowState.CANCELLED)).toBe(
+          true,
+        );
       });
 
       it('should return false for non-compensable states', () => {
-        expect(service.canWorkflowCompensate(WorkflowState.PENDING)).toBe(false);
-        expect(service.canWorkflowCompensate(WorkflowState.RUNNING)).toBe(false);
-        expect(service.canWorkflowCompensate(WorkflowState.COMPENSATING)).toBe(false);
-        expect(service.canWorkflowCompensate(WorkflowState.COMPENSATED)).toBe(false);
+        expect(service.canWorkflowCompensate(WorkflowState.PENDING)).toBe(
+          false,
+        );
+        expect(service.canWorkflowCompensate(WorkflowState.RUNNING)).toBe(
+          false,
+        );
+        expect(service.canWorkflowCompensate(WorkflowState.COMPENSATING)).toBe(
+          false,
+        );
+        expect(service.canWorkflowCompensate(WorkflowState.COMPENSATED)).toBe(
+          false,
+        );
       });
     });
 

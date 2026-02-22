@@ -338,16 +338,12 @@ describe('Auth Integration Tests (e2e)', () => {
       const requests: Array<Promise<any>> = [];
       for (let i = 0; i < 6; i++) {
         requests.push(
-          request(app.getHttpServer())
-            .post('/auth/nonce')
-            .send({ publicKey }),
+          request(app.getHttpServer()).post('/auth/nonce').send({ publicKey }),
         );
       }
 
       const responses = await Promise.all(requests);
-      const tooManyRequests = responses.filter(
-        (r) => r.status === 429,
-      );
+      const tooManyRequests = responses.filter((r) => r.status === 429);
 
       expect(tooManyRequests.length).toBeGreaterThan(0);
     });

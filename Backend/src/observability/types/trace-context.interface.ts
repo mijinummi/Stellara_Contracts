@@ -17,8 +17,8 @@ export interface TraceContext {
  * Distributed trace headers following W3C Trace Context
  */
 export interface TraceHeaders {
-  'traceparent': string; // W3C Trace Context format: version-traceId-parentId-traceFlags
-  'tracestate'?: string; // W3C Trace State
+  traceparent: string; // W3C Trace Context format: version-traceId-parentId-traceFlags
+  tracestate?: string; // W3C Trace State
   'x-trace-id': string; // Custom trace ID header
   'x-span-id': string; // Custom span ID header
   'x-request-id': string; // Request ID for correlation

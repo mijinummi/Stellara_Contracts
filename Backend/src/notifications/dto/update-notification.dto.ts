@@ -1,5 +1,16 @@
-import { IsEnum, IsString, IsOptional, IsBoolean, IsObject, IsUUID, IsArray } from 'class-validator';
-import { NotificationStatus, NotificationChannel } from '../types/notification.types';
+import {
+  IsEnum,
+  IsString,
+  IsOptional,
+  IsBoolean,
+  IsObject,
+  IsUUID,
+  IsArray,
+} from 'class-validator';
+import {
+  NotificationStatus,
+  NotificationChannel,
+} from '../types/notification.types';
 
 export class UpdateNotificationDto {
   @IsEnum(NotificationStatus)

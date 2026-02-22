@@ -1,4 +1,11 @@
-import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, UpdateDateColumn, Index } from 'typeorm';
+import {
+  Entity,
+  Column,
+  PrimaryGeneratedColumn,
+  CreateDateColumn,
+  UpdateDateColumn,
+  Index,
+} from 'typeorm';
 
 export enum JobStatus {
   PENDING = 'pending',
@@ -66,6 +73,6 @@ export class VoiceJob {
   @UpdateDateColumn()
   updatedAt: Date;
 
-    @Column({ type: 'datetime', nullable: true })
-    completedAt: Date;
+  @Column({ type: 'datetime', nullable: true })
+  completedAt: Date;
 }

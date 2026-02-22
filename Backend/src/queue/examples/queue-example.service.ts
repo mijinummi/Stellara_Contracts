@@ -86,9 +86,7 @@ export class QueueExampleService {
       this.logger.log(`TTS processing job queued: ${job.id}`);
       return job;
     } catch (error) {
-      this.logger.error(
-        `Failed to queue TTS processing: ${error.message}`,
-      );
+      this.logger.error(`Failed to queue TTS processing: ${error.message}`);
       throw error;
     }
   }
@@ -157,10 +155,7 @@ export class QueueExampleService {
   /**
    * Example: Handle job completion/failure
    */
-  async handleJobCompletion(
-    queueName: string,
-    jobId: string,
-  ) {
+  async handleJobCompletion(queueName: string, jobId: string) {
     try {
       const jobInfo = await this.queueService.getJobInfo(queueName, jobId);
 
@@ -169,7 +164,9 @@ export class QueueExampleService {
       }
 
       if (jobInfo.result?.success) {
-        this.logger.log(`Job completed successfully: ${JSON.stringify(jobInfo.result.data)}`);
+        this.logger.log(
+          `Job completed successfully: ${JSON.stringify(jobInfo.result.data)}`,
+        );
         // Do something with the result
       } else {
         this.logger.error(`Job failed: ${jobInfo.error}`);
@@ -194,9 +191,7 @@ export class QueueExampleService {
         throw new Error(`Failed to requeue job ${jobId}`);
       }
 
-      this.logger.log(
-        `Failed job requeued: ${jobId} → ${requeuedJob.id}`,
-      );
+      this.logger.log(`Failed job requeued: ${jobId} → ${requeuedJob.id}`);
       return requeuedJob;
     } catch (error) {
       this.logger.error(`Failed to retry job: ${error.message}`);
@@ -214,14 +209,22 @@ export class QueueExampleService {
       this.logger.log(`Queue ${queueName} metrics:`, stats);
 
       // Calculate health metrics
-      const totalJobs = Object.values(stats).reduce((a: number, b: number) => a + b, 0);
+      const totalJobs = Object.values(stats).reduce(
+        (a: number, b: number) => a + b,
+        0,
+      );
       const failureRate = totalJobs > 0 ? (stats.failed / totalJobs) * 100 : 0;
 
       return {
         ...stats,
         totalJobs,
         failureRate: failureRate.toFixed(2) + '%',
-        health: failureRate < 5 ? 'healthy' : failureRate < 10 ? 'warning' : 'critical',
+        health:
+          failureRate < 5
+            ? 'healthy'
+            : failureRate < 10
+              ? 'warning'
+              : 'critical',
       };
     } catch (error) {
       this.logger.error(`Failed to get queue metrics: ${error.message}`);
@@ -234,15 +237,19 @@ export class QueueExampleService {
    */
   async processDeadLetterQueue(queueName: string, limit: number = 10) {
     try {
-      const dlqItems = await this.queueService.getDeadLetterQueue(queueName, limit);
+      const dlqItems = await this.queueService.getDeadLetterQueue(
+        queueName,
+        limit,
+      );
 
       this.logger.log(`Found ${dlqItems.length} items in DLQ for ${queueName}`);
 
       if (dlqItems.length > 0) {
-        const requeuedJobs = await this.queueService.requeueFromDLQ(queueName, limit);
-        this.logger.log(
-          `Requeued ${requeuedJobs.length} jobs from DLQ`,
+        const requeuedJobs = await this.queueService.requeueFromDLQ(
+          queueName,
+          limit,
         );
+        this.logger.log(`Requeued ${requeuedJobs.length} jobs from DLQ`);
         return requeuedJobs;
       }
 

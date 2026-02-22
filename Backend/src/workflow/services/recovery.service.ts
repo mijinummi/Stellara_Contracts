@@ -33,7 +33,9 @@ export class RecoveryService implements OnModuleInit {
    */
   async performStartupRecovery(): Promise<void> {
     if (this.isRecovering) {
-      this.logger.warn('Recovery already in progress, skipping startup recovery');
+      this.logger.warn(
+        'Recovery already in progress, skipping startup recovery',
+      );
       return;
     }
 
@@ -44,7 +46,7 @@ export class RecoveryService implements OnModuleInit {
       await this.recoverOrphanedWorkflows();
       await this.recoverStuckSteps();
       await this.cleanupExpiredWorkflows();
-      
+
       this.logger.log('Startup recovery completed successfully');
     } catch (error) {
       this.logger.error('Startup recovery failed', error);
@@ -65,7 +67,9 @@ export class RecoveryService implements OnModuleInit {
       relations: ['steps'],
     });
 
-    this.logger.log(`Found ${orphanedWorkflows.length} potentially orphaned workflows`);
+    this.logger.log(
+      `Found ${orphanedWorkflows.length} potentially orphaned workflows`,
+    );
 
     for (const workflow of orphanedWorkflows) {
       try {
@@ -86,25 +90,32 @@ export class RecoveryService implements OnModuleInit {
     const stalenessThreshold = 5 * 60 * 1000; // 5 minutes
     const lastActivity = workflow.updatedAt.getTime();
     const now = Date.now();
-    
+
     if (now - lastActivity < stalenessThreshold) {
-      this.logger.debug(`Workflow ${workflow.id} is still active, skipping recovery`);
+      this.logger.debug(
+        `Workflow ${workflow.id} is still active, skipping recovery`,
+      );
       return;
     }
 
     // Find the last completed step
     const lastCompletedStep = workflow.steps
-      .filter(step => step.state === StepState.COMPLETED)
-      .reduce((latest, step) => 
-        !latest || step.stepIndex > latest.stepIndex ? step : latest, 
-        null as WorkflowStep | null
+      .filter((step) => step.state === StepState.COMPLETED)
+      .reduce(
+        (latest, step) =>
+          !latest || step.stepIndex > latest.stepIndex ? step : latest,
+        null as WorkflowStep | null,
       );
 
     // Find any failed steps
-    const failedSteps = workflow.steps.filter(step => step.state === StepState.FAILED);
+    const failedSteps = workflow.steps.filter(
+      (step) => step.state === StepState.FAILED,
+    );
 
     if (failedSteps.length > 0) {
-      this.logger.log(`Workflow ${workflow.id} has failed steps, marking as failed`);
+      this.logger.log(
+        `Workflow ${workflow.id} has failed steps, marking as failed`,
+      );
       workflow.state = WorkflowState.FAILED;
       workflow.failureReason = 'Workflow failed during service interruption';
       workflow.failedAt = new Date();
@@ -115,7 +126,9 @@ export class RecoveryService implements OnModuleInit {
     if (lastCompletedStep) {
       // Resume from the next step
       workflow.currentStepIndex = lastCompletedStep.stepIndex + 1;
-      this.logger.log(`Resuming workflow ${workflow.id} from step index ${workflow.currentStepIndex}`);
+      this.logger.log(
+        `Resuming workflow ${workflow.id} from step index ${workflow.currentStepIndex}`,
+      );
     } else {
       // No steps completed, start from beginning
       workflow.currentStepIndex = 0;
@@ -164,7 +177,9 @@ export class RecoveryService implements OnModuleInit {
     // Check if the workflow is still active
     const workflow = step.workflow;
     if (workflow.state !== WorkflowState.RUNNING) {
-      this.logger.debug(`Workflow ${workflow.id} is not running, skipping step recovery`);
+      this.logger.debug(
+        `Workflow ${workflow.id} is not running, skipping step recovery`,
+      );
       return;
     }
 
@@ -175,8 +190,16 @@ export class RecoveryService implements OnModuleInit {
     step.retryCount += 1;
 
     // Check if we should retry based on retry policy
-    if (this.stateMachine.shouldRetry(StepState.FAILED, step.retryCount, step.maxRetries)) {
-      step.nextRetryAt = this.stateMachine.calculateNextRetryTime(step.retryCount);
+    if (
+      this.stateMachine.shouldRetry(
+        StepState.FAILED,
+        step.retryCount,
+        step.maxRetries,
+      )
+    ) {
+      step.nextRetryAt = this.stateMachine.calculateNextRetryTime(
+        step.retryCount,
+      );
       this.logger.log(`Scheduling retry for stuck step: ${step.stepName}`);
     } else {
       // Mark workflow as failed if step cannot be retried
@@ -184,7 +207,9 @@ export class RecoveryService implements OnModuleInit {
       workflow.failedAt = new Date();
       workflow.failureReason = `Step ${step.stepName} failed after max retries`;
       await this.workflowRepository.save(workflow);
-      this.logger.log(`Workflow ${workflow.id} marked as failed due to stuck step`);
+      this.logger.log(
+        `Workflow ${workflow.id} marked as failed due to stuck step`,
+      );
     }
 
     await this.stepRepository.save(step);
@@ -208,12 +233,16 @@ export class RecoveryService implements OnModuleInit {
       },
     });
 
-    this.logger.log(`Found ${expiredWorkflows.length} expired workflows to clean up`);
+    this.logger.log(
+      `Found ${expiredWorkflows.length} expired workflows to clean up`,
+    );
 
     // In a production system, you might want to archive these instead of deleting
     // For now, we'll just log them
     for (const workflow of expiredWorkflows) {
-      this.logger.debug(`Expired workflow: ${workflow.id} (created: ${workflow.createdAt})`);
+      this.logger.debug(
+        `Expired workflow: ${workflow.id} (created: ${workflow.createdAt})`,
+      );
     }
   }
 
@@ -223,7 +252,9 @@ export class RecoveryService implements OnModuleInit {
   @Cron(CronExpression.EVERY_5_MINUTES)
   async scheduledRecovery(): Promise<void> {
     if (this.isRecovering) {
-      this.logger.debug('Recovery already in progress, skipping scheduled recovery');
+      this.logger.debug(
+        'Recovery already in progress, skipping scheduled recovery',
+      );
       return;
     }
 
@@ -258,19 +289,19 @@ export class RecoveryService implements OnModuleInit {
 
     try {
       await this.recoverOrphanedWorkflows();
-      results.orphanedWorkflows = (await this.workflowRepository.count({
-        where: { state: WorkflowState.RUNNING }
-      })) || 0;
+      results.orphanedWorkflows =
+        (await this.workflowRepository.count({
+          where: { state: WorkflowState.RUNNING },
+        })) || 0;
 
       await this.recoverStuckSteps();
       const stuckSteps = await this.stepRepository.find({
-        where: { state: StepState.RUNNING }
+        where: { state: StepState.RUNNING },
       });
       results.stuckSteps = stuckSteps.length;
 
       await this.cleanupExpiredWorkflows();
       // Count would require a separate query with date filtering
-
     } catch (error) {
       this.logger.error('Manual recovery failed', error);
       throw error;
@@ -291,15 +322,15 @@ export class RecoveryService implements OnModuleInit {
   }> {
     const totalWorkflows = await this.workflowRepository.count();
     const runningWorkflows = await this.workflowRepository.count({
-      where: { state: WorkflowState.RUNNING }
+      where: { state: WorkflowState.RUNNING },
     });
-    
+
     const stuckSteps = await this.stepRepository.count({
-      where: { state: StepState.RUNNING }
+      where: { state: StepState.RUNNING },
     });
-    
+
     const failedWorkflows = await this.workflowRepository.count({
-      where: { state: WorkflowState.FAILED }
+      where: { state: WorkflowState.FAILED },
     });
 
     // In a real implementation, you'd track the last recovery run time

@@ -30,11 +30,19 @@ export class WorkflowService implements OnModuleInit {
 
   async onModuleInit() {
     // Register built-in workflow definitions
-    this.workflowExecutionService.registerWorkflowDefinition(contractDeploymentWorkflow);
-    this.workflowExecutionService.registerWorkflowDefinition(tradeExecutionWorkflow);
-    this.workflowExecutionService.registerWorkflowDefinition(aiJobChainWorkflow);
-    
-    this.logger.log('WorkflowService initialized with built-in workflow definitions');
+    this.workflowExecutionService.registerWorkflowDefinition(
+      contractDeploymentWorkflow,
+    );
+    this.workflowExecutionService.registerWorkflowDefinition(
+      tradeExecutionWorkflow,
+    );
+    this.workflowExecutionService.registerWorkflowDefinition(
+      aiJobChainWorkflow,
+    );
+
+    this.logger.log(
+      'WorkflowService initialized with built-in workflow definitions',
+    );
   }
 
   /**
@@ -48,7 +56,7 @@ export class WorkflowService implements OnModuleInit {
     context?: Record<string, any>,
   ): Promise<Workflow> {
     this.logger.log(`Starting workflow of type: ${type} for user: ${userId}`);
-    
+
     return await this.workflowExecutionService.startWorkflow(
       type,
       input,
@@ -77,7 +85,7 @@ export class WorkflowService implements OnModuleInit {
     limit: number = 20,
   ): Promise<{ workflows: Workflow[]; total: number }> {
     const skip = (page - 1) * limit;
-    
+
     const [workflows, total] = await this.workflowRepository.findAndCount({
       where: { userId },
       relations: ['steps'],
@@ -98,7 +106,7 @@ export class WorkflowService implements OnModuleInit {
     limit: number = 20,
   ): Promise<{ workflows: Workflow[]; total: number }> {
     const skip = (page - 1) * limit;
-    
+
     const [workflows, total] = await this.workflowRepository.findAndCount({
       where: { walletAddress },
       relations: ['steps'],
@@ -119,7 +127,7 @@ export class WorkflowService implements OnModuleInit {
     limit: number = 20,
   ): Promise<{ workflows: Workflow[]; total: number }> {
     const skip = (page - 1) * limit;
-    
+
     const [workflows, total] = await this.workflowRepository.findAndCount({
       where: { state },
       relations: ['steps'],
@@ -192,7 +200,7 @@ export class WorkflowService implements OnModuleInit {
    */
   async getRetryableWorkflows(): Promise<Workflow[]> {
     return await this.workflowRepository.find({
-      where: { 
+      where: {
         state: WorkflowState.FAILED,
         retryCount: 0, // Only show workflows that haven't been retried
       },
@@ -206,10 +214,14 @@ export class WorkflowService implements OnModuleInit {
    */
   async getCompensableWorkflows(): Promise<Workflow[]> {
     return await this.workflowRepository.find({
-      where: { 
+      where: {
         requiresCompensation: true,
         isCompensated: false,
-        state: In([WorkflowState.COMPLETED, WorkflowState.FAILED, WorkflowState.CANCELLED]),
+        state: In([
+          WorkflowState.COMPLETED,
+          WorkflowState.FAILED,
+          WorkflowState.CANCELLED,
+        ]),
       },
       relations: ['steps'],
       order: { createdAt: 'DESC' },
@@ -244,7 +256,7 @@ export class WorkflowService implements OnModuleInit {
    */
   async getWorkflowsNeedingRetry(): Promise<Workflow[]> {
     const now = new Date();
-    
+
     return await this.workflowRepository.find({
       where: {
         state: WorkflowState.FAILED,
@@ -261,7 +273,7 @@ export class WorkflowService implements OnModuleInit {
    */
   async processRetryQueue(): Promise<number> {
     const workflowsToRetry = await this.getWorkflowsNeedingRetry();
-    
+
     for (const workflow of workflowsToRetry) {
       try {
         this.logger.log(`Retrying workflow: ${workflow.id}`);

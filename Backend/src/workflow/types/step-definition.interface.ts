@@ -1,7 +1,11 @@
 export interface StepDefinition {
   name: string;
   execute: (input: any, context: WorkflowContext) => Promise<any>;
-  compensate?: (input: any, output: any, context: WorkflowContext) => Promise<any>;
+  compensate?: (
+    input: any,
+    output: any,
+    context: WorkflowContext,
+  ) => Promise<any>;
   isIdempotent: boolean;
   maxRetries?: number;
   timeout?: number;

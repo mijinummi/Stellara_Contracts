@@ -27,7 +27,9 @@ export class ApiMigrationService {
    */
   registerMigrationRule(rule: MigrationRule) {
     this.migrationRules.push(rule);
-    this.logger.debug(`Registered migration rule: ${rule.fromVersion} -> ${rule.toVersion}`);
+    this.logger.debug(
+      `Registered migration rule: ${rule.fromVersion} -> ${rule.toVersion}`,
+    );
   }
 
   /**
@@ -37,7 +39,7 @@ export class ApiMigrationService {
     data: any,
     fromVersion: string,
     toVersion: string,
-    options: { strict?: boolean } = {}
+    options: { strict?: boolean } = {},
   ): MigrationResult {
     const result: MigrationResult = {
       success: true,
@@ -51,11 +53,13 @@ export class ApiMigrationService {
     try {
       // Find applicable migration rules
       const rules = this.getMigrationPath(fromVersion, toVersion);
-      
+
       if (rules.length === 0) {
         if (strict) {
           result.success = false;
-          result.errors.push(`No migration path found from ${fromVersion} to ${toVersion}`);
+          result.errors.push(
+            `No migration path found from ${fromVersion} to ${toVersion}`,
+          );
         }
         return result;
       }
@@ -79,7 +83,6 @@ export class ApiMigrationService {
       }
 
       result.transformedData = currentData;
-      
     } catch (error) {
       result.success = false;
       result.errors.push(`Migration process failed: ${error.message}`);
@@ -91,14 +94,19 @@ export class ApiMigrationService {
   /**
    * Get migration path between versions
    */
-  private getMigrationPath(fromVersion: string, toVersion: string): MigrationRule[] {
+  private getMigrationPath(
+    fromVersion: string,
+    toVersion: string,
+  ): MigrationRule[] {
     // Simple path finding - in a real implementation, this would use a graph algorithm
     const path: MigrationRule[] = [];
     let currentVersion = fromVersion;
 
     while (currentVersion !== toVersion) {
       const nextRule = this.migrationRules.find(
-        rule => rule.fromVersion === currentVersion && rule.toVersion !== currentVersion
+        (rule) =>
+          rule.fromVersion === currentVersion &&
+          rule.toVersion !== currentVersion,
       );
 
       if (!nextRule) {
@@ -147,7 +155,7 @@ export class ApiMigrationService {
           createdAt: data.createdAt || new Date().toISOString(),
         };
       },
-      description: 'Add metadata and createdAt fields for v2 compatibility'
+      description: 'Add metadata and createdAt fields for v2 compatibility',
     });
 
     // Example: Rename fields
@@ -162,7 +170,7 @@ export class ApiMigrationService {
           user_id: userId,
         };
       },
-      description: 'Rename userId field to user_id'
+      description: 'Rename userId field to user_id',
     });
 
     // Example: Transform data structure
@@ -182,7 +190,7 @@ export class ApiMigrationService {
           },
         };
       },
-      description: 'Transform flat user data to nested structure'
+      description: 'Transform flat user data to nested structure',
     });
   }
 }

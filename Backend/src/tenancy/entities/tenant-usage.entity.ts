@@ -1,4 +1,11 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, ManyToOne } from 'typeorm';
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  CreateDateColumn,
+  UpdateDateColumn,
+  ManyToOne,
+} from 'typeorm';
 import { Tenant } from './tenant.entity';
 
 export enum UsageMetric {
@@ -6,7 +13,7 @@ export enum UsageMetric {
   STORAGE_BYTES = 'storage_bytes',
   USERS_COUNT = 'users_count',
   TRANSACTIONS = 'transactions',
-  WORKFLOW_EXECUTIONS = 'workflow_executions'
+  WORKFLOW_EXECUTIONS = 'workflow_executions',
 }
 
 @Entity('tenant_usage')
@@ -14,12 +21,14 @@ export class TenantUsage {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @ManyToOne(() => Tenant, (tenant) => tenant.usageRecords, { onDelete: 'CASCADE' })
+  @ManyToOne(() => Tenant, (tenant) => tenant.usageRecords, {
+    onDelete: 'CASCADE',
+  })
   tenant: Tenant;
 
   @Column({
     type: 'enum',
-    enum: UsageMetric
+    enum: UsageMetric,
   })
   metric: UsageMetric;
 

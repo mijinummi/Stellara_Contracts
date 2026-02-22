@@ -17,7 +17,10 @@ interface DeliveryResult {
 export class WebhookDeliveryService {
   private readonly logger = new Logger(WebhookDeliveryService.name);
   private readonly httpClient: AxiosInstance;
-  private readonly deliveryQueue: Array<{ event: StellarEvent; consumer: WebhookConsumer }> = [];
+  private readonly deliveryQueue: Array<{
+    event: StellarEvent;
+    consumer: WebhookConsumer;
+  }> = [];
   private isProcessingQueue = false;
 
   constructor(
@@ -37,8 +40,9 @@ export class WebhookDeliveryService {
   }
 
   async queueEventForDelivery(event: StellarEvent): Promise<void> {
-    const activeConsumers = await this.consumerManagementService.getActiveConsumers();
-    
+    const activeConsumers =
+      await this.consumerManagementService.getActiveConsumers();
+
     if (activeConsumers.length === 0) {
       this.logger.debug('No active consumers, marking event as processed');
       await this.eventStorageService.markEventAsProcessed(event.id);
@@ -63,56 +67,84 @@ export class WebhookDeliveryService {
     }
 
     this.isProcessingQueue = true;
-    this.logger.debug(`Processing delivery queue with ${this.deliveryQueue.length} items`);
+    this.logger.debug(
+      `Processing delivery queue with ${this.deliveryQueue.length} items`,
+    );
 
     try {
       // Process items in batches to avoid overwhelming the system
       const batchSize = 10;
       const batch = this.deliveryQueue.splice(0, batchSize);
 
-      await Promise.all(batch.map(async ({ event, consumer }) => {
-        await this.deliverEventToConsumer(event, consumer);
-      }));
+      await Promise.all(
+        batch.map(async ({ event, consumer }) => {
+          await this.deliverEventToConsumer(event, consumer);
+        }),
+      );
     } catch (error) {
-      this.logger.error(`Error processing delivery queue: ${error.message}`, error.stack);
+      this.logger.error(
+        `Error processing delivery queue: ${error.message}`,
+        error.stack,
+      );
     } finally {
       this.isProcessingQueue = false;
     }
   }
 
-  private async deliverEventToConsumer(event: StellarEvent, consumer: WebhookConsumer): Promise<void> {
+  private async deliverEventToConsumer(
+    event: StellarEvent,
+    consumer: WebhookConsumer,
+  ): Promise<void> {
     const startTime = Date.now();
-    
+
     try {
       // Check if consumer is still active (might have been deactivated during queue processing)
-      const freshConsumer = await this.consumerManagementService.getConsumerById(consumer.id);
+      const freshConsumer =
+        await this.consumerManagementService.getConsumerById(consumer.id);
       if (!freshConsumer.isActive) {
-        this.logger.debug(`Skipping delivery to inactive consumer ${consumer.id}`);
+        this.logger.debug(
+          `Skipping delivery to inactive consumer ${consumer.id}`,
+        );
         return;
       }
 
       const result = await this.attemptDelivery(event, freshConsumer);
-      
+
       const responseTime = Date.now() - startTime;
-      
+
       if (result.success) {
-        this.logger.log(`Successfully delivered event ${event.id} to consumer ${consumer.id}`);
+        this.logger.log(
+          `Successfully delivered event ${event.id} to consumer ${consumer.id}`,
+        );
         await this.handleSuccessfulDelivery(event, consumer, responseTime);
       } else {
-        this.logger.warn(`Failed to deliver event ${event.id} to consumer ${consumer.id}: ${result.errorMessage}`);
+        this.logger.warn(
+          `Failed to deliver event ${event.id} to consumer ${consumer.id}: ${result.errorMessage}`,
+        );
         await this.handleFailedDelivery(event, consumer, result, responseTime);
       }
     } catch (error) {
       const responseTime = Date.now() - startTime;
-      this.logger.error(`Exception during delivery to consumer ${consumer.id}: ${error.message}`, error.stack);
-      await this.handleFailedDelivery(event, consumer, {
-        success: false,
-        errorMessage: error.message,
-      }, responseTime);
+      this.logger.error(
+        `Exception during delivery to consumer ${consumer.id}: ${error.message}`,
+        error.stack,
+      );
+      await this.handleFailedDelivery(
+        event,
+        consumer,
+        {
+          success: false,
+          errorMessage: error.message,
+        },
+        responseTime,
+      );
     }
   }
 
-  private async attemptDelivery(event: StellarEvent, consumer: WebhookConsumer): Promise<DeliveryResult> {
+  private async attemptDelivery(
+    event: StellarEvent,
+    consumer: WebhookConsumer,
+  ): Promise<DeliveryResult> {
     const payload = {
       id: event.id,
       eventType: event.eventType,
@@ -135,7 +167,10 @@ export class WebhookDeliveryService {
 
     // Add signature if consumer has a secret
     if (consumer.secret) {
-      const signature = this.generateSignature(JSON.stringify(payload), consumer.secret);
+      const signature = this.generateSignature(
+        JSON.stringify(payload),
+        consumer.secret,
+      );
       config.headers = {
         ...config.headers,
         'X-Signature': signature,
@@ -143,8 +178,12 @@ export class WebhookDeliveryService {
     }
 
     try {
-      const response = await this.httpClient.post(consumer.url, payload, config);
-      
+      const response = await this.httpClient.post(
+        consumer.url,
+        payload,
+        config,
+      );
+
       return {
         success: true,
         statusCode: response.status,
@@ -174,9 +213,10 @@ export class WebhookDeliveryService {
     await this.consumerManagementService.updateDeliveryStats(consumer.id, true);
 
     // Mark event as processed if delivered to all consumers
-    const activeConsumers = await this.consumerManagementService.getActiveConsumers();
+    const activeConsumers =
+      await this.consumerManagementService.getActiveConsumers();
     const deliveredCount = (event.deliveredTo?.length || 0) + 1; // +1 for current delivery
-    
+
     if (deliveredCount >= activeConsumers.length) {
       await this.eventStorageService.markEventAsProcessed(event.id);
     }
@@ -189,10 +229,13 @@ export class WebhookDeliveryService {
     responseTime: number,
   ): Promise<void> {
     // Update consumer stats
-    await this.consumerManagementService.updateDeliveryStats(consumer.id, false);
+    await this.consumerManagementService.updateDeliveryStats(
+      consumer.id,
+      false,
+    );
 
     const attemptNumber = event.deliveryAttempts + 1;
-    
+
     if (attemptNumber >= consumer.maxRetries) {
       // Max retries reached - mark as failed
       await this.eventStorageService.updateEventStatus(
@@ -201,13 +244,17 @@ export class WebhookDeliveryService {
         consumer.id,
         result.errorMessage,
       );
-      
-      this.logger.warn(`Max retries reached for event ${event.id} to consumer ${consumer.id}`);
+
+      this.logger.warn(
+        `Max retries reached for event ${event.id} to consumer ${consumer.id}`,
+      );
     } else {
       // Schedule retry with exponential backoff
       const delay = this.calculateBackoffDelay(attemptNumber);
-      this.logger.debug(`Scheduling retry ${attemptNumber}/${consumer.maxRetries} for event ${event.id} in ${delay}ms`);
-      
+      this.logger.debug(
+        `Scheduling retry ${attemptNumber}/${consumer.maxRetries} for event ${event.id} in ${delay}ms`,
+      );
+
       setTimeout(() => {
         this.deliveryQueue.push({ event, consumer });
         if (!this.isProcessingQueue) {
@@ -234,8 +281,9 @@ export class WebhookDeliveryService {
   }
 
   async deliverTestEvent(consumerId: string): Promise<DeliveryResult> {
-    const consumer = await this.consumerManagementService.getConsumerById(consumerId);
-    
+    const consumer =
+      await this.consumerManagementService.getConsumerById(consumerId);
+
     if (!consumer.isActive) {
       return {
         success: false,
@@ -268,9 +316,10 @@ export class WebhookDeliveryService {
     activeConsumers: number;
     pendingEvents: number;
   }> {
-    const activeConsumers = await this.consumerManagementService.getActiveConsumers();
+    const activeConsumers =
+      await this.consumerManagementService.getActiveConsumers();
     const pendingEvents = await this.eventStorageService.getPendingEvents();
-    
+
     return {
       queueSize: this.deliveryQueue.length,
       activeConsumers: activeConsumers.length,

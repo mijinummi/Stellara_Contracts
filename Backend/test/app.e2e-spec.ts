@@ -33,6 +33,8 @@ describe('AppController (e2e)', () => {
     // fetch metrics and verify our counter exists with at least one sample
     const metricsRes = await request(app.getHttpServer()).get('/metrics');
     expect(metricsRes.status).toBe(200);
-    expect(metricsRes.text).toMatch(/application_errors_total\{severity="medium",category="http"\}/);
+    expect(metricsRes.text).toMatch(
+      /application_errors_total\{severity="medium",category="http"\}/,
+    );
   });
 });

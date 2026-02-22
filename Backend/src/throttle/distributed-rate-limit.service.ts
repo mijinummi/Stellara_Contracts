@@ -109,10 +109,7 @@ export class DistributedRateLimitService {
     const violations = await this.redisService.client.incr(violationKey);
 
     if (violations === 1) {
-      await this.redisService.client.expire(
-        violationKey,
-        config.window * 2,
-      );
+      await this.redisService.client.expire(violationKey, config.window * 2);
     }
 
     // Log violation
@@ -174,9 +171,14 @@ export class DistributedRateLimitService {
   /**
    * Get violation history for identifier
    */
-  async getViolationHistory(
-    identifier: RateLimitIdentifier,
-  ): Promise<Array<{ timestamp: string; userId?: string; path: string; violations: number }>> {
+  async getViolationHistory(identifier: RateLimitIdentifier): Promise<
+    Array<{
+      timestamp: string;
+      userId?: string;
+      path: string;
+      violations: number;
+    }>
+  > {
     const logKey = `violation:log:${identifier.ip}`;
     const logs = await this.redisService.client.lRange(logKey, 0, -1);
 
@@ -251,7 +253,11 @@ export class DistributedRateLimitService {
    * Build cache key from identifier
    */
   private buildKey(identifier: RateLimitIdentifier): string {
-    const parts = [identifier.ip, identifier.userId || 'anonymous', identifier.path];
+    const parts = [
+      identifier.ip,
+      identifier.userId || 'anonymous',
+      identifier.path,
+    ];
     if (identifier.custom) {
       parts.push(identifier.custom);
     }

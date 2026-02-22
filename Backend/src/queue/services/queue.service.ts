@@ -2,10 +2,18 @@ import { Injectable, Logger, Inject } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bull';
 import type { Queue, Job } from 'bull';
 import { JobData, JobResult, JobStatus, JobInfo } from '../types/job.types';
-import { EnhancedJobData, JobPriority, RetryStrategy, JobSchedule } from '../types/enhanced-job.types';
+import {
+  EnhancedJobData,
+  JobPriority,
+  RetryStrategy,
+  JobSchedule,
+} from '../types/enhanced-job.types';
 import { RedisService } from '../../redis/redis.service';
 import { RetryStrategyService } from './retry-strategy.service';
-import { DeadLetterQueueService, DlqResurrectionOptions } from './dead-letter-queue.service';
+import {
+  DeadLetterQueueService,
+  DlqResurrectionOptions,
+} from './dead-letter-queue.service';
 import { JobPriorityService } from './job-priority.service';
 import { JobMonitoringService } from './job-monitoring.service';
 import { JobSchedulingService } from './job-scheduling.service';
@@ -77,20 +85,31 @@ export class QueueService {
     options: any = {},
   ): Promise<Job<T>> {
     const queue = this.getQueueByName(queueName);
-    
+
     // Determine job priority
-    const priority = this.jobPriorityService.determineJobPriority(jobName, data, data.metadata);
-    
+    const priority = this.jobPriorityService.determineJobPriority(
+      jobName,
+      data,
+      data.metadata,
+    );
+
     // Get retry strategy
-    const retryStrategy = options.retryStrategy || 
+    const retryStrategy =
+      options.retryStrategy ||
       this.retryStrategyService.getDefaultStrategy(jobName);
-    
+
     // Create enhanced options
-    const enhancedOptions = this.createEnhancedOptions(priority, retryStrategy, options);
-    
+    const enhancedOptions = this.createEnhancedOptions(
+      priority,
+      retryStrategy,
+      options,
+    );
+
     const job = await queue.add(jobName, data, enhancedOptions);
 
-    this.logger.log(`Job added: ${jobName} with ID: ${job.id} (priority: ${priority.level})`);
+    this.logger.log(
+      `Job added: ${jobName} with ID: ${job.id} (priority: ${priority.level})`,
+    );
     return job;
   }
 
@@ -104,27 +123,42 @@ export class QueueService {
     schedule?: JobSchedule,
   ): Promise<Job<T>> {
     const queue = this.getQueueByName(queueName);
-    
+
     // Determine job priority
-    const priority = this.jobPriorityService.determineJobPriority(jobName, data, data.metadata);
-    
+    const priority = this.jobPriorityService.determineJobPriority(
+      jobName,
+      data,
+      data.metadata,
+    );
+
     // Get retry strategy
-    const retryStrategy = data.retryStrategy || 
+    const retryStrategy =
+      data.retryStrategy ||
       this.retryStrategyService.getDefaultStrategy(jobName);
-    
+
     // Create enhanced options with scheduling
-    const enhancedOptions = this.createEnhancedOptions(priority, retryStrategy, {}, schedule);
-    
+    const enhancedOptions = this.createEnhancedOptions(
+      priority,
+      retryStrategy,
+      {},
+      schedule,
+    );
+
     const job = await queue.add(jobName, data, enhancedOptions);
 
-    this.logger.log(`Enhanced job added: ${jobName} with ID: ${job.id} (priority: ${priority.level})`);
+    this.logger.log(
+      `Enhanced job added: ${jobName} with ID: ${job.id} (priority: ${priority.level})`,
+    );
     return job;
   }
 
   /**
    * Get job status and info
    */
-  async getJobInfo(queueName: string, jobId: string | number): Promise<JobInfo | null> {
+  async getJobInfo(
+    queueName: string,
+    jobId: string | number,
+  ): Promise<JobInfo | null> {
     const queue = this.getQueueByName(queueName);
     const job = await queue.getJob(jobId);
 
@@ -143,7 +177,9 @@ export class QueueService {
       attempts: job.attemptsMade,
       maxAttempts: job.opts.attempts || 1,
       data: job.data,
-      result: job.returnvalue ? { success: true, data: job.returnvalue } : undefined,
+      result: job.returnvalue
+        ? { success: true, data: job.returnvalue }
+        : undefined,
       error: job.failedReason || undefined,
       createdAt: new Date(job.timestamp),
       processedAt: job.processedOn ? new Date(job.processedOn) : undefined,
@@ -179,7 +215,9 @@ export class QueueService {
           attempts: job.attemptsMade,
           maxAttempts: job.opts.attempts || 1,
           data: job.data,
-          result: job.returnvalue ? { success: true, data: job.returnvalue } : undefined,
+          result: job.returnvalue
+            ? { success: true, data: job.returnvalue }
+            : undefined,
           error: job.failedReason || undefined,
           createdAt: new Date(job.timestamp),
           processedAt: job.processedOn ? new Date(job.processedOn) : undefined,
@@ -192,7 +230,10 @@ export class QueueService {
   /**
    * Get dead-letter queue (permanently failed jobs)
    */
-  async getDeadLetterQueue(queueName: string, limit: number = 50): Promise<any[]> {
+  async getDeadLetterQueue(
+    queueName: string,
+    limit: number = 50,
+  ): Promise<any[]> {
     const dlqKey = `${this.DLQ_PREFIX}${queueName}`;
     const dlqData = await this.redisService.client.lRange(dlqKey, 0, limit - 1);
     return dlqData.map((item) => {
@@ -207,7 +248,10 @@ export class QueueService {
   /**
    * Requeue a job that previously failed
    */
-  async requeueJob(queueName: string, jobId: string | number): Promise<Job | null> {
+  async requeueJob(
+    queueName: string,
+    jobId: string | number,
+  ): Promise<Job | null> {
     const queue = this.getQueueByName(queueName);
     const job = await queue.getJob(jobId);
 
@@ -223,7 +267,9 @@ export class QueueService {
       backoff: job.opts.backoff,
     });
 
-    this.logger.log(`Job requeued: ${job.name} (original ID: ${jobId}, new ID: ${newJob.id})`);
+    this.logger.log(
+      `Job requeued: ${job.name} (original ID: ${jobId}, new ID: ${newJob.id})`,
+    );
     return newJob;
   }
 
@@ -315,20 +361,27 @@ export class QueueService {
   private async handleJobFailure(job: Job, error: Error): Promise<void> {
     const maxAttempts = job.opts.attempts || 1;
     const attempts = job.attemptsMade;
-    const retryStrategy = this.retryStrategyService.getDefaultStrategy(job.name);
+    const retryStrategy = this.retryStrategyService.getDefaultStrategy(
+      job.name,
+    );
 
     this.logger.error(
       `Job ${job.id} (${job.name}) failed: ${error.message} (attempt ${attempts}/${maxAttempts})`,
     );
 
     // Check if job should be retried
-    const shouldRetry = this.retryStrategyService.shouldRetry(error, attempts, retryStrategy, job.queue.name);
+    const shouldRetry = this.retryStrategyService.shouldRetry(
+      error,
+      attempts,
+      retryStrategy,
+      job.queue.name,
+    );
 
     // If max retries exceeded or not retryable, move to enhanced DLQ
     if (attempts >= maxAttempts || !shouldRetry) {
       // Determine category based on error
       const errorCategory = this.categorizeErrorForDLQ(error);
-      
+
       await this.deadLetterQueueService.addToDLQ(
         job.queue.name,
         job.data,
@@ -337,7 +390,7 @@ export class QueueService {
         retryStrategy,
         errorCategory,
       );
-      
+
       this.logger.warn(
         `Job ${job.id} (${job.name}) moved to enhanced DLQ after ${attempts} attempts (category: ${errorCategory})`,
       );
@@ -349,8 +402,12 @@ export class QueueService {
    */
   private categorizeErrorForDLQ(error: Error): string {
     const message = error.message.toLowerCase();
-    
-    if (message.includes('network') || message.includes('connect') || message.includes('econn')) {
+
+    if (
+      message.includes('network') ||
+      message.includes('connect') ||
+      message.includes('econn')
+    ) {
       return 'network-error';
     } else if (message.includes('timeout') || message.includes('timed out')) {
       return 'timeout-error';
@@ -358,7 +415,10 @@ export class QueueService {
       return 'validation-error';
     } else if (message.includes('not found') || message.includes('missing')) {
       return 'resource-error';
-    } else if (message.includes('permission') || message.includes('unauthorized')) {
+    } else if (
+      message.includes('permission') ||
+      message.includes('unauthorized')
+    ) {
       return 'permission-error';
     } else {
       return 'unknown-error';
@@ -374,10 +434,13 @@ export class QueueService {
     baseOptions: any = {},
     schedule?: JobSchedule,
   ): any {
-    const retryOptions = this.retryStrategyService.createBullRetryOptions(retryStrategy);
-    const priorityOptions = this.jobPriorityService.createPriorityOptions(priority);
-    const scheduleOptions = schedule ? 
-      this.jobPriorityService.createScheduledOptions(schedule.delay, priority) : {};
+    const retryOptions =
+      this.retryStrategyService.createBullRetryOptions(retryStrategy);
+    const priorityOptions =
+      this.jobPriorityService.createPriorityOptions(priority);
+    const scheduleOptions = schedule
+      ? this.jobPriorityService.createScheduledOptions(schedule.delay, priority)
+      : {};
 
     return {
       removeOnComplete: 100, // Keep more jobs for metrics
@@ -406,7 +469,10 @@ export class QueueService {
   /**
    * Retry job from enhanced DLQ
    */
-  async retryFromEnhancedDLQ(queueName: string, dlqItemId: string): Promise<boolean> {
+  async retryFromEnhancedDLQ(
+    queueName: string,
+    dlqItemId: string,
+  ): Promise<boolean> {
     return this.deadLetterQueueService.retryFromDLQ(queueName, dlqItemId);
   }
 
@@ -448,7 +514,10 @@ export class QueueService {
   /**
    * Purge old DLQ items
    */
-  async purgeDLQ(queueName: string, olderThanDays: number = 30): Promise<number> {
+  async purgeDLQ(
+    queueName: string,
+    olderThanDays: number = 30,
+  ): Promise<number> {
     return this.deadLetterQueueService.purgeDLQ(queueName, olderThanDays);
   }
 
@@ -479,9 +548,14 @@ export class QueueService {
     queueName: string,
     jobName: string,
     data: EnhancedJobData,
-    schedule: JobSchedule
+    schedule: JobSchedule,
   ): Promise<any> {
-    return this.jobSchedulingService.scheduleJob(queueName, jobName, data, schedule);
+    return this.jobSchedulingService.scheduleJob(
+      queueName,
+      jobName,
+      data,
+      schedule,
+    );
   }
 
   /**
@@ -492,9 +566,15 @@ export class QueueService {
     jobName: string,
     data: EnhancedJobData,
     cronExpression: string,
-    maxRuns?: number
+    maxRuns?: number,
   ): Promise<any> {
-    return this.jobSchedulingService.scheduleRecurringJob(queueName, jobName, data, cronExpression, maxRuns);
+    return this.jobSchedulingService.scheduleRecurringJob(
+      queueName,
+      jobName,
+      data,
+      cronExpression,
+      maxRuns,
+    );
   }
 
   /**
@@ -512,7 +592,7 @@ export class QueueService {
       jobName: string;
       data: EnhancedJobData;
       schedule?: JobSchedule;
-    }
+    },
   ): Promise<any> {
     return this.jobSchedulingService.chainJobs(firstJob, secondJob);
   }
@@ -522,23 +602,28 @@ export class QueueService {
    */
   async bulkAddJobs<T extends JobData>(
     queueName: string,
-    jobs: Array<{ jobName: string; data: T; options?: any }>
+    jobs: Array<{ jobName: string; data: T; options?: any }>,
   ): Promise<BulkJobOperationResult> {
     const results: BulkJobOperationResult = {
       success: 0,
       failed: 0,
-      errors: []
+      errors: [],
     };
 
     for (const jobSpec of jobs) {
       try {
-        await this.addJob(queueName, jobSpec.jobName, jobSpec.data, jobSpec.options);
+        await this.addJob(
+          queueName,
+          jobSpec.jobName,
+          jobSpec.data,
+          jobSpec.options,
+        );
         results.success++;
       } catch (error) {
         results.failed++;
         results.errors.push({
           jobId: 'unknown',
-          error: error.message
+          error: error.message,
         });
       }
     }
@@ -552,27 +637,43 @@ export class QueueService {
   async bulkProcessDLQByCategory(
     queueName: string,
     category: string,
-    limit: number = 10
+    limit: number = 10,
   ): Promise<number> {
-    return this.deadLetterQueueService.bulkRequeueByCategory(queueName, category, limit);
+    return this.deadLetterQueueService.bulkRequeueByCategory(
+      queueName,
+      category,
+      limit,
+    );
   }
 
   /**
    * Resurrect a job from DLQ with optional modifications
    */
   async resurrectJobFromDLQ(
-    queueName: string, 
-    dlqItemId: string, 
-    options?: DlqResurrectionOptions
+    queueName: string,
+    dlqItemId: string,
+    options?: DlqResurrectionOptions,
   ): Promise<boolean> {
-    return this.deadLetterQueueService.resurrectJob(queueName, dlqItemId, options);
+    return this.deadLetterQueueService.resurrectJob(
+      queueName,
+      dlqItemId,
+      options,
+    );
   }
 
   /**
    * Get enhanced dead-letter queue items by category
    */
-  async getEnhancedDLQByCategory(queueName: string, category: string, limit: number = 50): Promise<any[]> {
-    return this.deadLetterQueueService.getItemsByCategory(queueName, category, limit);
+  async getEnhancedDLQByCategory(
+    queueName: string,
+    category: string,
+    limit: number = 50,
+  ): Promise<any[]> {
+    return this.deadLetterQueueService.getItemsByCategory(
+      queueName,
+      category,
+      limit,
+    );
   }
 
   /**
@@ -613,8 +714,16 @@ export class QueueService {
   /**
    * Purge old DLQ items by category
    */
-  async purgeDLQByCategory(queueName: string, category: string, olderThanDays: number = 30): Promise<number> {
-    return this.deadLetterQueueService.purgeDLQ(queueName, olderThanDays, category);
+  async purgeDLQByCategory(
+    queueName: string,
+    category: string,
+    olderThanDays: number = 30,
+  ): Promise<number> {
+    return this.deadLetterQueueService.purgeDLQ(
+      queueName,
+      olderThanDays,
+      category,
+    );
   }
 
   /**

@@ -74,18 +74,14 @@ export class QueueJobTracingWrapper {
         this.metricsService.recordJobFailed(jobName, duration, errorType);
 
         // Log job failure
-        this.loggingService.error(
-          'Job processing failed',
-          error,
-          {
-            traceId: traceContext.traceId,
-            spanId: traceContext.spanId,
-            jobId: job.id,
-            jobName,
-            duration,
-            jobData: this.sanitizeJobData(job.data),
-          },
-        );
+        this.loggingService.error('Job processing failed', error, {
+          traceId: traceContext.traceId,
+          spanId: traceContext.spanId,
+          jobId: job.id,
+          jobName,
+          duration,
+          jobData: this.sanitizeJobData(job.data),
+        });
 
         // Clean up
         this.jobTraceMap.delete(job.id.toString());
@@ -191,7 +187,13 @@ export class QueueJobTracingWrapper {
     }
 
     const sanitized = { ...data };
-    const sensitiveFields = ['password', 'token', 'secret', 'apiKey', 'privateKey'];
+    const sensitiveFields = [
+      'password',
+      'token',
+      'secret',
+      'apiKey',
+      'privateKey',
+    ];
 
     for (const field of sensitiveFields) {
       if (field in sanitized) {

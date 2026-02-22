@@ -39,7 +39,7 @@ export class StreamingResponseService {
   ): Promise<string> {
     const streamId = uuidv4();
     const session = await this.voiceSessionService.getSession(sessionId);
-    
+
     if (!session) {
       throw new Error(`Session ${sessionId} not found`);
     }
@@ -48,7 +48,10 @@ export class StreamingResponseService {
     await this.voiceSessionService.addMessage(sessionId, userMessage, true);
 
     // Update session state to thinking
-    await this.voiceSessionService.updateSessionState(sessionId, ConversationState.THINKING);
+    await this.voiceSessionService.updateSessionState(
+      sessionId,
+      ConversationState.THINKING,
+    );
 
     // Create streaming response
     const streamingResponse: StreamingResponse = {
@@ -88,12 +91,19 @@ export class StreamingResponseService {
     if (!streamingResponse || streamingResponse.isInterrupted) return;
 
     // Update session state to responding
-    await this.voiceSessionService.updateSessionState(sessionId, ConversationState.RESPONDING);
+    await this.voiceSessionService.updateSessionState(
+      sessionId,
+      ConversationState.RESPONDING,
+    );
 
     // Get response from LLM service (with quotas, rate limiting, and caching)
-    const { content: fullResponse } = await this.llmService.generateResponse(session.userId || 'anonymous', sessionId, userMessage);
+    const { content: fullResponse } = await this.llmService.generateResponse(
+      session.userId || 'anonymous',
+      sessionId,
+      userMessage,
+    );
     const words = fullResponse.split(' ');
-    
+
     // Update session state to responding
     server.to(session.socketId || sessionId).emit('voice:responding', {
       sessionId,
@@ -111,7 +121,7 @@ export class StreamingResponseService {
       }
 
       currentText += (i > 0 ? ' ' : '') + words[i];
-      
+
       const chunk: StreamingChunk = {
         id: uuidv4(),
         content: currentText,
@@ -130,12 +140,17 @@ export class StreamingResponseService {
 
       // Add delay to simulate real-time streaming
       if (i < words.length - 1) {
-        await new Promise(resolve => setTimeout(resolve, chunkDelay));
+        await new Promise((resolve) => setTimeout(resolve, chunkDelay));
       }
     }
 
     // Complete the stream
-    await this.completeStreamingResponse(server, sessionId, streamId, fullResponse);
+    await this.completeStreamingResponse(
+      server,
+      sessionId,
+      streamId,
+      fullResponse,
+    );
   }
 
   async interruptStream(
@@ -152,7 +167,7 @@ export class StreamingResponseService {
       if (streamingResponse) {
         streamingResponse.isInterrupted = true;
         streamingResponse.endTime = new Date();
-        
+
         server.to(session.socketId || sessionId).emit('voice:interrupted', {
           sessionId,
           streamId,
@@ -166,7 +181,7 @@ export class StreamingResponseService {
         if (response.sessionId === sessionId) {
           response.isInterrupted = true;
           response.endTime = new Date();
-          
+
           server.to(session.socketId || sessionId).emit('voice:interrupted', {
             sessionId,
             streamId: id,
@@ -185,7 +200,7 @@ export class StreamingResponseService {
 
     // Update session state
     await this.voiceSessionService.interruptSession(sessionId);
-    
+
     this.logger.log(`Interrupted streaming for session ${sessionId}`);
     return true;
   }
@@ -215,12 +230,17 @@ export class StreamingResponseService {
     });
 
     // Update session state to listening
-    await this.voiceSessionService.updateSessionState(sessionId, ConversationState.LISTENING);
+    await this.voiceSessionService.updateSessionState(
+      sessionId,
+      ConversationState.LISTENING,
+    );
 
     // Clean up stream
     this.activeStreams.delete(streamId);
 
-    this.logger.log(`Completed streaming response ${streamId} for session ${sessionId}`);
+    this.logger.log(
+      `Completed streaming response ${streamId} for session ${sessionId}`,
+    );
   }
 
   getActiveStreamCount(): number {
@@ -228,7 +248,8 @@ export class StreamingResponseService {
   }
 
   getActiveStreamsForSession(sessionId: string): StreamingResponse[] {
-    return Array.from(this.activeStreams.values())
-      .filter(stream => stream.sessionId === sessionId);
+    return Array.from(this.activeStreams.values()).filter(
+      (stream) => stream.sessionId === sessionId,
+    );
   }
 }

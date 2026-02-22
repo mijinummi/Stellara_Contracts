@@ -53,8 +53,12 @@ describe('MarketCacheService', () => {
       const result = await service.get(key, namespace);
 
       expect(result).toEqual(cachedData);
-      expect(mockRedisClient.incr).toHaveBeenCalledWith(`${namespace}:stats:hits`);
-      expect(mockRedisClient.incr).toHaveBeenCalledWith('market:cache:total-hits');
+      expect(mockRedisClient.incr).toHaveBeenCalledWith(
+        `${namespace}:stats:hits`,
+      );
+      expect(mockRedisClient.incr).toHaveBeenCalledWith(
+        'market:cache:total-hits',
+      );
     });
 
     it('should return null and record miss on cache miss', async () => {
@@ -64,8 +68,12 @@ describe('MarketCacheService', () => {
       const result = await service.get(key, namespace);
 
       expect(result).toBeNull();
-      expect(mockRedisClient.incr).toHaveBeenCalledWith(`${namespace}:stats:misses`);
-      expect(mockRedisClient.incr).toHaveBeenCalledWith('market:cache:total-misses');
+      expect(mockRedisClient.incr).toHaveBeenCalledWith(
+        `${namespace}:stats:misses`,
+      );
+      expect(mockRedisClient.incr).toHaveBeenCalledWith(
+        'market:cache:total-misses',
+      );
     });
 
     it('should return null on error', async () => {
@@ -93,7 +101,9 @@ describe('MarketCacheService', () => {
         JSON.stringify(value),
         { EX: 300 },
       );
-      expect(mockRedisClient.incr).toHaveBeenCalledWith(`${namespace}:stats:total-entries`);
+      expect(mockRedisClient.incr).toHaveBeenCalledWith(
+        `${namespace}:stats:total-entries`,
+      );
     });
 
     it('should cache data with custom TTL', async () => {
@@ -157,7 +167,9 @@ describe('MarketCacheService', () => {
       const result = await service.invalidateByPattern(pattern, namespace);
 
       expect(result).toBe(3);
-      expect(mockRedisClient.keys).toHaveBeenCalledWith(`${namespace}:${pattern}*`);
+      expect(mockRedisClient.keys).toHaveBeenCalledWith(
+        `${namespace}:${pattern}*`,
+      );
       expect(mockRedisClient.del).toHaveBeenCalled();
     });
 

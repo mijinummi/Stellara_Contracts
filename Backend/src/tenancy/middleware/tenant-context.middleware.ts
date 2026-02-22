@@ -9,12 +9,12 @@ export class TenantContextMiddleware implements NestMiddleware {
   async use(req: Request, res: Response, next: NextFunction) {
     // Extract tenant identifier from request
     const tenantId = this.extractTenantId(req);
-    
+
     if (tenantId) {
       try {
         // Validate and fetch tenant
         const tenant = await this.tenantService.findOne(tenantId);
-        
+
         if (tenant && tenant.isActive) {
           // Attach tenant context to request
           (req as any).tenantId = tenantId;

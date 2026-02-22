@@ -2,7 +2,10 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuditModule } from '../audit/audit.module';
 import { AuthModule } from '../auth/auth.module';
-import { GdprController, AdminGdprController } from './controllers/gdpr.controller';
+import {
+  GdprController,
+  AdminGdprController,
+} from './controllers/gdpr.controller';
 import { DataExportService } from './services/data-export.service';
 import { DataDeletionService } from './services/data-deletion.service';
 import { ConsentManagementService } from './services/consent-management.service';

@@ -56,16 +56,22 @@ describe('DeadLetterQueueService', () => {
       mockRedisService.client.lPush.mockResolvedValue(1);
       mockRedisService.client.hIncrBy.mockResolvedValue(1);
 
-      await service.addToDLQ(queueName, jobData, error, attempts, retryStrategy);
+      await service.addToDLQ(
+        queueName,
+        jobData,
+        error,
+        attempts,
+        retryStrategy,
+      );
 
       expect(mockRedisService.client.lPush).toHaveBeenCalledWith(
         'queue:dlq:enhanced:test-queue',
-        expect.stringContaining('"queueName":"test-queue"')
+        expect.stringContaining('"queueName":"test-queue"'),
       );
       expect(mockRedisService.client.hIncrBy).toHaveBeenCalledWith(
         'queue:dlq:meta:test-queue',
         'nonRetryable',
-        1
+        1,
       );
     });
 
@@ -85,14 +91,20 @@ describe('DeadLetterQueueService', () => {
       mockRedisService.client.hIncrBy.mockResolvedValue(1);
       mockRedisService.client.zAdd.mockResolvedValue(1);
 
-      await service.addToDLQ(queueName, jobData, error, attempts, retryStrategy);
+      await service.addToDLQ(
+        queueName,
+        jobData,
+        error,
+        attempts,
+        retryStrategy,
+      );
 
       expect(mockRedisService.client.zAdd).toHaveBeenCalledWith(
         'queue:dlq:retry:test-queue',
         expect.objectContaining({
           score: expect.any(Number),
           value: expect.stringMatching(/^dlq_/),
-        })
+        }),
       );
     });
   });
@@ -135,7 +147,7 @@ describe('DeadLetterQueueService', () => {
   describe('getDLQStats', () => {
     it('should return DLQ statistics', async () => {
       const queueName = 'test-queue';
-      
+
       mockRedisService.client.lLen.mockResolvedValue(10);
       mockRedisService.client.hGetAll.mockResolvedValue({
         retryable: '3',
@@ -172,7 +184,7 @@ describe('DeadLetterQueueService', () => {
     it('should successfully retry DLQ item', async () => {
       const queueName = 'test-queue';
       const dlqItemId = 'dlq_123';
-      
+
       const mockDLQItem = {
         id: dlqItemId,
         name: 'test-queue',
@@ -184,7 +196,9 @@ describe('DeadLetterQueueService', () => {
         canRetry: true,
       };
 
-      mockRedisService.client.lRange.mockResolvedValue([JSON.stringify(mockDLQItem)]);
+      mockRedisService.client.lRange.mockResolvedValue([
+        JSON.stringify(mockDLQItem),
+      ]);
       mockRedisService.client.lRem.mockResolvedValue(1);
       mockRedisService.client.zRem.mockResolvedValue(1);
       mockRedisService.client.hIncrBy.mockResolvedValue(1);
@@ -195,14 +209,17 @@ describe('DeadLetterQueueService', () => {
       expect(mockRedisService.client.lRem).toHaveBeenCalledWith(
         'queue:dlq:enhanced:test-queue',
         1,
-        JSON.stringify(mockDLQItem)
+        JSON.stringify(mockDLQItem),
       );
     });
 
     it('should return false for non-existent DLQ item', async () => {
       mockRedisService.client.lRange.mockResolvedValue([]);
 
-      const result = await service.retryFromDLQ('test-queue', 'non-existent-id');
+      const result = await service.retryFromDLQ(
+        'test-queue',
+        'non-existent-id',
+      );
 
       expect(result).toBe(false);
     });
@@ -214,7 +231,7 @@ describe('DeadLetterQueueService', () => {
       const scheduledIds = ['dlq_1', 'dlq_2'];
 
       mockRedisService.client.zRangeByScore.mockResolvedValue(scheduledIds);
-      
+
       // Mock retryFromDLQ to return true
       jest.spyOn(service, 'retryFromDLQ').mockResolvedValue(true);
 
@@ -238,12 +255,12 @@ describe('DeadLetterQueueService', () => {
       const queueName = 'test-queue';
       const cutoffDate = new Date();
       cutoffDate.setDate(cutoffDate.getDate() - 30);
-      
+
       const oldItem = {
         id: 'dlq_old',
         failedAt: new Date(cutoffDate.getTime() - 86400000).toISOString(), // 31 days ago
       };
-      
+
       const recentItem = {
         id: 'dlq_recent',
         failedAt: new Date().toISOString(), // Today
@@ -261,7 +278,7 @@ describe('DeadLetterQueueService', () => {
       expect(mockRedisService.client.lRem).toHaveBeenCalledWith(
         'queue:dlq:enhanced:test-queue',
         1,
-        JSON.stringify(oldItem)
+        JSON.stringify(oldItem),
       );
     });
   });

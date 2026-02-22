@@ -10,17 +10,19 @@ export class TenantUsageService {
     @InjectRepository(TenantUsage)
     private readonly usageRepository: Repository<TenantUsage>,
     @InjectRepository(Tenant)
-    private readonly tenantRepository: Repository<Tenant>
+    private readonly tenantRepository: Repository<Tenant>,
   ) {}
 
   async recordUsage(
     tenantId: string,
     metric: UsageMetric,
     value: number,
-    metadata?: Record<string, any>
+    metadata?: Record<string, any>,
   ): Promise<TenantUsage> {
     // Verify tenant exists
-    const tenant = await this.tenantRepository.findOne({ where: { id: tenantId } });
+    const tenant = await this.tenantRepository.findOne({
+      where: { id: tenantId },
+    });
     if (!tenant) {
       throw new NotFoundException(`Tenant with ID ${tenantId} not found`);
     }
@@ -30,7 +32,7 @@ export class TenantUsageService {
       metric,
       value,
       date: new Date(),
-      metadata: metadata || {}
+      metadata: metadata || {},
     });
 
     return this.usageRepository.save(usage);
@@ -40,10 +42,12 @@ export class TenantUsageService {
     tenantId: string,
     startDate?: Date,
     endDate?: Date,
-    metric?: string
+    metric?: string,
   ): Promise<TenantUsage[]> {
     // Verify tenant exists
-    const tenant = await this.tenantRepository.findOne({ where: { id: tenantId } });
+    const tenant = await this.tenantRepository.findOne({
+      where: { id: tenantId },
+    });
     if (!tenant) {
       throw new NotFoundException(`Tenant with ID ${tenantId} not found`);
     }
@@ -64,7 +68,7 @@ export class TenantUsageService {
     return this.usageRepository.find({
       where: query,
       order: { createdAt: 'DESC' },
-      take: 1000 // Limit to prevent performance issues
+      take: 1000, // Limit to prevent performance issues
     });
   }
 
@@ -72,10 +76,14 @@ export class TenantUsageService {
     tenantId: string,
     startDate?: Date,
     endDate?: Date,
-    metric?: string
-  ): Promise<Record<string, { total: number; average: number; count: number }>> {
+    metric?: string,
+  ): Promise<
+    Record<string, { total: number; average: number; count: number }>
+  > {
     // Verify tenant exists
-    const tenant = await this.tenantRepository.findOne({ where: { id: tenantId } });
+    const tenant = await this.tenantRepository.findOne({
+      where: { id: tenantId },
+    });
     if (!tenant) {
       throw new NotFoundException(`Tenant with ID ${tenantId} not found`);
     }
@@ -87,21 +95,27 @@ export class TenantUsageService {
     }
 
     const metrics = metric ? [metric] : Object.values(UsageMetric);
-    const stats: Record<string, { total: number; average: number; count: number }> = {};
+    const stats: Record<
+      string,
+      { total: number; average: number; count: number }
+    > = {};
 
     for (const metric of metrics) {
       const records = await this.usageRepository.find({
-        where: { ...where, metric: metric as UsageMetric }
+        where: { ...where, metric: metric as UsageMetric },
       });
 
       if (records.length > 0) {
-        const total = records.reduce((sum, record) => sum + Number(record.value), 0);
+        const total = records.reduce(
+          (sum, record) => sum + Number(record.value),
+          0,
+        );
         const average = total / records.length;
-        
+
         stats[metric] = {
           total,
           average,
-          count: records.length
+          count: records.length,
         };
       }
     }
@@ -111,10 +125,12 @@ export class TenantUsageService {
 
   async getDailyUsage(
     tenantId: string,
-    days: number = 30
+    days: number = 30,
   ): Promise<Record<string, Record<string, number>>> {
     // Verify tenant exists
-    const tenant = await this.tenantRepository.findOne({ where: { id: tenantId } });
+    const tenant = await this.tenantRepository.findOne({
+      where: { id: tenantId },
+    });
     if (!tenant) {
       throw new NotFoundException(`Tenant with ID ${tenantId} not found`);
     }
@@ -126,22 +142,23 @@ export class TenantUsageService {
     const records = await this.usageRepository.find({
       where: {
         tenant: { id: tenantId },
-        date: Between(startDate, endDate)
+        date: Between(startDate, endDate),
       },
-      order: { date: 'ASC' }
+      order: { date: 'ASC' },
     });
 
     // Group by date and metric
     const dailyUsage: Record<string, Record<string, number>> = {};
 
-    records.forEach(record => {
+    records.forEach((record) => {
       const dateStr = record.date.toISOString().split('T')[0]; // YYYY-MM-DD
       if (!dailyUsage[dateStr]) {
         dailyUsage[dateStr] = {};
       }
-      
+
       const metric = record.metric;
-      dailyUsage[dateStr][metric] = (dailyUsage[dateStr][metric] || 0) + Number(record.value);
+      dailyUsage[dateStr][metric] =
+        (dailyUsage[dateStr][metric] || 0) + Number(record.value);
     });
 
     return dailyUsage;
@@ -149,65 +166,88 @@ export class TenantUsageService {
 
   async getUsageTrends(
     tenantId: string,
-    days: number = 30
-  ): Promise<Record<string, { current: number; previous: number; change: number }>> {
+    days: number = 30,
+  ): Promise<
+    Record<string, { current: number; previous: number; change: number }>
+  > {
     // Verify tenant exists
-    const tenant = await this.tenantRepository.findOne({ where: { id: tenantId } });
+    const tenant = await this.tenantRepository.findOne({
+      where: { id: tenantId },
+    });
     if (!tenant) {
       throw new NotFoundException(`Tenant with ID ${tenantId} not found`);
     }
 
     const now = new Date();
-    const currentPeriodStart = new Date(now.getTime() - (days / 2) * 24 * 60 * 60 * 1000);
-    const previousPeriodStart = new Date(currentPeriodStart.getTime() - (days / 2) * 24 * 60 * 60 * 1000);
+    const currentPeriodStart = new Date(
+      now.getTime() - (days / 2) * 24 * 60 * 60 * 1000,
+    );
+    const previousPeriodStart = new Date(
+      currentPeriodStart.getTime() - (days / 2) * 24 * 60 * 60 * 1000,
+    );
 
     const currentPeriodRecords = await this.usageRepository.find({
       where: {
         tenant: { id: tenantId },
-        date: Between(currentPeriodStart, now)
-      }
+        date: Between(currentPeriodStart, now),
+      },
     });
 
     const previousPeriodRecords = await this.usageRepository.find({
       where: {
         tenant: { id: tenantId },
-        date: Between(previousPeriodStart, currentPeriodStart)
-      }
+        date: Between(previousPeriodStart, currentPeriodStart),
+      },
     });
 
-    const trends: Record<string, { current: number; previous: number; change: number }> = {};
+    const trends: Record<
+      string,
+      { current: number; previous: number; change: number }
+    > = {};
 
     // Calculate current period totals
     const currentTotals: Record<string, number> = {};
-    currentPeriodRecords.forEach(record => {
-      currentTotals[record.metric] = (currentTotals[record.metric] || 0) + Number(record.value);
+    currentPeriodRecords.forEach((record) => {
+      currentTotals[record.metric] =
+        (currentTotals[record.metric] || 0) + Number(record.value);
     });
 
     // Calculate previous period totals
     const previousTotals: Record<string, number> = {};
-    previousPeriodRecords.forEach(record => {
-      previousTotals[record.metric] = (previousTotals[record.metric] || 0) + Number(record.value);
+    previousPeriodRecords.forEach((record) => {
+      previousTotals[record.metric] =
+        (previousTotals[record.metric] || 0) + Number(record.value);
     });
 
     // Calculate trends
-    Object.keys(currentTotals).forEach(metric => {
+    Object.keys(currentTotals).forEach((metric) => {
       const current = currentTotals[metric];
       const previous = previousTotals[metric] || 0;
-      const change = previous === 0 ? (current > 0 ? 100 : 0) : ((current - previous) / previous) * 100;
+      const change =
+        previous === 0
+          ? current > 0
+            ? 100
+            : 0
+          : ((current - previous) / previous) * 100;
 
       trends[metric] = {
         current,
         previous,
-        change: Math.round(change * 100) / 100 // Round to 2 decimal places
+        change: Math.round(change * 100) / 100, // Round to 2 decimal places
       };
     });
 
     return trends;
   }
 
-  async getTopUsageMetrics(tenantId: string, limit: number = 5): Promise<Record<string, number>> {
+  async getTopUsageMetrics(
+    tenantId: string,
+    limit: number = 5,
+  ): Promise<Record<string, number>> {
     // Verify tenant exists
-    const tenant = await this.tenantRepository.findOne({ where: { id: tenantId } });
+    const tenant = await this.tenantRepository.findOne({
+      where: { id: tenantId },
+    });
     if (!tenant) {
       throw new NotFoundException(`Tenant with ID ${tenantId} not found`);
     }
@@ -215,11 +255,11 @@ export class TenantUsageService {
     const records = await this.usageRepository.find({
       where: { tenant: { id: tenantId } },
       order: { value: 'DESC' },
-      take: limit
+      take: limit,
     });
 
     const topMetrics: Record<string, number> = {};
-    records.forEach(record => {
+    records.forEach((record) => {
       topMetrics[record.metric] = Number(record.value);
     });
 

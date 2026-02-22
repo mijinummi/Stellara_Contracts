@@ -37,14 +37,16 @@ export class CacheMetricsService {
   }> {
     const overallStats = await this.cacheService.getOverallStats();
 
-    const namespaceStats: CacheStatsDto[] = overallStats.namespaces.map((ns) => ({
-      hits: ns.hits,
-      misses: ns.misses,
-      hitRate: ns.hitRate,
-      totalKeys: ns.totalKeys,
-      namespace: ns.namespace,
-      timestamp: new Date(),
-    }));
+    const namespaceStats: CacheStatsDto[] = overallStats.namespaces.map(
+      (ns) => ({
+        hits: ns.hits,
+        misses: ns.misses,
+        hitRate: ns.hitRate,
+        totalKeys: ns.totalKeys,
+        namespace: ns.namespace,
+        timestamp: new Date(),
+      }),
+    );
 
     return {
       totalHits: overallStats.totalHits,

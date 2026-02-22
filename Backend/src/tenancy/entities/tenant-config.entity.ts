@@ -1,4 +1,11 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, ManyToOne } from 'typeorm';
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  CreateDateColumn,
+  UpdateDateColumn,
+  ManyToOne,
+} from 'typeorm';
 import { Tenant } from './tenant.entity';
 
 export enum ConfigType {
@@ -6,7 +13,7 @@ export enum ConfigType {
   AUTH = 'auth',
   BILLING = 'billing',
   FEATURES = 'features',
-  INTEGRATIONS = 'integrations'
+  INTEGRATIONS = 'integrations',
 }
 
 @Entity('tenant_configs')
@@ -20,7 +27,7 @@ export class TenantConfig {
   @Column({
     type: 'enum',
     enum: ConfigType,
-    default: ConfigType.GENERAL
+    default: ConfigType.GENERAL,
   })
   configType: ConfigType;
 

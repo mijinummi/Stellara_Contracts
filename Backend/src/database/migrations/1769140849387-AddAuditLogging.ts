@@ -1,6 +1,6 @@
 /**
  * Example Migration: AddAuditLogging
- * 
+ *
  * This migration adds an audit_logs table with comprehensive logging capabilities.
  * It demonstrates proper use of the migration strategy with:
  * - Pre-migration validation
@@ -20,7 +20,8 @@ import {
 export class AddAuditLogging1769140849387 implements EnhancedMigration {
   name = 'AddAuditLogging1769140849387';
   version = '1.0.0';
-  description = 'Add comprehensive audit logging table for tracking all database changes';
+  description =
+    'Add comprehensive audit logging table for tracking all database changes';
 
   backupStrategy: BackupStrategy = {
     tables: ['workflows', 'workflow_steps', 'stellar_events'],
@@ -110,22 +111,21 @@ export class AddAuditLogging1769140849387 implements EnhancedMigration {
         EXECUTE FUNCTION audit_log_trigger();
       `);
 
-      context.executedQueries.push(
-        `CREATE TRIGGER ${tableName}_audit_trigger`,
-      );
+      context.executedQueries.push(`CREATE TRIGGER ${tableName}_audit_trigger`);
     }
   }
 
-  async down(queryRunner: QueryRunner, context: MigrationContext): Promise<void> {
+  async down(
+    queryRunner: QueryRunner,
+    context: MigrationContext,
+  ): Promise<void> {
     // Drop triggers
     const triggerTables = ['workflows', 'workflow_steps', 'stellar_events'];
     for (const tableName of triggerTables) {
       await queryRunner.query(
         `DROP TRIGGER IF EXISTS ${tableName}_audit_trigger ON ${tableName}`,
       );
-      context.executedQueries.push(
-        `DROP TRIGGER ${tableName}_audit_trigger`,
-      );
+      context.executedQueries.push(`DROP TRIGGER ${tableName}_audit_trigger`);
     }
 
     // Drop trigger function

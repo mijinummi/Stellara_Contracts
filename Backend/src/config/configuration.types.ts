@@ -40,7 +40,11 @@ export interface ConfigurationProfile {
 /**
  * Configuration change listener callback
  */
-export type ConfigChangeListener = (key: string, oldValue: any, newValue: any) => void;
+export type ConfigChangeListener = (
+  key: string,
+  oldValue: any,
+  newValue: any,
+) => void;
 
 /**
  * Configuration metadata for a key

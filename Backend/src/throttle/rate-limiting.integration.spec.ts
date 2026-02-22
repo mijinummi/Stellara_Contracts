@@ -4,8 +4,15 @@
  */
 
 import { Test, TestingModule } from '@nestjs/testing';
-import { DistributedRateLimitService, RateLimitIdentifier } from './distributed-rate-limit.service';
-import { RoleBasedRateLimitService, UserRole, EndpointCategory } from './role-based-rate-limit.service';
+import {
+  DistributedRateLimitService,
+  RateLimitIdentifier,
+} from './distributed-rate-limit.service';
+import {
+  RoleBasedRateLimitService,
+  UserRole,
+  EndpointCategory,
+} from './role-based-rate-limit.service';
 import { RateLimitMetricsCollector } from './rate-limit-metrics.collector';
 import { RedisService } from '../redis/redis.service';
 import { RedisModule } from '../redis/redis.module';
@@ -52,10 +59,7 @@ describe('Rate Limiting System', () => {
 
       const config = { limit: 10, window: 60 };
 
-      const result = await rateLimitService.checkRateLimit(
-        identifier,
-        config,
-      );
+      const result = await rateLimitService.checkRateLimit(identifier, config);
 
       expect(result.allowed).toBe(true);
       expect(result.current).toBeGreaterThan(0);
@@ -75,10 +79,7 @@ describe('Rate Limiting System', () => {
       await rateLimitService.checkRateLimit(identifier, config);
 
       // Third request should be blocked
-      const result = await rateLimitService.checkRateLimit(
-        identifier,
-        config,
-      );
+      const result = await rateLimitService.checkRateLimit(identifier, config);
 
       expect(result.allowed).toBe(false);
       expect(result.remaining).toBe(0);
@@ -136,10 +137,7 @@ describe('Rate Limiting System', () => {
       await rateLimitService.resetRateLimit(identifier);
 
       // Should allow request again
-      const result = await rateLimitService.checkRateLimit(
-        identifier,
-        config,
-      );
+      const result = await rateLimitService.checkRateLimit(identifier, config);
 
       expect(result.current).toBe(1);
     });
@@ -205,11 +203,10 @@ describe('Rate Limiting System', () => {
         EndpointCategory.PUBLIC,
       );
 
-      roleBasedService.updateRateLimit(
-        UserRole.USER,
-        EndpointCategory.PUBLIC,
-        { limit: 9999, window: 120 },
-      );
+      roleBasedService.updateRateLimit(UserRole.USER, EndpointCategory.PUBLIC, {
+        limit: 9999,
+        window: 120,
+      });
 
       const updatedLimit = roleBasedService.getRateLimit(
         UserRole.USER,
@@ -239,11 +236,7 @@ describe('Rate Limiting System', () => {
   describe('RateLimitMetricsCollector', () => {
     it('should record violations', () => {
       expect(() => {
-        metricsCollector.recordViolation(
-          '192.168.1.7',
-          'user123',
-          '/api/test',
-        );
+        metricsCollector.recordViolation('192.168.1.7', 'user123', '/api/test');
       }).not.toThrow();
     });
 

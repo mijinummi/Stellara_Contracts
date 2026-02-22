@@ -1,4 +1,9 @@
-import { Injectable, Logger, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  OnModuleInit,
+  OnModuleDestroy,
+} from '@nestjs/common';
 import { Horizon } from '@stellar/stellar-sdk';
 import { v4 as uuidv4 } from 'uuid';
 import { EventStorageService } from './event-storage.service';
@@ -50,7 +55,9 @@ interface HorizonManageOfferOperation {
 }
 
 @Injectable()
-export class StellarEventMonitorService implements OnModuleInit, OnModuleDestroy {
+export class StellarEventMonitorService
+  implements OnModuleInit, OnModuleDestroy
+{
   private readonly logger = new Logger(StellarEventMonitorService.name);
   private horizonServer: Horizon.Server;
   private paymentStream: (() => void) | null = null;
@@ -62,7 +69,8 @@ export class StellarEventMonitorService implements OnModuleInit, OnModuleDestroy
     private readonly eventStorageService: EventStorageService,
     private readonly webhookDeliveryService: WebhookDeliveryService,
   ) {
-    const horizonUrl = process.env.HORIZON_URL || 'https://horizon-testnet.stellar.org';
+    const horizonUrl =
+      process.env.HORIZON_URL || 'https://horizon-testnet.stellar.org';
     this.horizonServer = new Horizon.Server(horizonUrl);
     this.logger.log(`Initialized Horizon server at ${horizonUrl}`);
   }
@@ -85,22 +93,31 @@ export class StellarEventMonitorService implements OnModuleInit, OnModuleDestroy
 
     try {
       this.isMonitoring = true;
-      
+
       // Get current ledger to start from
-      const ledger = await this.horizonServer.ledgers().order('desc').limit(1).call();
+      const ledger = await this.horizonServer
+        .ledgers()
+        .order('desc')
+        .limit(1)
+        .call();
       this.lastLedgerSequence = ledger.records[0].sequence;
-      
-      this.logger.log(`Starting monitoring from ledger ${this.lastLedgerSequence}`);
-      
+
+      this.logger.log(
+        `Starting monitoring from ledger ${this.lastLedgerSequence}`,
+      );
+
       // Start streaming payments
       this.startPaymentStream();
-      
+
       // Start streaming offers
       this.startOfferStream();
-      
+
       this.logger.log('Stellar event monitoring started successfully');
     } catch (error) {
-      this.logger.error(`Failed to start monitoring: ${error.message}`, error.stack);
+      this.logger.error(
+        `Failed to start monitoring: ${error.message}`,
+        error.stack,
+      );
       this.isMonitoring = false;
       throw error;
     }
@@ -112,22 +129,25 @@ export class StellarEventMonitorService implements OnModuleInit, OnModuleDestroy
     }
 
     this.logger.log('Stopping Stellar event monitoring...');
-    
+
     try {
       if (this.paymentStream) {
         this.paymentStream();
         this.paymentStream = null;
       }
-      
+
       if (this.offerStream) {
         this.offerStream();
         this.offerStream = null;
       }
-      
+
       this.isMonitoring = false;
       this.logger.log('Stellar event monitoring stopped');
     } catch (error) {
-      this.logger.error(`Error stopping monitoring: ${error.message}`, error.stack);
+      this.logger.error(
+        `Error stopping monitoring: ${error.message}`,
+        error.stack,
+      );
     }
   }
 
@@ -137,13 +157,19 @@ export class StellarEventMonitorService implements OnModuleInit, OnModuleDestroy
       .cursor('now')
       .stream({
         onmessage: (payment: any) => {
-          this.handlePaymentEvent(payment).catch(error => {
-            this.logger.error(`Error handling payment event: ${error.message}`, error.stack);
+          this.handlePaymentEvent(payment).catch((error) => {
+            this.logger.error(
+              `Error handling payment event: ${error.message}`,
+              error.stack,
+            );
           });
         },
         onerror: (event: MessageEvent) => {
           const error = event as unknown as Error;
-          this.logger.error(`Payment stream error: ${error.message}`, error.stack);
+          this.logger.error(
+            `Payment stream error: ${error.message}`,
+            error.stack,
+          );
           // Attempt to restart the stream
           setTimeout(() => {
             if (this.isMonitoring) {
@@ -162,15 +188,24 @@ export class StellarEventMonitorService implements OnModuleInit, OnModuleDestroy
       .stream({
         onmessage: (offer: any) => {
           // Filter for manage offer operations
-          if (offer.type === 'manage_sell_offer' || offer.type === 'manage_buy_offer') {
-            this.handleOfferEvent(offer).catch(error => {
-              this.logger.error(`Error handling offer event: ${error.message}`, error.stack);
+          if (
+            offer.type === 'manage_sell_offer' ||
+            offer.type === 'manage_buy_offer'
+          ) {
+            this.handleOfferEvent(offer).catch((error) => {
+              this.logger.error(
+                `Error handling offer event: ${error.message}`,
+                error.stack,
+              );
             });
           }
         },
         onerror: (event: MessageEvent) => {
           const error = event as unknown as Error;
-          this.logger.error(`Offer stream error: ${error.message}`, error.stack);
+          this.logger.error(
+            `Offer stream error: ${error.message}`,
+            error.stack,
+          );
           // Attempt to restart the stream
           setTimeout(() => {
             if (this.isMonitoring) {
@@ -205,10 +240,15 @@ export class StellarEventMonitorService implements OnModuleInit, OnModuleDestroy
 
       const savedEvent = await this.eventStorageService.saveEvent(eventData);
       await this.webhookDeliveryService.queueEventForDelivery(savedEvent);
-      
-      this.logger.debug(`Processed payment event ${savedEvent.id} from ${payment.from} to ${payment.to}`);
+
+      this.logger.debug(
+        `Processed payment event ${savedEvent.id} from ${payment.from} to ${payment.to}`,
+      );
     } catch (error) {
-      this.logger.error(`Failed to process payment event: ${error.message}`, error.stack);
+      this.logger.error(
+        `Failed to process payment event: ${error.message}`,
+        error.stack,
+      );
     }
   }
 
@@ -238,10 +278,15 @@ export class StellarEventMonitorService implements OnModuleInit, OnModuleDestroy
 
       const savedEvent = await this.eventStorageService.saveEvent(eventData);
       await this.webhookDeliveryService.queueEventForDelivery(savedEvent);
-      
-      this.logger.debug(`Processed offer event ${savedEvent.id} from ${offer.source_account}`);
+
+      this.logger.debug(
+        `Processed offer event ${savedEvent.id} from ${offer.source_account}`,
+      );
     } catch (error) {
-      this.logger.error(`Failed to process offer event: ${error.message}`, error.stack);
+      this.logger.error(
+        `Failed to process offer event: ${error.message}`,
+        error.stack,
+      );
     }
   }
 
@@ -281,7 +326,7 @@ export class StellarEventMonitorService implements OnModuleInit, OnModuleDestroy
 
     const savedEvent = await this.eventStorageService.saveEvent(eventData);
     await this.webhookDeliveryService.queueEventForDelivery(savedEvent);
-    
+
     this.logger.log(`Simulated payment event ${savedEvent.id}`);
     return savedEvent;
   }
@@ -291,8 +336,10 @@ export class StellarEventMonitorService implements OnModuleInit, OnModuleDestroy
     sellingAmount: string = '1000',
     buyingAmount: string = '50',
   ): Promise<StellarEvent> {
-    const price = (parseFloat(buyingAmount) / parseFloat(sellingAmount)).toString();
-    
+    const price = (
+      parseFloat(buyingAmount) / parseFloat(sellingAmount)
+    ).toString();
+
     const eventData = {
       id: uuidv4(),
       eventType: EventType.OFFER,
@@ -305,7 +352,8 @@ export class StellarEventMonitorService implements OnModuleInit, OnModuleDestroy
         seller,
         sellingAssetType: 'credit_alphanum4',
         sellingAssetCode: 'USD',
-        sellingAssetIssuer: 'GAIH3ULLFQ4DGSECF2AR555KZ4KNDGEKN4AFI4SU2M7B43MGK3QJZNSR',
+        sellingAssetIssuer:
+          'GAIH3ULLFQ4DGSECF2AR555KZ4KNDGEKN4AFI4SU2M7B43MGK3QJZNSR',
         buyingAssetType: 'native',
         amount: sellingAmount,
         price,
@@ -316,7 +364,7 @@ export class StellarEventMonitorService implements OnModuleInit, OnModuleDestroy
 
     const savedEvent = await this.eventStorageService.saveEvent(eventData);
     await this.webhookDeliveryService.queueEventForDelivery(savedEvent);
-    
+
     this.logger.log(`Simulated offer event ${savedEvent.id}`);
     return savedEvent;
   }
@@ -335,10 +383,17 @@ export class StellarEventMonitorService implements OnModuleInit, OnModuleDestroy
 
   async getLatestLedger(): Promise<number> {
     try {
-      const ledger = await this.horizonServer.ledgers().order('desc').limit(1).call();
+      const ledger = await this.horizonServer
+        .ledgers()
+        .order('desc')
+        .limit(1)
+        .call();
       return ledger.records[0].sequence;
     } catch (error) {
-      this.logger.error(`Failed to get latest ledger: ${error.message}`, error.stack);
+      this.logger.error(
+        `Failed to get latest ledger: ${error.message}`,
+        error.stack,
+      );
       return this.lastLedgerSequence;
     }
   }

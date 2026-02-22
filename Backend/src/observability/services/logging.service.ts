@@ -24,17 +24,19 @@ export class LoggingService {
       winston.format.errors({ stack: true }),
       winston.format.splat(),
       winston.format.json(),
-      winston.format.printf(({ level, message, timestamp, traceId, spanId, ...meta }) => {
-        const context: Record<string, unknown> = {
-          level,
-          timestamp,
-          message,
-          ...meta,
-        };
-        if (traceId) context.traceId = traceId;
-        if (spanId) context.spanId = spanId;
-        return JSON.stringify(context);
-      }),
+      winston.format.printf(
+        ({ level, message, timestamp, traceId, spanId, ...meta }) => {
+          const context: Record<string, unknown> = {
+            level,
+            timestamp,
+            message,
+            ...meta,
+          };
+          if (traceId) context.traceId = traceId;
+          if (spanId) context.spanId = spanId;
+          return JSON.stringify(context);
+        },
+      ),
     );
 
     this.logger = winston.createLogger({
@@ -98,7 +100,11 @@ export class LoggingService {
   /**
    * Log error level message with context
    */
-  error(message: string, error?: Error | any, context?: LogContext | Record<string, any>) {
+  error(
+    message: string,
+    error?: Error | any,
+    context?: LogContext | Record<string, any>,
+  ) {
     const meta = context || {};
     if (error instanceof Error) {
       meta['error'] = {
@@ -129,7 +135,11 @@ export class LoggingService {
   /**
    * Log with custom level
    */
-  log(level: string, message: string, context?: LogContext | Record<string, any>) {
+  log(
+    level: string,
+    message: string,
+    context?: LogContext | Record<string, any>,
+  ) {
     this.logger.log(level, message, context);
   }
 

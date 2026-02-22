@@ -7,9 +7,7 @@ export class AiCacheService {
   private readonly TTL = 3600;
   private cache = new Map<string, string>();
 
-  constructor(
-    @Inject('REDIS_CLIENT') private readonly redis: Redis | null,
-  ) {}
+  constructor(@Inject('REDIS_CLIENT') private readonly redis: Redis | null) {}
 
   async get(key: string): Promise<string | null> {
     if (this.redis) {

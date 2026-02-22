@@ -231,7 +231,10 @@ export class MetricsService {
     requestSize?: number,
     responseSize?: number,
   ) {
-    this.httpRequestDuration.observe({ method, route, status_code: statusCode }, duration);
+    this.httpRequestDuration.observe(
+      { method, route, status_code: statusCode },
+      duration,
+    );
     this.httpRequestTotal.inc({ method, route, status_code: statusCode });
     if (requestSize) {
       this.httpRequestSize.observe({ method, route }, requestSize);
@@ -276,7 +279,10 @@ export class MetricsService {
   }
 
   recordJobCompleted(jobName: string, duration: number) {
-    this.jobDuration.observe({ job_name: jobName, status: 'success' }, duration);
+    this.jobDuration.observe(
+      { job_name: jobName, status: 'success' },
+      duration,
+    );
     this.jobsTotal.inc({ job_name: jobName, status: 'success' });
     this.jobsCompleted.inc({ job_name: jobName });
     this.jobsActive.dec({ job_name: jobName });
@@ -295,11 +301,7 @@ export class MetricsService {
 
   // Database Metrics Methods
 
-  recordDatabaseQuery(
-    operation: string,
-    table: string,
-    duration: number,
-  ) {
+  recordDatabaseQuery(operation: string, table: string, duration: number) {
     this.databaseQueryDuration.observe({ operation, table }, duration);
   }
 

@@ -22,7 +22,10 @@ export class VoiceService {
     return crypto.createHash('sha256').update(content).digest('hex');
   }
 
-  async processSTT(file: { buffer: Buffer; originalname: string }): Promise<string> {
+  async processSTT(file: {
+    buffer: Buffer;
+    originalname: string;
+  }): Promise<string> {
     const audioHash = this.generateHash(file.buffer);
 
     // Check for duplicate

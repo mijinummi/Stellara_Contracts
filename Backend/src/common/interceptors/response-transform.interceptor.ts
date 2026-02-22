@@ -19,9 +19,10 @@ import { ApiResponseDto } from '../dtos/api-response.dto';
  * Registered globally in AppModule via APP_INTERCEPTOR.
  */
 @Injectable()
-export class ResponseTransformInterceptor<T>
-  implements NestInterceptor<T, ApiResponseDto<T>>
-{
+export class ResponseTransformInterceptor<T> implements NestInterceptor<
+  T,
+  ApiResponseDto<T>
+> {
   intercept(
     _context: ExecutionContext,
     next: CallHandler<T>,
@@ -37,17 +38,17 @@ export class ResponseTransformInterceptor<T>
         ) {
           const v = value as { data: T; meta: unknown };
           return {
-            success:   true,
+            success: true,
             timestamp: new Date().toISOString(),
-            data:      v.data,
-            meta:      v.meta,
+            data: v.data,
+            meta: v.meta,
           } as ApiResponseDto<T>;
         }
 
         return {
-          success:   true,
+          success: true,
           timestamp: new Date().toISOString(),
-          data:      value,
+          data: value,
         } as ApiResponseDto<T>;
       }),
     );

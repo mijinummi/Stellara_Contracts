@@ -1,4 +1,13 @@
-import { IsString, IsUrl, IsOptional, IsInt, Min, Max, IsBoolean, Length } from 'class-validator';
+import {
+  IsString,
+  IsUrl,
+  IsOptional,
+  IsInt,
+  Min,
+  Max,
+  IsBoolean,
+  Length,
+} from 'class-validator';
 import { Transform } from 'class-transformer';
 
 export class UpdateConsumerDto {

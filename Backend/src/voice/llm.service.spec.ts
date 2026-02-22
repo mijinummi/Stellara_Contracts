@@ -66,7 +66,9 @@ describe('LlmService', () => {
       mockRedisClient.incr.mockResolvedValue(1); // Initialize counters
       mockRedisClient.get.mockResolvedValueOnce('cached response'); // Cache hit
 
-      const result = await service.generateResponse(userId, sessionId, prompt, { model });
+      const result = await service.generateResponse(userId, sessionId, prompt, {
+        model,
+      });
 
       expect(result.cached).toBe(true);
       expect(result.content).toBe('cached response');
@@ -77,7 +79,9 @@ describe('LlmService', () => {
       mockRedisClient.get.mockResolvedValue(null); // Not cached
       mockRedisClient.incr.mockResolvedValue(1); // Quotas OK
 
-      const result = await service.generateResponse(userId, sessionId, prompt, { model });
+      const result = await service.generateResponse(userId, sessionId, prompt, {
+        model,
+      });
 
       expect(result.cached).toBe(false);
       expect(result.content).toBeDefined();
@@ -260,4 +264,3 @@ describe('LlmService', () => {
     });
   });
 });
-

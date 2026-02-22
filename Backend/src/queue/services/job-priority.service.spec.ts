@@ -15,10 +15,22 @@ describe('JobPriorityService', () => {
 
   describe('getPriorityWeight', () => {
     it('should return correct weights for each priority level', () => {
-      const lowPriority: JobPriority = { level: JobPriorityLevel.LOW, weight: 1 };
-      const normalPriority: JobPriority = { level: JobPriorityLevel.NORMAL, weight: 5 };
-      const highPriority: JobPriority = { level: JobPriorityLevel.HIGH, weight: 10 };
-      const criticalPriority: JobPriority = { level: JobPriorityLevel.CRITICAL, weight: 20 };
+      const lowPriority: JobPriority = {
+        level: JobPriorityLevel.LOW,
+        weight: 1,
+      };
+      const normalPriority: JobPriority = {
+        level: JobPriorityLevel.NORMAL,
+        weight: 5,
+      };
+      const highPriority: JobPriority = {
+        level: JobPriorityLevel.HIGH,
+        weight: 10,
+      };
+      const criticalPriority: JobPriority = {
+        level: JobPriorityLevel.CRITICAL,
+        weight: 20,
+      };
 
       expect(service.getPriorityWeight(lowPriority)).toBe(1);
       expect(service.getPriorityWeight(normalPriority)).toBe(5);
@@ -31,28 +43,44 @@ describe('JobPriorityService', () => {
     it('should use explicitly set priority from metadata', () => {
       const jobData = { text: 'test' };
       const metadata = {
-        priority: { level: JobPriorityLevel.HIGH, weight: 10 }
+        priority: { level: JobPriorityLevel.HIGH, weight: 10 },
       };
 
-      const priority = service.determineJobPriority('process-tts', jobData, metadata);
+      const priority = service.determineJobPriority(
+        'process-tts',
+        jobData,
+        metadata,
+      );
       expect(priority.level).toBe(JobPriorityLevel.HIGH);
     });
 
     it('should determine priority for contract deployment jobs', () => {
       const productionJob = { environment: 'production' };
-      const priority = service.determineJobPriority('deploy-contract', productionJob);
+      const priority = service.determineJobPriority(
+        'deploy-contract',
+        productionJob,
+      );
       expect(priority.level).toBe(JobPriorityLevel.CRITICAL);
 
       const urgentJob = { urgent: true };
-      const urgentPriority = service.determineJobPriority('deploy-contract', urgentJob);
+      const urgentPriority = service.determineJobPriority(
+        'deploy-contract',
+        urgentJob,
+      );
       expect(urgentPriority.level).toBe(JobPriorityLevel.HIGH);
 
       const stagingJob = { environment: 'staging' };
-      const stagingPriority = service.determineJobPriority('deploy-contract', stagingJob);
+      const stagingPriority = service.determineJobPriority(
+        'deploy-contract',
+        stagingJob,
+      );
       expect(stagingPriority.level).toBe(JobPriorityLevel.NORMAL);
 
       const devJob = { environment: 'development' };
-      const devPriority = service.determineJobPriority('deploy-contract', devJob);
+      const devPriority = service.determineJobPriority(
+        'deploy-contract',
+        devJob,
+      );
       expect(devPriority.level).toBe(JobPriorityLevel.LOW);
     });
 
@@ -62,53 +90,83 @@ describe('JobPriorityService', () => {
       expect(priority.level).toBe(JobPriorityLevel.HIGH);
 
       const shortTextJob = { text: 'Short text' };
-      const shortPriority = service.determineJobPriority('process-tts', shortTextJob);
+      const shortPriority = service.determineJobPriority(
+        'process-tts',
+        shortTextJob,
+      );
       expect(shortPriority.level).toBe(JobPriorityLevel.NORMAL);
 
       const batchJob = { batch: true, text: 'Long batch processing text' };
-      const batchPriority = service.determineJobPriority('process-tts', batchJob);
+      const batchPriority = service.determineJobPriority(
+        'process-tts',
+        batchJob,
+      );
       expect(batchPriority.level).toBe(JobPriorityLevel.LOW);
     });
 
     it('should determine priority for market news jobs', () => {
       const breakingNews = { breaking: true, title: 'Breaking news' };
-      const priority = service.determineJobPriority('index-market-news', breakingNews);
+      const priority = service.determineJobPriority(
+        'index-market-news',
+        breakingNews,
+      );
       expect(priority.level).toBe(JobPriorityLevel.CRITICAL);
 
-      const recentNews = { 
+      const recentNews = {
         timestamp: new Date(Date.now() - 60000).toISOString(), // 1 minute ago
-        title: 'Recent news'
+        title: 'Recent news',
       };
-      const recentPriority = service.determineJobPriority('index-market-news', recentNews);
+      const recentPriority = service.determineJobPriority(
+        'index-market-news',
+        recentNews,
+      );
       expect(recentPriority.level).toBe(JobPriorityLevel.HIGH);
 
-      const oldNews = { 
+      const oldNews = {
         timestamp: new Date(Date.now() - 600000).toISOString(), // 10 minutes ago
-        title: 'Old news'
+        title: 'Old news',
       };
-      const oldPriority = service.determineJobPriority('index-market-news', oldNews);
+      const oldPriority = service.determineJobPriority(
+        'index-market-news',
+        oldNews,
+      );
       expect(oldPriority.level).toBe(JobPriorityLevel.NORMAL);
     });
 
     it('should adjust priority based on tags', () => {
       const jobData = { text: 'test' };
       const metadata = { tags: ['urgent', 'production'] };
-      const priority = service.determineJobPriority('process-tts', jobData, metadata);
+      const priority = service.determineJobPriority(
+        'process-tts',
+        jobData,
+        metadata,
+      );
       expect(priority.level).toBe(JobPriorityLevel.HIGH);
 
       const criticalMetadata = { tags: ['emergency'] };
-      const criticalPriority = service.determineJobPriority('process-tts', jobData, criticalMetadata);
+      const criticalPriority = service.determineJobPriority(
+        'process-tts',
+        jobData,
+        criticalMetadata,
+      );
       expect(criticalPriority.level).toBe(JobPriorityLevel.CRITICAL);
 
       const lowPriorityMetadata = { tags: ['batch', 'test'] };
-      const lowPriority = service.determineJobPriority('process-tts', jobData, lowPriorityMetadata);
+      const lowPriority = service.determineJobPriority(
+        'process-tts',
+        jobData,
+        lowPriorityMetadata,
+      );
       expect(lowPriority.level).toBe(JobPriorityLevel.LOW);
     });
   });
 
   describe('createPriorityOptions', () => {
     it('should create Bull options with correct priority', () => {
-      const priority: JobPriority = { level: JobPriorityLevel.HIGH, weight: 10 };
+      const priority: JobPriority = {
+        level: JobPriorityLevel.HIGH,
+        weight: 10,
+      };
       const baseOptions = { attempts: 3 };
 
       const options = service.createPriorityOptions(priority, baseOptions);
@@ -120,10 +178,17 @@ describe('JobPriorityService', () => {
 
   describe('createScheduledOptions', () => {
     it('should create options with delay and priority', () => {
-      const priority: JobPriority = { level: JobPriorityLevel.CRITICAL, weight: 20 };
+      const priority: JobPriority = {
+        level: JobPriorityLevel.CRITICAL,
+        weight: 20,
+      };
       const baseOptions = { attempts: 5 };
 
-      const options = service.createScheduledOptions(5000, priority, baseOptions);
+      const options = service.createScheduledOptions(
+        5000,
+        priority,
+        baseOptions,
+      );
 
       expect(options.delay).toBe(5000);
       expect(options.priority).toBe(20);
@@ -131,10 +196,17 @@ describe('JobPriorityService', () => {
     });
 
     it('should create options without delay when not provided', () => {
-      const priority: JobPriority = { level: JobPriorityLevel.NORMAL, weight: 5 };
+      const priority: JobPriority = {
+        level: JobPriorityLevel.NORMAL,
+        weight: 5,
+      };
       const baseOptions = { attempts: 2 };
 
-      const options = service.createScheduledOptions(undefined, priority, baseOptions);
+      const options = service.createScheduledOptions(
+        undefined,
+        priority,
+        baseOptions,
+      );
 
       expect(options.delay).toBeUndefined();
       expect(options.priority).toBe(5);
@@ -179,10 +251,10 @@ describe('JobPriorityService', () => {
       const jobs = [
         { opts: { priority: 20 } }, // critical
         { opts: { priority: 10 } }, // high
-        { opts: { priority: 5 } },  // normal
-        { opts: { priority: 1 } },  // low
+        { opts: { priority: 5 } }, // normal
+        { opts: { priority: 1 } }, // low
         { opts: { priority: 15 } }, // high
-        { opts: { priority: 3 } },  // low
+        { opts: { priority: 3 } }, // low
       ];
 
       const distribution = service.getPriorityDistribution(jobs);

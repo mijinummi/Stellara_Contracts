@@ -1,4 +1,10 @@
-import { Injectable, CanActivate, ExecutionContext, HttpException, HttpStatus } from '@nestjs/common';
+import {
+  Injectable,
+  CanActivate,
+  ExecutionContext,
+  HttpException,
+  HttpStatus,
+} from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { RateLimitService } from '../services/rate-limit.service';
 
@@ -11,7 +17,11 @@ export interface RateLimitOptions {
 }
 
 export const RateLimit = (options: RateLimitOptions) => {
-  return (target: any, propertyKey?: string, descriptor?: PropertyDescriptor) => {
+  return (
+    target: any,
+    propertyKey?: string,
+    descriptor?: PropertyDescriptor,
+  ) => {
     if (propertyKey && descriptor) {
       Reflect.defineMetadata(RATE_LIMIT_KEY, options, descriptor.value);
       return descriptor;

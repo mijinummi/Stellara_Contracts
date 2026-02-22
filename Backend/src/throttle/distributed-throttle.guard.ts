@@ -153,11 +153,11 @@ export class DistributedThrottleGuard implements CanActivate {
     // Auto-ban after excessive violations
     const MAX_VIOLATIONS = 10;
     if (metrics.violations >= MAX_VIOLATIONS) {
-      const banDuration = Math.min(3600, 60 * Math.pow(2, metrics.violations - MAX_VIOLATIONS));
-      await this.distributedRateLimiter.banIdentifier(
-        identifier,
-        banDuration,
+      const banDuration = Math.min(
+        3600,
+        60 * Math.pow(2, metrics.violations - MAX_VIOLATIONS),
       );
+      await this.distributedRateLimiter.banIdentifier(identifier, banDuration);
     }
   }
 }

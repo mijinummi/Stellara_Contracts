@@ -62,7 +62,7 @@ export class QueueHealthService implements OnModuleInit {
   async onModuleInit() {
     // Run initial health checks
     await this.performHealthChecks();
-    
+
     // Set up periodic health checks
     setInterval(() => {
       this.performHealthChecks();
@@ -100,7 +100,7 @@ export class QueueHealthService implements OnModuleInit {
   async checkQueueHealth(queueName: string): Promise<HealthStatus> {
     const [metrics, performance] = await Promise.all([
       this.jobMonitoringService.getQueueMetrics(queueName),
-      this.jobMonitoringService.getPerformanceAnalytics(queueName)
+      this.jobMonitoringService.getPerformanceAnalytics(queueName),
     ]);
 
     const checks: HealthCheckResult[] = [];
@@ -111,7 +111,7 @@ export class QueueHealthService implements OnModuleInit {
       status: 'pass',
       message: `Failure rate is ${metrics.metrics.failureRate.toFixed(4)}`,
       value: metrics.metrics.failureRate,
-      threshold: 0.1 // 10% threshold
+      threshold: 0.1, // 10% threshold
     };
 
     if (metrics.metrics.failureRate > 0.1) {
@@ -130,13 +130,15 @@ export class QueueHealthService implements OnModuleInit {
       status: 'pass',
       message: `Average processing time is ${performance.averageProcessingTime}ms`,
       value: performance.averageProcessingTime,
-      threshold: 300000 // 5 minutes threshold
+      threshold: 300000, // 5 minutes threshold
     };
 
-    if (performance.averageProcessingTime > 600000) { // 10 minutes
+    if (performance.averageProcessingTime > 600000) {
+      // 10 minutes
       processingTimeCheck.status = 'fail';
       processingTimeCheck.message = `PROCESSING TIME CRITICAL: ${performance.averageProcessingTime}ms > 600000ms`;
-    } else if (performance.averageProcessingTime > 300000) { // 5 minutes
+    } else if (performance.averageProcessingTime > 300000) {
+      // 5 minutes
       processingTimeCheck.status = 'warn';
       processingTimeCheck.message = `PROCESSING TIME ELEVATED: ${performance.averageProcessingTime}ms > 300000ms`;
     }
@@ -149,7 +151,7 @@ export class QueueHealthService implements OnModuleInit {
       status: 'pass',
       message: `Queue has ${metrics.metrics.waitingJobs} waiting jobs`,
       value: metrics.metrics.waitingJobs,
-      threshold: 50 // 50 jobs threshold
+      threshold: 50, // 50 jobs threshold
     };
 
     if (metrics.metrics.waitingJobs > 100) {
@@ -168,7 +170,7 @@ export class QueueHealthService implements OnModuleInit {
       status: 'pass',
       message: `Throughput is ${metrics.metrics.throughput} jobs/hour`,
       value: metrics.metrics.throughput,
-      threshold: 10 // 10 jobs/hour minimum
+      threshold: 10, // 10 jobs/hour minimum
     };
 
     if (metrics.metrics.throughput < 1) {
@@ -187,7 +189,7 @@ export class QueueHealthService implements OnModuleInit {
       status: 'pass',
       message: `DLQ has ${metrics.metrics.dlqSize} items`,
       value: metrics.metrics.dlqSize,
-      threshold: 20 // 20 items threshold
+      threshold: 20, // 20 items threshold
     };
 
     if (metrics.metrics.dlqSize > 100) {
@@ -202,8 +204,12 @@ export class QueueHealthService implements OnModuleInit {
 
     // Calculate overall health score
     let score = 100;
-    const failingChecks = checks.filter(check => check.status === 'fail').length;
-    const warningChecks = checks.filter(check => check.status === 'warn').length;
+    const failingChecks = checks.filter(
+      (check) => check.status === 'fail',
+    ).length;
+    const warningChecks = checks.filter(
+      (check) => check.status === 'warn',
+    ).length;
 
     score -= failingChecks * 30; // 30 points per failing check
     score -= warningChecks * 10; // 10 points per warning check
@@ -221,7 +227,9 @@ export class QueueHealthService implements OnModuleInit {
     const recommendations: string[] = [];
     if (status !== 'healthy') {
       if (failingChecks > 0) {
-        recommendations.push('Immediate attention required - multiple critical issues detected');
+        recommendations.push(
+          'Immediate attention required - multiple critical issues detected',
+        );
       }
       if (warningChecks > 0) {
         recommendations.push('Monitor closely - several issues need attention');
@@ -261,8 +269,8 @@ export class QueueHealthService implements OnModuleInit {
         completedJobs: metrics.metrics.completedJobs,
         processingTime: performance.averageProcessingTime,
         failureRate: metrics.metrics.failureRate,
-        throughput: metrics.metrics.throughput
-      }
+        throughput: metrics.metrics.throughput,
+      },
     };
   }
 
@@ -270,8 +278,11 @@ export class QueueHealthService implements OnModuleInit {
    * Get health status for a specific queue
    */
   async getQueueHealth(queueName: string): Promise<HealthStatus> {
-    const healthData = await this.redisService.client.hGet(this.HEALTH_STATUS_KEY, queueName);
-    
+    const healthData = await this.redisService.client.hGet(
+      this.HEALTH_STATUS_KEY,
+      queueName,
+    );
+
     if (healthData) {
       return JSON.parse(healthData) as HealthStatus;
     }
@@ -285,16 +296,18 @@ export class QueueHealthService implements OnModuleInit {
    */
   async getAllQueueHealth(): Promise<HealthStatus[]> {
     const queueNames = ['deploy-contract', 'process-tts', 'index-market-news'];
-    return Promise.all(queueNames.map(name => this.getQueueHealth(name)));
+    return Promise.all(queueNames.map((name) => this.getQueueHealth(name)));
   }
 
   /**
    * Generate scaling recommendation for a queue
    */
-  async generateScalingRecommendation(queueName: string): Promise<ScalingRecommendation> {
+  async generateScalingRecommendation(
+    queueName: string,
+  ): Promise<ScalingRecommendation> {
     const health = await this.getQueueHealth(queueName);
     const currentWorkers = await this.getCurrentWorkerCount(queueName);
-    
+
     let recommendedWorkers = currentWorkers;
     let reason = 'No scaling needed';
     let confidence = 0.5; // Default confidence
@@ -327,16 +340,21 @@ export class QueueHealthService implements OnModuleInit {
       currentWorkers,
       recommendedWorkers,
       reason,
-      confidence
+      confidence,
     };
   }
 
   /**
    * Get scaling suggestion for a queue
    */
-  async getScalingSuggestion(queueName: string): Promise<ScalingRecommendation | null> {
-    const suggestionData = await this.redisService.client.hGet(this.SCALING_SUGGESTIONS_KEY, queueName);
-    
+  async getScalingSuggestion(
+    queueName: string,
+  ): Promise<ScalingRecommendation | null> {
+    const suggestionData = await this.redisService.client.hGet(
+      this.SCALING_SUGGESTIONS_KEY,
+      queueName,
+    );
+
     if (suggestionData) {
       return JSON.parse(suggestionData) as ScalingRecommendation;
     }
@@ -365,7 +383,10 @@ export class QueueHealthService implements OnModuleInit {
   /**
    * Predictive health analysis
    */
-  async predictHealth(queueName: string, timeframeHours: number = 1): Promise<HealthStatus> {
+  async predictHealth(
+    queueName: string,
+    timeframeHours: number = 1,
+  ): Promise<HealthStatus> {
     const health = await this.getQueueHealth(queueName);
     const trends = await this.jobMonitoringService.getTrendAnalysis(queueName);
 
@@ -404,7 +425,9 @@ export class QueueHealthService implements OnModuleInit {
       ...health,
       timestamp: new Date(Date.now() + timeframeHours * 60 * 60 * 1000),
       metrics: predictedMetrics,
-      recommendations: [`Predicted health for next ${timeframeHours} hour(s)`].concat(health.recommendations)
+      recommendations: [
+        `Predicted health for next ${timeframeHours} hour(s)`,
+      ].concat(health.recommendations),
     };
 
     // Recalculate status based on predicted metrics
@@ -436,25 +459,31 @@ export class QueueHealthService implements OnModuleInit {
     if (health.status === 'critical') {
       const alertMessage = `CRITICAL ALERT: Queue ${health.queueName} health is critical (score: ${health.score})`;
       this.logger.error(alertMessage);
-      
+
       // Store alert
-      await this.redisService.client.lPush(this.ALERTS_KEY, JSON.stringify({
-        queueName: health.queueName,
-        level: 'critical',
-        message: alertMessage,
-        timestamp: new Date().toISOString()
-      }));
+      await this.redisService.client.lPush(
+        this.ALERTS_KEY,
+        JSON.stringify({
+          queueName: health.queueName,
+          level: 'critical',
+          message: alertMessage,
+          timestamp: new Date().toISOString(),
+        }),
+      );
     } else if (health.status === 'warning') {
       const alertMessage = `WARNING: Queue ${health.queueName} health is degraded (score: ${health.score})`;
       this.logger.warn(alertMessage);
-      
+
       // Store alert
-      await this.redisService.client.lPush(this.ALERTS_KEY, JSON.stringify({
-        queueName: health.queueName,
-        level: 'warning',
-        message: alertMessage,
-        timestamp: new Date().toISOString()
-      }));
+      await this.redisService.client.lPush(
+        this.ALERTS_KEY,
+        JSON.stringify({
+          queueName: health.queueName,
+          level: 'warning',
+          message: alertMessage,
+          timestamp: new Date().toISOString(),
+        }),
+      );
     }
   }
 
@@ -462,8 +491,12 @@ export class QueueHealthService implements OnModuleInit {
    * Get recent alerts
    */
   async getRecentAlerts(limit: number = 10): Promise<any[]> {
-    const alerts = await this.redisService.client.lRange(this.ALERTS_KEY, 0, limit - 1);
-    return alerts.map(alert => JSON.parse(alert));
+    const alerts = await this.redisService.client.lRange(
+      this.ALERTS_KEY,
+      0,
+      limit - 1,
+    );
+    return alerts.map((alert) => JSON.parse(alert));
   }
 
   /**
@@ -481,54 +514,68 @@ export class QueueHealthService implements OnModuleInit {
       await this.redisService.client.hSet(
         this.HEALTH_STATUS_KEY,
         health.queueName,
-        JSON.stringify(health)
+        JSON.stringify(health),
       );
 
       // Also store in history for trend analysis
       const historyKey = `${this.HEALTH_HISTORY_KEY}:${health.queueName}`;
       const timestamp = Date.now();
-      
+
       await Promise.all([
-        this.redisService.client.zAdd(historyKey, { score: timestamp, value: JSON.stringify(health) }),
-        this.redisService.client.expire(historyKey, 86400 * 7) // Expire after 7 days
+        this.redisService.client.zAdd(historyKey, {
+          score: timestamp,
+          value: JSON.stringify(health),
+        }),
+        this.redisService.client.expire(historyKey, 86400 * 7), // Expire after 7 days
       ]);
     } catch (error) {
-      this.logger.error(`Failed to store health status for ${health.queueName}: ${error.message}`);
+      this.logger.error(
+        `Failed to store health status for ${health.queueName}: ${error.message}`,
+      );
     }
   }
 
   /**
    * Store scaling suggestion in Redis
    */
-  private async storeScalingSuggestion(suggestion: ScalingRecommendation): Promise<void> {
+  private async storeScalingSuggestion(
+    suggestion: ScalingRecommendation,
+  ): Promise<void> {
     try {
       await this.redisService.client.hSet(
         this.SCALING_SUGGESTIONS_KEY,
         suggestion.queueName,
-        JSON.stringify(suggestion)
+        JSON.stringify(suggestion),
       );
     } catch (error) {
-      this.logger.error(`Failed to store scaling suggestion for ${suggestion.queueName}: ${error.message}`);
+      this.logger.error(
+        `Failed to store scaling suggestion for ${suggestion.queueName}: ${error.message}`,
+      );
     }
   }
 
   /**
    * Get health history for a queue
    */
-  async getHealthHistory(queueName: string, hoursBack: number = 24): Promise<HealthStatus[]> {
+  async getHealthHistory(
+    queueName: string,
+    hoursBack: number = 24,
+  ): Promise<HealthStatus[]> {
     const historyKey = `${this.HEALTH_HISTORY_KEY}:${queueName}`;
-    const cutoffTime = Date.now() - (hoursBack * 60 * 60 * 1000);
-    
+    const cutoffTime = Date.now() - hoursBack * 60 * 60 * 1000;
+
     try {
       const entries = await this.redisService.client.zRangeByScore(
         historyKey,
         cutoffTime,
-        Date.now()
+        Date.now(),
       );
 
-      return entries.map(entry => JSON.parse(entry) as HealthStatus);
+      return entries.map((entry) => JSON.parse(entry) as HealthStatus);
     } catch (error) {
-      this.logger.error(`Failed to get health history for ${queueName}: ${error.message}`);
+      this.logger.error(
+        `Failed to get health history for ${queueName}: ${error.message}`,
+      );
       return [];
     }
   }
@@ -543,30 +590,36 @@ export class QueueHealthService implements OnModuleInit {
     criticalIssues: string[];
   }> {
     const allHealth = await this.getAllQueueHealth();
-    
-    const averageScore = allHealth.reduce((sum, h) => sum + h.score, 0) / allHealth.length;
-    
+
+    const averageScore =
+      allHealth.reduce((sum, h) => sum + h.score, 0) / allHealth.length;
+
     let overallStatus: 'healthy' | 'warning' | 'critical' = 'healthy';
     if (averageScore < 30) overallStatus = 'critical';
     else if (averageScore < 70) overallStatus = 'warning';
 
-    const queues = allHealth.map(h => ({
+    const queues = allHealth.map((h) => ({
       name: h.queueName,
       status: h.status,
-      score: h.score
+      score: h.score,
     }));
 
-    const criticalIssues = allHealth.flatMap(h => 
-      h.status === 'critical' 
-        ? [`${h.queueName}: ${h.checks.filter(c => c.status === 'fail').map(c => c.message).join(', ')}`]
-        : []
+    const criticalIssues = allHealth.flatMap((h) =>
+      h.status === 'critical'
+        ? [
+            `${h.queueName}: ${h.checks
+              .filter((c) => c.status === 'fail')
+              .map((c) => c.message)
+              .join(', ')}`,
+          ]
+        : [],
     );
 
     return {
       overallStatus,
       averageScore: parseFloat(averageScore.toFixed(2)),
       queues,
-      criticalIssues
+      criticalIssues,
     };
   }
 

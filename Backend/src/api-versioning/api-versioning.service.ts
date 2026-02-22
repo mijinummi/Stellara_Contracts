@@ -27,7 +27,10 @@ export class ApiVersioningService {
 
   private loadConfig(): VersionConfig {
     return {
-      defaultVersion: this.configService.get<string>('API_DEFAULT_VERSION', 'v1'),
+      defaultVersion: this.configService.get<string>(
+        'API_DEFAULT_VERSION',
+        'v1',
+      ),
       supportedVersions: [
         {
           major: 1,
@@ -57,7 +60,7 @@ export class ApiVersioningService {
     if (!match) return null;
 
     const [, major, minor = '0', patch = '0'] = match;
-    
+
     const version: ApiVersion = {
       major: parseInt(major, 10),
       minor: parseInt(minor, 10),
@@ -67,7 +70,10 @@ export class ApiVersioningService {
 
     // Find the actual version configuration
     const configVersion = this.config.supportedVersions.find(
-      v => v.major === version.major && v.minor === version.minor && v.patch === version.patch
+      (v) =>
+        v.major === version.major &&
+        v.minor === version.minor &&
+        v.patch === version.patch,
     );
 
     return configVersion ? { ...version, ...configVersion } : null;
@@ -82,11 +88,15 @@ export class ApiVersioningService {
     if (pathVersion) return pathVersion;
 
     // 2. Check Accept header: application/vnd.stellara.v2+json
-    const acceptVersion = this.extractVersionFromAcceptHeader(request.headers['accept']);
+    const acceptVersion = this.extractVersionFromAcceptHeader(
+      request.headers['accept'],
+    );
     if (acceptVersion) return acceptVersion;
 
     // 3. Check custom header: API-Version: 2
-    const headerVersion = this.extractVersionFromHeader(request.headers['api-version']);
+    const headerVersion = this.extractVersionFromHeader(
+      request.headers['api-version'],
+    );
     if (headerVersion) return headerVersion;
 
     // 4. Check query parameter: ?version=2
@@ -105,10 +115,14 @@ export class ApiVersioningService {
     return null;
   }
 
-  private extractVersionFromAcceptHeader(acceptHeader: string): ApiVersion | null {
+  private extractVersionFromAcceptHeader(
+    acceptHeader: string,
+  ): ApiVersion | null {
     if (!acceptHeader) return null;
-    
-    const versionMatch = acceptHeader.match(/application\/vnd\.stellara\.([v\d.]+)\+json/);
+
+    const versionMatch = acceptHeader.match(
+      /application\/vnd\.stellara\.([v\d.]+)\+json/,
+    );
     if (versionMatch) {
       return this.parseVersion(versionMatch[1]);
     }
@@ -130,9 +144,10 @@ export class ApiVersioningService {
    */
   isVersionSupported(version: ApiVersion): boolean {
     return this.config.supportedVersions.some(
-      v => v.major === version.major && 
-           v.minor === version.minor && 
-           v.patch === version.patch
+      (v) =>
+        v.major === version.major &&
+        v.minor === version.minor &&
+        v.patch === version.patch,
     );
   }
 
@@ -141,7 +156,10 @@ export class ApiVersioningService {
    */
   isVersionDeprecated(version: ApiVersion): boolean {
     const configVersion = this.config.supportedVersions.find(
-      v => v.major === version.major && v.minor === version.minor && v.patch === version.patch
+      (v) =>
+        v.major === version.major &&
+        v.minor === version.minor &&
+        v.patch === version.patch,
     );
     return configVersion?.status === 'deprecated';
   }
@@ -164,13 +182,21 @@ export class ApiVersioningService {
    * Get latest stable version
    */
   getLatestStableVersion(): ApiVersion | null {
-    const stableVersions = this.config.supportedVersions.filter(v => v.status === 'stable');
+    const stableVersions = this.config.supportedVersions.filter(
+      (v) => v.status === 'stable',
+    );
     if (stableVersions.length === 0) return null;
-    
+
     return stableVersions.reduce((latest, current) => {
       if (current.major > latest.major) return current;
-      if (current.major === latest.major && current.minor > latest.minor) return current;
-      if (current.major === latest.major && current.minor === latest.minor && current.patch > latest.patch) return current;
+      if (current.major === latest.major && current.minor > latest.minor)
+        return current;
+      if (
+        current.major === latest.major &&
+        current.minor === latest.minor &&
+        current.patch > latest.patch
+      )
+        return current;
       return latest;
     });
   }
@@ -186,7 +212,10 @@ export class ApiVersioningService {
     if (this.isVersionDeprecated(version)) {
       headers['API-Deprecated'] = 'true';
       const configVersion = this.config.supportedVersions.find(
-        v => v.major === version.major && v.minor === version.minor && v.patch === version.patch
+        (v) =>
+          v.major === version.major &&
+          v.minor === version.minor &&
+          v.patch === version.patch,
       );
       if (configVersion?.sunsetDate) {
         headers['API-Sunset'] = configVersion.sunsetDate.toUTCString();

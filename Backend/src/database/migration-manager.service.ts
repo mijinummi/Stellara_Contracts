@@ -67,9 +67,7 @@ export class MigrationManagerService {
         }
       }
 
-      this.logger.log(
-        `Running migration ${migration.name}...`,
-      );
+      this.logger.log(`Running migration ${migration.name}...`);
 
       const context = await this.executor.executeMigration(
         queryRunner,

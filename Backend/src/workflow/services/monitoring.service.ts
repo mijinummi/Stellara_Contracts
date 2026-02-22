@@ -29,7 +29,7 @@ export class MonitoringService {
     retryRate: number;
   }> {
     const since = new Date(Date.now() - timeRangeHours * 60 * 60 * 1000);
-    
+
     const workflows = await this.workflowRepository.find({
       where: {
         createdAt: Between(since, new Date()),
@@ -37,7 +37,7 @@ export class MonitoringService {
     });
 
     const totalWorkflows = workflows.length;
-    
+
     // Count workflows by state
     const workflowsByState = {
       [WorkflowState.PENDING]: 0,
@@ -54,25 +54,33 @@ export class MonitoringService {
     let failedCount = 0;
     let retryCount = 0;
 
-    workflows.forEach(workflow => {
+    workflows.forEach((workflow) => {
       workflowsByState[workflow.state]++;
-      
-      if (workflow.state === WorkflowState.COMPLETED && workflow.startedAt && workflow.completedAt) {
-        totalDuration += workflow.completedAt.getTime() - workflow.startedAt.getTime();
+
+      if (
+        workflow.state === WorkflowState.COMPLETED &&
+        workflow.startedAt &&
+        workflow.completedAt
+      ) {
+        totalDuration +=
+          workflow.completedAt.getTime() - workflow.startedAt.getTime();
         completedCount++;
       }
-      
+
       if (workflow.state === WorkflowState.FAILED) {
         failedCount++;
       }
-      
+
       retryCount += workflow.retryCount;
     });
 
-    const averageDuration = completedCount > 0 ? totalDuration / completedCount : 0;
-    const successRate = totalWorkflows > 0 ? (completedCount / totalWorkflows) * 100 : 0;
-    const failureRate = totalWorkflows > 0 ? (failedCount / totalWorkflows) * 100 : 0;
-    const retryRate = totalWorkflows > 0 ? (retryCount / totalWorkflows) : 0;
+    const averageDuration =
+      completedCount > 0 ? totalDuration / completedCount : 0;
+    const successRate =
+      totalWorkflows > 0 ? (completedCount / totalWorkflows) * 100 : 0;
+    const failureRate =
+      totalWorkflows > 0 ? (failedCount / totalWorkflows) * 100 : 0;
+    const retryRate = totalWorkflows > 0 ? retryCount / totalWorkflows : 0;
 
     return {
       totalWorkflows,
@@ -96,7 +104,7 @@ export class MonitoringService {
     mostFailedSteps: Array<{ stepName: string; failureCount: number }>;
   }> {
     const since = new Date(Date.now() - timeRangeHours * 60 * 60 * 1000);
-    
+
     const steps = await this.stepRepository.find({
       where: {
         createdAt: Between(since, new Date()),
@@ -105,7 +113,7 @@ export class MonitoringService {
     });
 
     const totalSteps = steps.length;
-    
+
     const stepsByState = {
       [StepState.PENDING]: 0,
       [StepState.RUNNING]: 0,
@@ -121,17 +129,23 @@ export class MonitoringService {
     let failedSteps = 0;
     const stepFailureCounts: Record<string, number> = {};
 
-    steps.forEach(step => {
+    steps.forEach((step) => {
       stepsByState[step.state]++;
-      
-      if (step.state === StepState.COMPLETED && step.startedAt && step.completedAt) {
-        totalStepDuration += step.completedAt.getTime() - step.startedAt.getTime();
+
+      if (
+        step.state === StepState.COMPLETED &&
+        step.startedAt &&
+        step.completedAt
+      ) {
+        totalStepDuration +=
+          step.completedAt.getTime() - step.startedAt.getTime();
         completedSteps++;
       }
-      
+
       if (step.state === StepState.FAILED) {
         failedSteps++;
-        stepFailureCounts[step.stepName] = (stepFailureCounts[step.stepName] || 0) + 1;
+        stepFailureCounts[step.stepName] =
+          (stepFailureCounts[step.stepName] || 0) + 1;
       }
     });
 
@@ -141,9 +155,12 @@ export class MonitoringService {
       .sort((a, b) => b.failureCount - a.failureCount)
       .slice(0, 5);
 
-    const averageStepDuration = completedSteps > 0 ? totalStepDuration / completedSteps : 0;
-    const stepSuccessRate = totalSteps > 0 ? (completedSteps / totalSteps) * 100 : 0;
-    const stepFailureRate = totalSteps > 0 ? (failedSteps / totalSteps) * 100 : 0;
+    const averageStepDuration =
+      completedSteps > 0 ? totalStepDuration / completedSteps : 0;
+    const stepSuccessRate =
+      totalSteps > 0 ? (completedSteps / totalSteps) * 100 : 0;
+    const stepFailureRate =
+      totalSteps > 0 ? (failedSteps / totalSteps) * 100 : 0;
 
     return {
       totalSteps,
@@ -158,12 +175,14 @@ export class MonitoringService {
   /**
    * Get workflow timeline for debugging
    */
-  async getWorkflowTimeline(workflowId: string): Promise<Array<{
-    timestamp: Date;
-    eventType: string;
-    description: string;
-    metadata?: any;
-  }>> {
+  async getWorkflowTimeline(workflowId: string): Promise<
+    Array<{
+      timestamp: Date;
+      eventType: string;
+      description: string;
+      metadata?: any;
+    }>
+  > {
     const workflow = await this.workflowRepository.findOne({
       where: { id: workflowId },
       relations: ['steps'],
@@ -202,7 +221,9 @@ export class MonitoringService {
     }
 
     // Step events
-    for (const step of workflow.steps.sort((a, b) => a.stepIndex - b.stepIndex)) {
+    for (const step of workflow.steps.sort(
+      (a, b) => a.stepIndex - b.stepIndex,
+    )) {
       if (step.startedAt) {
         timeline.push({
           timestamp: step.startedAt,
@@ -221,7 +242,9 @@ export class MonitoringService {
           eventType: 'STEP_COMPLETED',
           description: `Step '${step.stepName}' completed`,
           metadata: {
-            duration: step.completedAt.getTime() - (step.startedAt?.getTime() || step.completedAt.getTime()),
+            duration:
+              step.completedAt.getTime() -
+              (step.startedAt?.getTime() || step.completedAt.getTime()),
             outputKeys: step.output ? Object.keys(step.output) : [],
           },
         });
@@ -255,7 +278,8 @@ export class MonitoringService {
         eventType: 'WORKFLOW_COMPLETED',
         description: 'Workflow completed successfully',
         metadata: {
-          totalDuration: workflow.completedAt.getTime() - workflow.startedAt!.getTime(),
+          totalDuration:
+            workflow.completedAt.getTime() - workflow.startedAt.getTime(),
           totalSteps: workflow.totalSteps,
           retryCount: workflow.retryCount,
         },
@@ -284,7 +308,9 @@ export class MonitoringService {
     }
 
     // Sort timeline by timestamp
-    return timeline.sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
+    return timeline.sort(
+      (a, b) => a.timestamp.getTime() - b.timestamp.getTime(),
+    );
   }
 
   /**
@@ -299,7 +325,7 @@ export class MonitoringService {
     averageResponseTime: number;
   }> {
     let databaseConnection = true;
-    
+
     try {
       await this.workflowRepository.query('SELECT 1');
     } catch (error) {
@@ -316,12 +342,12 @@ export class MonitoringService {
     });
 
     const recentFailures = await this.workflowRepository.count({
-      where: { 
+      where: {
         state: WorkflowState.FAILED,
         failedAt: Between(
           new Date(Date.now() - 60 * 60 * 1000), // Last hour
-          new Date()
-        )
+          new Date(),
+        ),
       },
     });
 
@@ -329,10 +355,7 @@ export class MonitoringService {
     const recentCompleted = await this.workflowRepository.find({
       where: {
         state: WorkflowState.COMPLETED,
-        completedAt: Between(
-          new Date(Date.now() - 60 * 60 * 1000),
-          new Date()
-        )
+        completedAt: Between(new Date(Date.now() - 60 * 60 * 1000), new Date()),
       },
     });
 
@@ -340,7 +363,10 @@ export class MonitoringService {
     if (recentCompleted.length > 0) {
       const totalDuration = recentCompleted.reduce((sum, workflow) => {
         if (workflow.startedAt && workflow.completedAt) {
-          return sum + (workflow.completedAt.getTime() - workflow.startedAt.getTime());
+          return (
+            sum +
+            (workflow.completedAt.getTime() - workflow.startedAt.getTime())
+          );
         }
         return sum;
       }, 0);
@@ -349,7 +375,7 @@ export class MonitoringService {
 
     // Determine system health
     let workflowEngineStatus: 'healthy' | 'degraded' | 'unhealthy' = 'healthy';
-    
+
     if (!databaseConnection) {
       workflowEngineStatus = 'unhealthy';
     } else if (recentFailures > 10 || runningWorkflows > 1000) {
@@ -369,11 +395,11 @@ export class MonitoringService {
   /**
    * Get workflow type distribution
    */
-  async getWorkflowTypeDistribution(timeRangeHours: number = 24): Promise<
-    Array<{ type: string; count: number; successRate: number }>
-  > {
+  async getWorkflowTypeDistribution(
+    timeRangeHours: number = 24,
+  ): Promise<Array<{ type: string; count: number; successRate: number }>> {
     const since = new Date(Date.now() - timeRangeHours * 60 * 60 * 1000);
-    
+
     const workflows = await this.workflowRepository.find({
       where: {
         createdAt: Between(since, new Date()),
@@ -382,11 +408,11 @@ export class MonitoringService {
 
     const typeStats: Record<string, { total: number; completed: number }> = {};
 
-    workflows.forEach(workflow => {
+    workflows.forEach((workflow) => {
       if (!typeStats[workflow.type]) {
         typeStats[workflow.type] = { total: 0, completed: 0 };
       }
-      
+
       typeStats[workflow.type].total++;
       if (workflow.state === WorkflowState.COMPLETED) {
         typeStats[workflow.type].completed++;

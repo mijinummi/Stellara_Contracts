@@ -9,16 +9,16 @@ export class SystemHealthIndicator {
   async isHealthy(): Promise<HealthIndicatorResult> {
     try {
       const details = this.getSystemMetrics();
-      
+
       let status: 'up' | 'degraded' = 'up';
       let message = 'System is healthy';
-      
+
       // Check for potential issues
       if (details.cpu.usage > 90) {
         status = 'degraded';
         message = `CPU usage is high: ${details.cpu.usage.toFixed(2)}%`;
       }
-      
+
       if (details.memory.percentage > 90) {
         status = 'degraded';
         message = `Memory usage is high: ${details.memory.percentage.toFixed(2)}%`;
@@ -33,7 +33,7 @@ export class SystemHealthIndicator {
       };
     } catch (error) {
       this.logger.error('System health check failed', error);
-      
+
       return {
         name: 'system',
         status: 'down',
@@ -47,15 +47,15 @@ export class SystemHealthIndicator {
     // CPU information
     const cpus = os.cpus();
     const cpuUsage = this.getCpuUsage();
-    
+
     // Memory information
     const totalMemory = os.totalmem();
     const freeMemory = os.freemem();
     const usedMemory = totalMemory - freeMemory;
-    
+
     // Process information
     const processMemory = process.memoryUsage();
-    
+
     return {
       cpu: {
         usage: cpuUsage,
@@ -83,14 +83,14 @@ export class SystemHealthIndicator {
       const cpus = os.cpus();
       let totalIdle = 0;
       let totalTick = 0;
-      
+
       for (const cpu of cpus) {
         for (const type in cpu.times) {
           totalTick += cpu.times[type];
         }
         totalIdle += cpu.times.idle;
       }
-      
+
       return 100 - Math.round((100 * totalIdle) / totalTick);
     } catch (error) {
       this.logger.warn('Could not get CPU usage', error);

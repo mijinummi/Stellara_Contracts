@@ -1,10 +1,17 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User } from '../entities/user.entity';
 import { Role } from '../roles.enum';
 import { RoleHierarchy } from '../entities/role-hierarchy.entity';
-import { PermissionAudit, PermissionAction } from '../entities/permission-audit.entity';
+import {
+  PermissionAudit,
+  PermissionAction,
+} from '../entities/permission-audit.entity';
 import { Permission } from '../entities/permission.entity';
 import { UserPermission } from '../entities/user-permission.entity';
 
@@ -23,7 +30,11 @@ export class RoleManagerService {
     private readonly userPermissionRepository: Repository<UserPermission>,
   ) {}
 
-  async assignRole(userId: string, newRole: Role, assignedBy: string): Promise<User> {
+  async assignRole(
+    userId: string,
+    newRole: Role,
+    assignedBy: string,
+  ): Promise<User> {
     const user = await this.userRepository.findOne({ where: { id: userId } });
     if (!user) {
       throw new NotFoundException('User not found');
@@ -57,23 +68,31 @@ export class RoleManagerService {
 
     // Get permissions from role
     const rolePermissions = this.getRolePermissions(user.role);
-    
+
     // Get user-specific permissions
     const userPermissions = user.userPermissions
-      .filter(up => up.isActive && (!up.expiresAt || up.expiresAt > new Date()))
-      .map(up => up.permission.name);
+      .filter(
+        (up) => up.isActive && (!up.expiresAt || up.expiresAt > new Date()),
+      )
+      .map((up) => up.permission.name);
 
     // Combine and deduplicate
     return [...new Set([...rolePermissions, ...userPermissions])];
   }
 
-  async grantUserPermission(userId: string, permissionName: string, grantedBy: string): Promise<UserPermission> {
+  async grantUserPermission(
+    userId: string,
+    permissionName: string,
+    grantedBy: string,
+  ): Promise<UserPermission> {
     const user = await this.userRepository.findOne({ where: { id: userId } });
     if (!user) {
       throw new NotFoundException('User not found');
     }
 
-    const permission = await this.permissionRepository.findOne({ where: { name: permissionName } });
+    const permission = await this.permissionRepository.findOne({
+      where: { name: permissionName },
+    });
     if (!permission) {
       throw new NotFoundException('Permission not found');
     }
@@ -108,13 +127,19 @@ export class RoleManagerService {
     return result;
   }
 
-  async revokeUserPermission(userId: string, permissionName: string, revokedBy: string): Promise<void> {
+  async revokeUserPermission(
+    userId: string,
+    permissionName: string,
+    revokedBy: string,
+  ): Promise<void> {
     const user = await this.userRepository.findOne({ where: { id: userId } });
     if (!user) {
       throw new NotFoundException('User not found');
     }
 
-    const permission = await this.permissionRepository.findOne({ where: { name: permissionName } });
+    const permission = await this.permissionRepository.findOne({
+      where: { name: permissionName },
+    });
     if (!permission) {
       throw new NotFoundException('Permission not found');
     }
@@ -137,7 +162,10 @@ export class RoleManagerService {
     }
   }
 
-  async createRoleHierarchy(childRole: Role, parentRole: Role): Promise<RoleHierarchy> {
+  async createRoleHierarchy(
+    childRole: Role,
+    parentRole: Role,
+  ): Promise<RoleHierarchy> {
     const existing = await this.roleHierarchyRepository.findOne({
       where: { childRole, parentRole },
     });
@@ -160,7 +188,7 @@ export class RoleManagerService {
       where: { childRole: role, isActive: true },
     });
 
-    const parentRoles = hierarchies.map(h => h.parentRole);
+    const parentRoles = hierarchies.map((h) => h.parentRole);
     return [role, ...parentRoles];
   }
 
@@ -178,7 +206,12 @@ export class RoleManagerService {
     const rolePermissionsMap = {
       [Role.USER]: [],
       [Role.MODERATOR]: ['moderate_content'],
-      [Role.ADMIN]: ['moderate_content', 'view_audit_logs', 'requeue_jobs', 'register_webhooks'],
+      [Role.ADMIN]: [
+        'moderate_content',
+        'view_audit_logs',
+        'requeue_jobs',
+        'register_webhooks',
+      ],
       [Role.TENANT_ADMIN]: ['manage_tenant'],
       [Role.SUPERADMIN]: ['*'], // All permissions
     };
@@ -198,7 +231,10 @@ export class RoleManagerService {
     await this.permissionAuditRepository.save(audit);
   }
 
-  async hasPermission(userId: string, permissionName: string): Promise<boolean> {
+  async hasPermission(
+    userId: string,
+    permissionName: string,
+  ): Promise<boolean> {
     const permissions = await this.getUserPermissions(userId);
     return permissions.includes(permissionName) || permissions.includes('*');
   }

@@ -1,5 +1,13 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsString, IsOptional, IsArray, IsEnum, IsInt, Min, Max } from 'class-validator';
+import {
+  IsString,
+  IsOptional,
+  IsArray,
+  IsEnum,
+  IsInt,
+  Min,
+  Max,
+} from 'class-validator';
 
 export enum NewsCategory {
   MARKET = 'market',
@@ -51,12 +59,19 @@ export class NewsArticleDto {
 }
 
 export class GetNewsQueryDto {
-  @ApiPropertyOptional({ description: 'News category filter', enum: NewsCategory })
+  @ApiPropertyOptional({
+    description: 'News category filter',
+    enum: NewsCategory,
+  })
   @IsOptional()
   @IsEnum(NewsCategory)
   category?: NewsCategory;
 
-  @ApiPropertyOptional({ description: 'Number of articles to return', minimum: 1, maximum: 100 })
+  @ApiPropertyOptional({
+    description: 'Number of articles to return',
+    minimum: 1,
+    maximum: 100,
+  })
   @IsOptional()
   @IsInt()
   @Min(1)

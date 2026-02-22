@@ -1,6 +1,6 @@
 /**
  * Example Migration: AddIndexOptimization
- * 
+ *
  * This migration adds performance indexes to critical columns.
  * It demonstrates:
  * - Data integrity checks
@@ -31,7 +31,10 @@ export class AddIndexOptimization1769140849388 implements EnhancedMigration {
     MigrationValidator.commonRules.columnExists('workflows', 'state'),
     MigrationValidator.commonRules.columnExists('workflows', 'createdAt'),
     MigrationValidator.commonRules.tableExists('stellar_events'),
-    MigrationValidator.commonRules.columnExists('stellar_events', 'ledgerSequence'),
+    MigrationValidator.commonRules.columnExists(
+      'stellar_events',
+      'ledgerSequence',
+    ),
   ];
 
   postValidationRules = [
@@ -81,7 +84,10 @@ export class AddIndexOptimization1769140849388 implements EnhancedMigration {
         await queryRunner.query(index.query);
         context.executedQueries.push(index.name);
       } catch (error) {
-        if (error instanceof Error && error.message.includes('already exists')) {
+        if (
+          error instanceof Error &&
+          error.message.includes('already exists')
+        ) {
           // Index already exists, continue
           context.executedQueries.push(`${index.name} (already exists)`);
         } else {
@@ -98,7 +104,10 @@ export class AddIndexOptimization1769140849388 implements EnhancedMigration {
     }
   }
 
-  async down(queryRunner: QueryRunner, context: MigrationContext): Promise<void> {
+  async down(
+    queryRunner: QueryRunner,
+    context: MigrationContext,
+  ): Promise<void> {
     const indexesToDrop = [
       'idx_workflows_state_created',
       'idx_workflows_type_state',

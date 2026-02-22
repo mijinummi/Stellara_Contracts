@@ -23,7 +23,12 @@ describe('TenantService', () => {
           synchronize: true,
           dropSchema: true,
         }),
-        TypeOrmModule.forFeature([Tenant, TenantConfig, TenantUsage, TenantInvitation]),
+        TypeOrmModule.forFeature([
+          Tenant,
+          TenantConfig,
+          TenantUsage,
+          TenantInvitation,
+        ]),
         TenantModule,
         AuditModule,
       ],
@@ -45,7 +50,7 @@ describe('TenantService', () => {
       };
 
       const tenant = await tenantService.create(tenantData);
-      
+
       expect(tenant).toBeDefined();
       expect(tenant.name).toBe(tenantData.name);
       expect(tenant.slug).toBe(tenantData.slug);
@@ -61,7 +66,7 @@ describe('TenantService', () => {
       };
 
       const tenant = await tenantService.create(tenantData);
-      
+
       expect(tenant).toBeDefined();
       expect(tenant.slug).toBeDefined();
       expect(tenant.slug).toContain('test-organization');
@@ -93,7 +98,10 @@ describe('TenantService', () => {
     });
 
     it('should suspend a tenant', async () => {
-      const suspendedTenant = await tenantService.suspend(testTenantId, 'Testing suspension');
+      const suspendedTenant = await tenantService.suspend(
+        testTenantId,
+        'Testing suspension',
+      );
       expect(suspendedTenant.status).toBe('suspended');
       expect(suspendedTenant.suspendedAt).toBeDefined();
     });

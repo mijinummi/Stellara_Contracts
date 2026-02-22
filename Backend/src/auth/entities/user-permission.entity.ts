@@ -1,4 +1,11 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, CreateDateColumn, UpdateDateColumn } from 'typeorm';
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  ManyToOne,
+  CreateDateColumn,
+  UpdateDateColumn,
+} from 'typeorm';
 import { User } from './user.entity';
 import { Permission } from './permission.entity';
 
@@ -7,7 +14,9 @@ export class UserPermission {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @ManyToOne(() => User, (user) => user.userPermissions, { onDelete: 'CASCADE' })
+  @ManyToOne(() => User, (user) => user.userPermissions, {
+    onDelete: 'CASCADE',
+  })
   user: User;
 
   @ManyToOne(() => Permission, { onDelete: 'CASCADE' })

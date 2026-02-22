@@ -128,14 +128,15 @@ export class RoleBasedRateLimitService {
 
     if (!tier) {
       this.logger.warn(`No rate limit tier found for role: ${role}`);
-      return this.rateLimitTiers[
-        this.rateLimitTiers.length - 1
-      ].limits[EndpointCategory.PUBLIC];
+      return this.rateLimitTiers[this.rateLimitTiers.length - 1].limits[
+        EndpointCategory.PUBLIC
+      ];
     }
 
     // Get limit for category
     const categoryKey = this.normalizeCategory(category);
-    const limit = tier.limits[categoryKey] || tier.limits[EndpointCategory.PUBLIC];
+    const limit =
+      tier.limits[categoryKey] || tier.limits[EndpointCategory.PUBLIC];
 
     return limit;
   }
@@ -143,7 +144,9 @@ export class RoleBasedRateLimitService {
   /**
    * Get all rate limits for a specific role
    */
-  getAllLimitsForRole(role: UserRole | string): Record<EndpointCategory, RateLimitConfig> {
+  getAllLimitsForRole(
+    role: UserRole | string,
+  ): Record<EndpointCategory, RateLimitConfig> {
     const normalizedRole = this.normalizeRole(role);
     const tier = this.rateLimitTiers.find((t) =>
       t.roles.includes(normalizedRole),
@@ -237,18 +240,18 @@ export class RoleBasedRateLimitService {
    */
   private normalizeRole(role: string | UserRole): UserRole {
     const roleStr = String(role).toLowerCase();
-    return (Object.values(UserRole).find(
-      (r) => r === roleStr,
-    ) || UserRole.ANONYMOUS) as UserRole;
+    return (Object.values(UserRole).find((r) => r === roleStr) ||
+      UserRole.ANONYMOUS) as UserRole;
   }
 
   /**
    * Normalize category to enum
    */
-  private normalizeCategory(category: string | EndpointCategory): EndpointCategory {
+  private normalizeCategory(
+    category: string | EndpointCategory,
+  ): EndpointCategory {
     const categoryStr = String(category).toLowerCase().replace(/-/g, '_');
-    return (Object.values(EndpointCategory).find(
-      (c) => c === categoryStr,
-    ) || EndpointCategory.PUBLIC) as EndpointCategory;
+    return (Object.values(EndpointCategory).find((c) => c === categoryStr) ||
+      EndpointCategory.PUBLIC) as EndpointCategory;
   }
 }

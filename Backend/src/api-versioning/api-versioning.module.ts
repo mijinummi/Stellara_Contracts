@@ -9,18 +9,18 @@ import { ApiMigrationService } from './api-migration.service';
 
 @Module({
   providers: [
-    ApiVersioningService, 
-    VersionMiddleware, 
-    VersionGuard, 
+    ApiVersioningService,
+    VersionMiddleware,
+    VersionGuard,
     VersionInterceptor,
     VersionRoutingService,
     ApiDeprecationService,
     ApiMigrationService,
   ],
   exports: [
-    ApiVersioningService, 
-    VersionMiddleware, 
-    VersionGuard, 
+    ApiVersioningService,
+    VersionMiddleware,
+    VersionGuard,
     VersionInterceptor,
     VersionRoutingService,
     ApiDeprecationService,

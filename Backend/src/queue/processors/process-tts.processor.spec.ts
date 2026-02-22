@@ -45,27 +45,31 @@ describe('ProcessTtsProcessor', () => {
     });
 
     it('should throw error if text missing', async () => {
-      mockJob.data = { 
-        text: '', 
+      mockJob.data = {
+        text: '',
         voiceId: 'voice-001',
         language: 'en',
         speed: 1.0,
-        sessionId: 'session-123'
+        sessionId: 'session-123',
       };
 
-      await expect(processor.handleProcessTts(mockJob as any)).rejects.toThrow();
+      await expect(
+        processor.handleProcessTts(mockJob as any),
+      ).rejects.toThrow();
     });
 
     it('should throw error if voiceId missing', async () => {
-      mockJob.data = { 
-        text: 'Hello', 
+      mockJob.data = {
+        text: 'Hello',
         voiceId: '',
         language: 'en',
         speed: 1.0,
-        sessionId: 'session-123'
+        sessionId: 'session-123',
       };
 
-      await expect(processor.handleProcessTts(mockJob as any)).rejects.toThrow();
+      await expect(
+        processor.handleProcessTts(mockJob as any),
+      ).rejects.toThrow();
     });
 
     it('should throw error if text exceeds limit', async () => {
@@ -74,7 +78,7 @@ describe('ProcessTtsProcessor', () => {
         voiceId: 'voice-001',
         language: 'en',
         speed: 1.0,
-        sessionId: 'session-123'
+        sessionId: 'session-123',
       };
 
       await expect(processor.handleProcessTts(mockJob as any)).rejects.toThrow(

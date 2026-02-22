@@ -26,29 +26,30 @@ export interface ApiVersionOptions {
 
 /**
  * Decorator to specify API version for controllers and endpoints
- * 
+ *
  * @example
  * ```typescript
  * @ApiVersion('v1')
  * @Controller('auth')
  * export class AuthController {}
- * 
+ *
  * @ApiVersion(['v1', 'v2'])
  * @Get('profile')
  * getProfile() {}
  * ```
  */
 export const ApiVersion = (options: string | string[] | ApiVersionOptions) => {
-  const versionOptions: ApiVersionOptions = typeof options === 'string' || Array.isArray(options) 
-    ? { version: options } 
-    : options;
+  const versionOptions: ApiVersionOptions =
+    typeof options === 'string' || Array.isArray(options)
+      ? { version: options }
+      : options;
 
   return SetMetadata('api-version', versionOptions);
 };
 
 /**
  * Decorator for deprecated API versions
- * 
+ *
  * @example
  * ```typescript
  * @ApiVersionDeprecated('v1', {
@@ -61,7 +62,7 @@ export const ApiVersion = (options: string | string[] | ApiVersionOptions) => {
  */
 export const ApiVersionDeprecated = (
   version: string | string[],
-  options: Omit<ApiVersionOptions, 'version' | 'deprecated'> = {}
+  options: Omit<ApiVersionOptions, 'version' | 'deprecated'> = {},
 ) => {
   return ApiVersion({
     version,

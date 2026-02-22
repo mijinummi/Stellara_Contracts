@@ -34,9 +34,7 @@ export class RateLimitMetricsCollector {
   private violationDurationHistogram: Histogram;
   private requestsPerIdentifierGauge: Gauge;
 
-  constructor(
-    private readonly rateLimitService: DistributedRateLimitService,
-  ) {
+  constructor(private readonly rateLimitService: DistributedRateLimitService) {
     this.initializeMetrics();
   }
 
@@ -166,12 +164,14 @@ export class RateLimitMetricsCollector {
       violatedRequests: stats.totalViolations,
       bannedIdentifiers: stats.bannedIdentifiers,
       activeKeys: stats.totalActiveKeys,
-      violationRate: stats.totalActiveKeys > 0
-        ? (stats.totalViolations / stats.totalActiveKeys) * 100
-        : 0,
-      avgViolationsPerKey: stats.totalActiveKeys > 0
-        ? stats.totalViolations / stats.totalActiveKeys
-        : 0,
+      violationRate:
+        stats.totalActiveKeys > 0
+          ? (stats.totalViolations / stats.totalActiveKeys) * 100
+          : 0,
+      avgViolationsPerKey:
+        stats.totalActiveKeys > 0
+          ? stats.totalViolations / stats.totalActiveKeys
+          : 0,
     };
   }
 

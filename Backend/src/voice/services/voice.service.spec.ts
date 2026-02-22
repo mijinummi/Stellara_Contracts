@@ -47,7 +47,9 @@ describe('VoiceService', () => {
       const jobId = await service.processSTT(mockFile);
 
       expect(jobId).toBe('job-123');
-      expect(mockQueue.add).toHaveBeenCalledWith('process-stt', { jobId: 'job-123' });
+      expect(mockQueue.add).toHaveBeenCalledWith('process-stt', {
+        jobId: 'job-123',
+      });
     });
 
     it('should return existing job if duplicate detected', async () => {

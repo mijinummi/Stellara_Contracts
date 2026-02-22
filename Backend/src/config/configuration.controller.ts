@@ -42,7 +42,10 @@ export class ConfigurationController {
   @Get()
   @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Get all configuration values' })
-  @ApiResponse({ status: 200, description: 'Configuration retrieved successfully' })
+  @ApiResponse({
+    status: 200,
+    description: 'Configuration retrieved successfully',
+  })
   @ApiResponse({ status: 403, description: 'Forbidden - requires admin role' })
   getAllConfig(): ConfigResponseDto {
     const config = this.configService.getAllConfig();
@@ -96,7 +99,10 @@ export class ConfigurationController {
   @Roles(Role.ADMIN)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Update configuration value' })
-  @ApiResponse({ status: 200, description: 'Configuration updated successfully' })
+  @ApiResponse({
+    status: 200,
+    description: 'Configuration updated successfully',
+  })
   @ApiResponse({ status: 400, description: 'Invalid configuration value' })
   async updateConfig(
     @Param('key') key: string,
@@ -129,14 +135,20 @@ export class ConfigurationController {
   @Roles(Role.ADMIN)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Update multiple configuration values' })
-  @ApiResponse({ status: 200, description: 'Configuration updated successfully' })
+  @ApiResponse({
+    status: 200,
+    description: 'Configuration updated successfully',
+  })
   async updateBatchConfig(
     @Body() batchDto: BatchUpdateConfigDto,
   ): Promise<ConfigResponseDto> {
     this.logger.log(`Batch configuration update requested`);
 
-    const results = await this.configService.updateBatch(batchDto.updates, 'api');
-    const failed = results.filter(r => !r.valid);
+    const results = await this.configService.updateBatch(
+      batchDto.updates,
+      'api',
+    );
+    const failed = results.filter((r) => !r.valid);
 
     if (failed.length > 0) {
       return {
@@ -182,7 +194,10 @@ export class ConfigurationController {
   @ApiResponse({ status: 200, description: 'Profiles retrieved' })
   getAvailableProfiles(): ConfigResponseDto {
     const profiles = [
-      { name: 'development', description: 'Development environment with debug features' },
+      {
+        name: 'development',
+        description: 'Development environment with debug features',
+      },
       { name: 'staging', description: 'Staging environment for testing' },
       { name: 'production', description: 'Production environment' },
       { name: 'test', description: 'Test environment' },
@@ -204,14 +219,16 @@ export class ConfigurationController {
   @ApiOperation({ summary: 'Reset configuration to defaults' })
   @ApiResponse({ status: 200, description: 'Configuration reset successfully' })
   async resetConfig(@Body('key') key?: string): Promise<ConfigResponseDto> {
-    this.logger.log(`Configuration reset requested${key ? ` for key: ${key}` : ' (all)'}`);
+    this.logger.log(
+      `Configuration reset requested${key ? ` for key: ${key}` : ' (all)'}`,
+    );
 
     await this.configService.reset(key);
 
     return {
       success: true,
-      message: key 
-        ? `Configuration '${key}' reset to default` 
+      message: key
+        ? `Configuration '${key}' reset to default`
         : 'All configuration reset to defaults',
       timestamp: new Date().toISOString(),
     };

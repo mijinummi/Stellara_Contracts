@@ -169,7 +169,8 @@ export class ConfigurationValidator {
   validate<T>(key: string, value: T): ValidationResult<T> {
     // Get the base key (e.g., 'app.port' -> 'app')
     const baseKey = key.split('.')[0];
-    const rule = this.validationRules.get(key) || this.validationRules.get(baseKey);
+    const rule =
+      this.validationRules.get(key) || this.validationRules.get(baseKey);
 
     if (!rule) {
       // No validation rule found, accept the value
@@ -234,7 +235,9 @@ export class ConfigurationValidator {
     if (rule.custom && !rule.custom(value)) {
       return {
         valid: false,
-        error: rule.customMessage || `Configuration '${key}' failed custom validation`,
+        error:
+          rule.customMessage ||
+          `Configuration '${key}' failed custom validation`,
       };
     }
 
@@ -244,7 +247,11 @@ export class ConfigurationValidator {
   /**
    * Validate value type
    */
-  private validateType<T>(key: string, value: T, expectedType: string): ValidationResult<T> {
+  private validateType<T>(
+    key: string,
+    value: T,
+    expectedType: string,
+  ): ValidationResult<T> {
     const actualType = Array.isArray(value) ? 'array' : typeof value;
 
     if (actualType !== expectedType) {

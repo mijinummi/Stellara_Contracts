@@ -1,6 +1,7 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { CacheService } from './cache.service';
+import { RedisService } from '../redis/redis.service';
 // import { CacheConfigurationService } from './cache-configuration.service';
 
 export interface WarmupEntry {
@@ -37,6 +38,7 @@ export class CacheWarmingService implements OnModuleInit {
 
   constructor(
     private readonly cacheService: CacheService,
+    private readonly redisService: RedisService,
     // private readonly configService: CacheConfigurationService,
   ) {}
 
@@ -54,7 +56,9 @@ export class CacheWarmingService implements OnModuleInit {
   async registerWarmupGroup(group: WarmupGroup): Promise<void> {
     this.warmupGroups.set(group.name, group);
     await this.saveWarmupGroup(group);
-    this.logger.log(`Registered warmup group: ${group.name} (${group.entries.length} entries)`);
+    this.logger.log(
+      `Registered warmup group: ${group.name} (${group.entries.length} entries)`,
+    );
   }
 
   /**
@@ -79,7 +83,9 @@ export class CacheWarmingService implements OnModuleInit {
     if (group) {
       group.enabled = enabled;
       await this.saveWarmupGroup(group);
-      this.logger.log(`Warmup group ${name} ${enabled ? 'enabled' : 'disabled'}`);
+      this.logger.log(
+        `Warmup group ${name} ${enabled ? 'enabled' : 'disabled'}`,
+      );
     }
   }
 
@@ -88,9 +94,13 @@ export class CacheWarmingService implements OnModuleInit {
   /**
    * Execute warmup for specific group
    */
-  async warmupGroup(groupName: string): Promise<{ success: number; failed: number; duration: number }> {
+  async warmupGroup(
+    groupName: string,
+  ): Promise<{ success: number; failed: number; duration: number }> {
     if (this.isWarmingUp) {
-      this.logger.warn(`Warmup already in progress, skipping group: ${groupName}`);
+      this.logger.warn(
+        `Warmup already in progress, skipping group: ${groupName}`,
+      );
       return { success: 0, failed: 0, duration: 0 };
     }
 
@@ -106,7 +116,9 @@ export class CacheWarmingService implements OnModuleInit {
     let failedCount = 0;
 
     try {
-      this.logger.log(`Starting warmup for group: ${groupName} (${group.entries.length} entries)`);
+      this.logger.log(
+        `Starting warmup for group: ${groupName} (${group.entries.length} entries)`,
+      );
 
       // Sort by priority
       const sortedEntries = [...group.entries].sort((a, b) => {
@@ -120,7 +132,9 @@ export class CacheWarmingService implements OnModuleInit {
           await this.warmupEntry(entry);
           successCount++;
         } catch (error) {
-          this.logger.error(`Warmup failed for key ${entry.key}: ${error.message}`);
+          this.logger.error(
+            `Warmup failed for key ${entry.key}: ${error.message}`,
+          );
           failedCount++;
         }
       }
@@ -129,11 +143,11 @@ export class CacheWarmingService implements OnModuleInit {
       group.lastRun = Date.now();
       group.successCount = successCount;
       group.errorCount = failedCount;
-      
+
       await this.saveWarmupGroup(group);
-      
+
       this.logger.log(
-        `Warmup completed for group ${groupName}: ${successCount} success, ${failedCount} failed in ${duration}ms`
+        `Warmup completed for group ${groupName}: ${successCount} success, ${failedCount} failed in ${duration}ms`,
       );
 
       return { success: successCount, failed: failedCount, duration };
@@ -165,7 +179,11 @@ export class CacheWarmingService implements OnModuleInit {
   /**
    * Force warmup of specific key
    */
-  async warmupKey(key: string, loader: () => Promise<any>, ttl?: number): Promise<void> {
+  async warmupKey(
+    key: string,
+    loader: () => Promise<any>,
+    ttl?: number,
+  ): Promise<void> {
     const entry: WarmupEntry = {
       key,
       loader,
@@ -173,7 +191,7 @@ export class CacheWarmingService implements OnModuleInit {
       priority: 'high',
       schedule: 'startup',
     };
-    
+
     await this.warmupEntry(entry);
     this.logger.log(`Forced warmup completed for key: ${key}`);
   }
@@ -183,7 +201,10 @@ export class CacheWarmingService implements OnModuleInit {
   /**
    * Add scheduled warmup
    */
-  async addScheduledWarmup(groupId: string, cronExpression: string): Promise<void> {
+  async addScheduledWarmup(
+    groupId: string,
+    cronExpression: string,
+  ): Promise<void> {
     const schedule: WarmupSchedule = {
       groupId,
       cronExpression,
@@ -195,8 +216,10 @@ export class CacheWarmingService implements OnModuleInit {
       groupId,
       JSON.stringify(schedule),
     );
-    
-    this.logger.log(`Added scheduled warmup for group ${groupId} with cron: ${cronExpression}`);
+
+    this.logger.log(
+      `Added scheduled warmup for group ${groupId} with cron: ${cronExpression}`,
+    );
   }
 
   /**
@@ -239,17 +262,25 @@ export class CacheWarmingService implements OnModuleInit {
   /**
    * Warm up multiple entries in parallel
    */
-  async warmupBatch(entries: WarmupEntry[]): Promise<{ success: number; failed: number }> {
+  async warmupBatch(
+    entries: WarmupEntry[],
+  ): Promise<{ success: number; failed: number }> {
     this.logger.log(`Starting batch warmup for ${entries.length} entries`);
-    
+
     const results = await Promise.allSettled(
-      entries.map(entry => this.warmupEntry(entry))
+      entries.map((entry) => this.warmupEntry(entry)),
     );
 
-    const successCount = results.filter(result => result.status === 'fulfilled').length;
-    const failedCount = results.filter(result => result.status === 'rejected').length;
+    const successCount = results.filter(
+      (result) => result.status === 'fulfilled',
+    ).length;
+    const failedCount = results.filter(
+      (result) => result.status === 'rejected',
+    ).length;
 
-    this.logger.log(`Batch warmup completed: ${successCount} success, ${failedCount} failed`);
+    this.logger.log(
+      `Batch warmup completed: ${successCount} success, ${failedCount} failed`,
+    );
     return { success: successCount, failed: failedCount };
   }
 
@@ -258,17 +289,19 @@ export class CacheWarmingService implements OnModuleInit {
    */
   async warmupByTag(tag: string): Promise<number> {
     let warmedCount = 0;
-    
+
     for (const group of this.warmupGroups.values()) {
       if (!group.enabled) continue;
-      
-      const taggedEntries = group.entries.filter(entry => entry.tags?.includes(tag));
+
+      const taggedEntries = group.entries.filter((entry) =>
+        entry.tags?.includes(tag),
+      );
       if (taggedEntries.length > 0) {
         const result = await this.warmupBatch(taggedEntries);
         warmedCount += result.success;
       }
     }
-    
+
     this.logger.log(`Warmed up ${warmedCount} entries for tag: ${tag}`);
     return warmedCount;
   }
@@ -280,15 +313,22 @@ export class CacheWarmingService implements OnModuleInit {
    */
   async getWarmupStats(): Promise<any> {
     const groups = this.getAllWarmupGroups();
-    const totalEntries = groups.reduce((sum, group) => sum + group.entries.length, 0);
-    
-    const recentRuns = await this.redisService.client.lRange('cache:warmup:runs', 0, 9);
-    
+    const totalEntries = groups.reduce(
+      (sum, group) => sum + group.entries.length,
+      0,
+    );
+
+    const recentRuns = await this.redisService.client.lRange(
+      'cache:warmup:runs',
+      0,
+      9,
+    );
+
     return {
       totalGroups: groups.length,
       totalEntries,
-      enabledGroups: groups.filter(g => g.enabled).length,
-      recentRuns: recentRuns.map(JSON.parse),
+      enabledGroups: groups.filter((g) => g.enabled).length,
+      recentRuns: recentRuns.map((run) => JSON.parse(run)),
       isWarmingUp: this.isWarmingUp,
     };
   }
@@ -303,7 +343,10 @@ export class CacheWarmingService implements OnModuleInit {
     const entryStats = await Promise.all(
       group.entries.map(async (entry) => {
         try {
-          const exists = await this.cacheService.get(entry.key, async () => null);
+          const exists = await this.cacheService.get(
+            entry.key,
+            async () => null,
+          );
           return {
             key: entry.key,
             priority: entry.priority,
@@ -321,7 +364,7 @@ export class CacheWarmingService implements OnModuleInit {
             tags: entry.tags,
           };
         }
-      })
+      }),
     );
 
     return {
@@ -334,13 +377,15 @@ export class CacheWarmingService implements OnModuleInit {
 
   private async loadWarmupGroups(): Promise<void> {
     try {
-      const groups = await this.redisService.client.hGetAll(this.WARMUP_GROUPS_KEY);
-      
+      const groups = await this.redisService.client.hGetAll(
+        this.WARMUP_GROUPS_KEY,
+      );
+
       for (const [name, groupJson] of Object.entries(groups)) {
         const group: WarmupGroup = JSON.parse(groupJson as string);
         this.warmupGroups.set(name, group);
       }
-      
+
       this.logger.log(`Loaded ${this.warmupGroups.size} warmup groups`);
     } catch (error) {
       this.logger.error(`Error loading warmup groups: ${error.message}`);
@@ -355,7 +400,9 @@ export class CacheWarmingService implements OnModuleInit {
         JSON.stringify(group),
       );
     } catch (error) {
-      this.logger.error(`Error saving warmup group ${group.name}: ${error.message}`);
+      this.logger.error(
+        `Error saving warmup group ${group.name}: ${error.message}`,
+      );
     }
   }
 
@@ -364,30 +411,41 @@ export class CacheWarmingService implements OnModuleInit {
     // This method is for future extension
   }
 
-  private async executeScheduledWarmups(scheduleType: 'hourly' | 'daily' | 'weekly'): Promise<void> {
+  private async executeScheduledWarmups(
+    scheduleType: 'hourly' | 'daily' | 'weekly',
+  ): Promise<void> {
     let executedCount = 0;
-    
+
     for (const group of this.warmupGroups.values()) {
       if (!group.enabled) continue;
-      
-      const scheduledEntries = group.entries.filter(entry => entry.schedule === scheduleType);
+
+      const scheduledEntries = group.entries.filter(
+        (entry) => entry.schedule === scheduleType,
+      );
       if (scheduledEntries.length > 0) {
         try {
           const result = await this.warmupBatch(scheduledEntries);
           executedCount += result.success;
         } catch (error) {
-          this.logger.error(`Scheduled warmup failed for group ${group.name}: ${error.message}`);
+          this.logger.error(
+            `Scheduled warmup failed for group ${group.name}: ${error.message}`,
+          );
         }
       }
     }
-    
+
     if (executedCount > 0) {
       await this.recordWarmupRun(scheduleType, executedCount);
-      this.logger.log(`Executed scheduled ${scheduleType} warmup for ${executedCount} entries`);
+      this.logger.log(
+        `Executed scheduled ${scheduleType} warmup for ${executedCount} entries`,
+      );
     }
   }
 
-  private async recordWarmupRun(scheduleType: string, entryCount: number): Promise<void> {
+  private async recordWarmupRun(
+    scheduleType: string,
+    entryCount: number,
+  ): Promise<void> {
     const runRecord = {
       timestamp: Date.now(),
       scheduleType,
@@ -396,22 +454,26 @@ export class CacheWarmingService implements OnModuleInit {
     };
 
     await Promise.all([
-      this.redisService.client.lPush('cache:warmup:runs', JSON.stringify(runRecord)),
+      this.redisService.client.lPush(
+        'cache:warmup:runs',
+        JSON.stringify(runRecord),
+      ),
       this.redisService.client.lTrim('cache:warmup:runs', 0, 99),
     ]);
   }
 
   // Mock redisService for now - will be injected properly
-  private get redisService(): any {
-    return {
-      client: {
-        hGetAll: async () => ({}),
-        hSet: async () => {},
-        hDel: async () => {},
-        lRange: async () => [],
-        lPush: async () => {},
-        lTrim: async () => {},
-      }
-    };
-  }
+  // This is kept for backward compatibility - now uses proper injection above
+  // private get redisService(): any {
+  //   return {
+  //     client: {
+  //       hGetAll: async () => ({}),
+  //       hSet: async () => {},
+  //       hDel: async () => {},
+  //       lRange: async () => [],
+  //       lPush: async () => {},
+  //       lTrim: async () => {},
+  //     },
+  //   };
+  // }
 }

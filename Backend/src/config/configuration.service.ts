@@ -1,8 +1,17 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import { ConfigurationValidator, ValidationResult } from './configuration.validator';
+import {
+  ConfigurationValidator,
+  ValidationResult,
+} from './configuration.validator';
 import { ConfigurationProfile, EnvironmentType } from './configuration.types';
-import { AppConfig, DatabaseConfig, RedisConfig, AiConfig, SecurityConfig } from './config.schemas';
+import {
+  AppConfig,
+  DatabaseConfig,
+  RedisConfig,
+  AiConfig,
+  SecurityConfig,
+} from './config.schemas';
 
 /**
  * Event emitted when configuration changes
@@ -33,7 +42,9 @@ export class ConfigurationService implements OnModuleInit {
   }
 
   async onModuleInit(): Promise<void> {
-    this.logger.log(`Configuration service initialized with profile: ${this.currentProfile.name}`);
+    this.logger.log(
+      `Configuration service initialized with profile: ${this.currentProfile.name}`,
+    );
     this.loadInitialConfiguration();
   }
 
@@ -42,7 +53,7 @@ export class ConfigurationService implements OnModuleInit {
    */
   private detectEnvironment(): ConfigurationProfile {
     const nodeEnv = process.env.NODE_ENV || 'development';
-    
+
     switch (nodeEnv) {
       case 'production':
         return this.createProductionProfile();
@@ -129,17 +140,23 @@ export class ConfigurationService implements OnModuleInit {
   /**
    * Update configuration at runtime
    */
-  async update<T>(key: string, value: T, source: string = 'api'): Promise<ValidationResult<T>> {
+  async update<T>(
+    key: string,
+    value: T,
+    source: string = 'api',
+  ): Promise<ValidationResult<T>> {
     // Validate the new value
     const validation = this.validator.validate(key, value);
-    
+
     if (!validation.valid) {
-      this.logger.warn(`Configuration update failed for key '${key}': ${validation.error}`);
+      this.logger.warn(
+        `Configuration update failed for key '${key}': ${validation.error}`,
+      );
       return validation;
     }
 
     const oldValue = this.configStore.get(key);
-    
+
     // Update the configuration
     this.configStore.set(key, value);
 
@@ -158,14 +175,17 @@ export class ConfigurationService implements OnModuleInit {
     this.eventEmitter.emit('config.changed', changeEvent);
 
     this.logger.log(`Configuration updated: ${key} (source: ${source})`);
-    
+
     return { valid: true, value };
   }
 
   /**
    * Update multiple configuration values at once
    */
-  async updateBatch(updates: Record<string, any>, source: string = 'api'): Promise<ValidationResult<any>[]> {
+  async updateBatch(
+    updates: Record<string, any>,
+    source: string = 'api',
+  ): Promise<ValidationResult<any>[]> {
     const results: ValidationResult<any>[] = [];
 
     for (const [key, value] of Object.entries(updates)) {
@@ -211,7 +231,7 @@ export class ConfigurationService implements OnModuleInit {
    */
   getAllConfig(): Record<string, any> {
     const config: Record<string, any> = {};
-    
+
     for (const [key, value] of this.configStore.entries()) {
       config[key] = this.maskSensitiveData(key, value);
     }
@@ -238,7 +258,7 @@ export class ConfigurationService implements OnModuleInit {
    */
   private recordChange(event: ConfigurationChangeEvent): void {
     this.changeHistory.push(event);
-    
+
     // Keep history size limited
     if (this.changeHistory.length > this.maxHistorySize) {
       this.changeHistory.shift();
@@ -250,11 +270,11 @@ export class ConfigurationService implements OnModuleInit {
    */
   private maskSensitiveData(key: string, value: any): any {
     const sensitiveKeys = ['password', 'secret', 'apiKey', 'token', 'key'];
-    
+
     if (typeof value === 'object' && value !== null) {
       const masked: Record<string, any> = {};
       for (const [k, v] of Object.entries(value)) {
-        if (sensitiveKeys.some(sk => k.toLowerCase().includes(sk))) {
+        if (sensitiveKeys.some((sk) => k.toLowerCase().includes(sk))) {
           masked[k] = '***MASKED***';
         } else {
           masked[k] = v;
@@ -263,7 +283,7 @@ export class ConfigurationService implements OnModuleInit {
       return masked;
     }
 
-    if (sensitiveKeys.some(sk => key.toLowerCase().includes(sk))) {
+    if (sensitiveKeys.some((sk) => key.toLowerCase().includes(sk))) {
       return '***MASKED***';
     }
 

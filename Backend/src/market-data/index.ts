@@ -4,7 +4,10 @@ export * from './services/market-data.service';
 export * from './services/news.service';
 export * from './services/cache-metrics.service';
 export { CacheInvalidationService } from './services/cache-invalidation.service';
-export type { AssetUpdateEvent, CacheInvalidationEvent } from './services/cache-invalidation.service';
+export type {
+  AssetUpdateEvent,
+  CacheInvalidationEvent,
+} from './services/cache-invalidation.service';
 
 // DTOs
 export * from './dto/market-snapshot.dto';

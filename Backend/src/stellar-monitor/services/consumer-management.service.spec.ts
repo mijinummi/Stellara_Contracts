@@ -30,7 +30,9 @@ describe('ConsumerManagementService', () => {
     }).compile();
 
     service = module.get<ConsumerManagementService>(ConsumerManagementService);
-    repository = module.get<Repository<WebhookConsumer>>(getRepositoryToken(WebhookConsumer));
+    repository = module.get<Repository<WebhookConsumer>>(
+      getRepositoryToken(WebhookConsumer),
+    );
   });
 
   it('should be defined', () => {

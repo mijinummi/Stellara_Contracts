@@ -140,9 +140,12 @@ export class AuthController {
       await this.walletService.updateLastUsed(dto.publicKey);
 
       // Generate tokens
-      const accessToken = await this.jwtAuthService.generateAccessToken(user.id);
-      const refreshTokenData =
-        await this.jwtAuthService.generateRefreshToken(user.id);
+      const accessToken = await this.jwtAuthService.generateAccessToken(
+        user.id,
+      );
+      const refreshTokenData = await this.jwtAuthService.generateRefreshToken(
+        user.id,
+      );
 
       return {
         accessToken,

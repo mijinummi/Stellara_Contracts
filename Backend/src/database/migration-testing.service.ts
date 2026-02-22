@@ -73,9 +73,7 @@ export class MigrationTestingService {
     } catch (error) {
       result.passed = false;
       result.message = 'Migration dry-run failed';
-      result.errors = [
-        error instanceof Error ? error.message : String(error),
-      ];
+      result.errors = [error instanceof Error ? error.message : String(error)];
       result.duration = Date.now() - startTime;
 
       this.logger.error(`[DRY-RUN] ❌ ${result.message}: ${result.errors[0]}`);
@@ -119,7 +117,10 @@ export class MigrationTestingService {
         return result;
       }
 
-      if (migration.preValidationRules && migration.preValidationRules.length > 0) {
+      if (
+        migration.preValidationRules &&
+        migration.preValidationRules.length > 0
+      ) {
         for (const rule of migration.preValidationRules) {
           try {
             const isValid = await rule.validate(queryRunner);
@@ -134,7 +135,10 @@ export class MigrationTestingService {
         }
       }
 
-      if (migration.postValidationRules && migration.postValidationRules.length > 0) {
+      if (
+        migration.postValidationRules &&
+        migration.postValidationRules.length > 0
+      ) {
         for (const rule of migration.postValidationRules) {
           try {
             const isValid = await rule.validate(queryRunner);
@@ -149,19 +153,19 @@ export class MigrationTestingService {
         }
       }
 
-      result.passed = result.errors!.length === 0;
+      result.passed = result.errors.length === 0;
       result.message = result.passed
         ? 'All validation rules passed'
-        : `${result.errors!.length} validation rule(s) failed`;
+        : `${result.errors.length} validation rule(s) failed`;
       result.duration = Date.now() - startTime;
 
-      this.logger.log(`[VALIDATION] ${result.passed ? '✅' : '❌'} ${result.message}`);
+      this.logger.log(
+        `[VALIDATION] ${result.passed ? '✅' : '❌'} ${result.message}`,
+      );
     } catch (error) {
       result.passed = false;
       result.message = 'Validation test failed';
-      result.errors = [
-        error instanceof Error ? error.message : String(error),
-      ];
+      result.errors = [error instanceof Error ? error.message : String(error)];
       result.duration = Date.now() - startTime;
 
       this.logger.error(`[VALIDATION] ❌ ${result.message}`);
@@ -188,7 +192,8 @@ export class MigrationTestingService {
 
     if (!migration.rollback && !migration.down) {
       result.passed = true;
-      result.message = 'Migration has no rollback implementation (down method will be used)';
+      result.message =
+        'Migration has no rollback implementation (down method will be used)';
       result.duration = Date.now() - startTime;
       this.logger.log(`[ROLLBACK] ⚠️  ${result.message}`);
       return result;
@@ -230,9 +235,7 @@ export class MigrationTestingService {
     } catch (error) {
       result.passed = false;
       result.message = 'Rollback test failed';
-      result.errors = [
-        error instanceof Error ? error.message : String(error),
-      ];
+      result.errors = [error instanceof Error ? error.message : String(error)];
       result.duration = Date.now() - startTime;
 
       this.logger.error(`[ROLLBACK] ❌ ${result.message}: ${result.errors[0]}`);
@@ -262,7 +265,10 @@ export class MigrationTestingService {
       errors: [],
     };
 
-    if (!migration.backupStrategy || migration.backupStrategy.tables.length === 0) {
+    if (
+      !migration.backupStrategy ||
+      migration.backupStrategy.tables.length === 0
+    ) {
       result.passed = true;
       result.message = 'No backup tables defined for integrity check';
       result.duration = Date.now() - startTime;
@@ -271,7 +277,9 @@ export class MigrationTestingService {
     }
 
     try {
-      this.logger.log(`[INTEGRITY] Testing data integrity for ${migration.name}...`);
+      this.logger.log(
+        `[INTEGRITY] Testing data integrity for ${migration.name}...`,
+      );
 
       const tableCounts: Record<string, number> = {};
 
@@ -330,9 +338,7 @@ export class MigrationTestingService {
           dataLossDetected = true;
         }
 
-        this.logger.log(
-          `  ${tableName}: ${before} → ${after} rows`,
-        );
+        this.logger.log(`  ${tableName}: ${before} → ${after} rows`);
       }
 
       result.passed = !dataLossDetected;
@@ -341,13 +347,13 @@ export class MigrationTestingService {
         : 'All data preserved during migration';
       result.duration = Date.now() - startTime;
 
-      this.logger.log(`[INTEGRITY] ${result.passed ? '✅' : '❌'} ${result.message}`);
+      this.logger.log(
+        `[INTEGRITY] ${result.passed ? '✅' : '❌'} ${result.message}`,
+      );
     } catch (error) {
       result.passed = false;
       result.message = 'Data integrity test failed';
-      result.errors = [
-        error instanceof Error ? error.message : String(error),
-      ];
+      result.errors = [error instanceof Error ? error.message : String(error)];
       result.duration = Date.now() - startTime;
 
       this.logger.error(`[INTEGRITY] ❌ ${result.message}`);
@@ -400,9 +406,7 @@ export class MigrationTestingService {
         `${icon} ${result.testType.toUpperCase()} - ${result.message} (${result.duration}ms)`,
       );
       if (result.errors && result.errors.length > 0) {
-        result.errors.forEach((err) =>
-          this.logger.error(`   └─ ${err}`),
-        );
+        result.errors.forEach((err) => this.logger.error(`   └─ ${err}`));
       }
     }
 

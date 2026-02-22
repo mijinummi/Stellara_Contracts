@@ -156,9 +156,7 @@ export class MigrationIndexUtils {
     const unique = options?.unique ? 'UNIQUE' : '';
     const concurrent = options?.concurrent ? 'CONCURRENTLY' : '';
     const columnList =
-      typeof columns === 'string'
-        ? columns
-        : `(${columns.join(', ')})`;
+      typeof columns === 'string' ? columns : `(${columns.join(', ')})`;
     const where = options?.where ? `WHERE ${options.where}` : '';
 
     const query = `CREATE ${unique} INDEX ${concurrent} IF NOT EXISTS ${indexName} ON "${tableName}" ${columnList} ${where}`;

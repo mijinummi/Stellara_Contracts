@@ -26,7 +26,9 @@ export class VoiceController {
 
   @Post('stt/upload')
   @UseInterceptors(FileInterceptor('audio'))
-  async uploadAudio(@UploadedFile() file: { buffer: Buffer; originalname: string }): Promise<{ jobId: string }> {
+  async uploadAudio(
+    @UploadedFile() file: { buffer: Buffer; originalname: string },
+  ): Promise<{ jobId: string }> {
     if (!file) {
       throw new BadRequestException('No audio file provided');
     }

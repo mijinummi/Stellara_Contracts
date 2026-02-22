@@ -1,4 +1,15 @@
-import { Controller, Get, Post, Put, Delete, Param, Body, Query, UseGuards, Request } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Put,
+  Delete,
+  Param,
+  Body,
+  Query,
+  UseGuards,
+  Request,
+} from '@nestjs/common';
 import { TenantService } from './tenant.service';
 import { Roles } from '../decorators/roles.decorator';
 import { RolesGuard } from '../guards/roles.guard';
@@ -14,34 +25,37 @@ export class TenantController {
   constructor(
     private readonly tenantService: TenantService,
     private readonly onboardingService: TenantOnboardingService,
-    private readonly usageService: TenantUsageService
+    private readonly usageService: TenantUsageService,
   ) {}
 
   @Post()
   @Roles(Role.ADMIN)
   async createTenant(
-    @Body() createTenantDto: {
+    @Body()
+    createTenantDto: {
       name: string;
       slug?: string;
       description?: string;
       billingPlan?: BillingPlan;
     },
-    @Request() req
+    @Request() req,
   ) {
-    const slug = createTenantDto.slug || await this.tenantService.generateUniqueSlug(createTenantDto.name);
-    
+    const slug =
+      createTenantDto.slug ||
+      (await this.tenantService.generateUniqueSlug(createTenantDto.name));
+
     const tenant = await this.tenantService.create({
       name: createTenantDto.name,
       slug,
       description: createTenantDto.description,
       billingPlan: createTenantDto.billingPlan,
-      createdByUserId: req.user.id
+      createdByUserId: req.user.id,
     });
 
     return {
       success: true,
       message: 'Tenant created successfully',
-      data: tenant
+      data: tenant,
     };
   }
 
@@ -51,7 +65,7 @@ export class TenantController {
     const tenants = await this.tenantService.findAll();
     return {
       success: true,
-      data: tenants
+      data: tenants,
     };
   }
 
@@ -61,7 +75,7 @@ export class TenantController {
     const stats = await this.tenantService.getTenantStats();
     return {
       success: true,
-      data: stats
+      data: stats,
     };
   }
 
@@ -70,7 +84,10 @@ export class TenantController {
   async getTenant(@Param('id') id: string, @Request() req) {
     // Check if user has access to this tenant
     if (req.user.role !== 'admin') {
-      const hasAccess = await this.tenantService.validateTenantAccess(id, req.user.id);
+      const hasAccess = await this.tenantService.validateTenantAccess(
+        id,
+        req.user.id,
+      );
       if (!hasAccess) {
         throw new Error('Unauthorized access to tenant');
       }
@@ -79,7 +96,7 @@ export class TenantController {
     const tenant = await this.tenantService.findOne(id);
     return {
       success: true,
-      data: tenant
+      data: tenant,
     };
   }
 
@@ -88,11 +105,14 @@ export class TenantController {
   async updateTenant(
     @Param('id') id: string,
     @Body() updateTenantDto: Partial<any>,
-    @Request() req
+    @Request() req,
   ) {
     // Check if user has access to this tenant
     if (req.user.role !== 'admin') {
-      const hasAccess = await this.tenantService.validateTenantAccess(id, req.user.id);
+      const hasAccess = await this.tenantService.validateTenantAccess(
+        id,
+        req.user.id,
+      );
       if (!hasAccess) {
         throw new Error('Unauthorized access to tenant');
       }
@@ -102,7 +122,7 @@ export class TenantController {
     return {
       success: true,
       message: 'Tenant updated successfully',
-      data: tenant
+      data: tenant,
     };
   }
 
@@ -112,7 +132,7 @@ export class TenantController {
     await this.tenantService.remove(id);
     return {
       success: true,
-      message: 'Tenant deleted successfully'
+      message: 'Tenant deleted successfully',
     };
   }
 
@@ -123,7 +143,7 @@ export class TenantController {
     return {
       success: true,
       message: 'Tenant activated successfully',
-      data: tenant
+      data: tenant,
     };
   }
 
@@ -131,13 +151,13 @@ export class TenantController {
   @Roles(Role.ADMIN)
   async suspendTenant(
     @Param('id') id: string,
-    @Body() body: { reason?: string }
+    @Body() body: { reason?: string },
   ) {
     const tenant = await this.tenantService.suspend(id, body.reason);
     return {
       success: true,
       message: 'Tenant suspended successfully',
-      data: tenant
+      data: tenant,
     };
   }
 
@@ -148,11 +168,14 @@ export class TenantController {
     @Request() req: any,
     @Query('startDate') startDate?: string,
     @Query('endDate') endDate?: string,
-    @Query('metric') metric?: string
+    @Query('metric') metric?: string,
   ) {
     // Check if user has access to this tenant
     if (req.user.role !== 'admin') {
-      const hasAccess = await this.tenantService.validateTenantAccess(id, req.user.id);
+      const hasAccess = await this.tenantService.validateTenantAccess(
+        id,
+        req.user.id,
+      );
       if (!hasAccess) {
         throw new Error('Unauthorized access to tenant');
       }
@@ -162,12 +185,12 @@ export class TenantController {
       id,
       startDate ? new Date(startDate) : undefined,
       endDate ? new Date(endDate) : undefined,
-      metric
+      metric,
     );
 
     return {
       success: true,
-      data: usage
+      data: usage,
     };
   }
 
@@ -175,22 +198,23 @@ export class TenantController {
   @Roles(Role.ADMIN)
   async startOnboarding(
     @Param('id') id: string,
-    @Body() body: {
+    @Body()
+    body: {
       adminEmail: string;
       adminName?: string;
       companyInfo?: any;
-    }
+    },
   ) {
     const result = await this.onboardingService.startOnboarding(id, {
       email: body.adminEmail,
       name: body.adminName,
-      companyInfo: body.companyInfo
+      companyInfo: body.companyInfo,
     });
 
     return {
       success: true,
       message: 'Onboarding process started',
-      data: result
+      data: result,
     };
   }
 
@@ -199,7 +223,10 @@ export class TenantController {
   async getOnboardingStatus(@Param('id') id: string, @Request() req) {
     // Check if user has access to this tenant
     if (req.user.role !== 'admin') {
-      const hasAccess = await this.tenantService.validateTenantAccess(id, req.user.id);
+      const hasAccess = await this.tenantService.validateTenantAccess(
+        id,
+        req.user.id,
+      );
       if (!hasAccess) {
         throw new Error('Unauthorized access to tenant');
       }
@@ -208,7 +235,7 @@ export class TenantController {
     const status = await this.onboardingService.getOnboardingStatus(id);
     return {
       success: true,
-      data: status
+      data: status,
     };
   }
 
@@ -218,7 +245,7 @@ export class TenantController {
     const tenant = await this.tenantService.findBySlug(slug);
     return {
       success: true,
-      data: tenant
+      data: tenant,
     };
   }
 }

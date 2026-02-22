@@ -6,23 +6,23 @@ export interface CacheConfig {
   enabled: boolean;
   defaultTTL: number;
   maxMemory: string;
-  
+
   // Strategy settings
   strategy: 'cache-aside' | 'write-through' | 'write-behind';
   compressionEnabled: boolean;
   compressionThreshold: number;
-  
+
   // Advanced features
   writeThroughEnabled: boolean;
   writeBehindEnabled: boolean;
   warmupOnStartup: boolean;
   scheduledWarmupEnabled: boolean;
-  
+
   // Performance settings
   maxBatchSize: number;
   pipelineEnabled: boolean;
   connectionPoolSize: number;
-  
+
   // Monitoring
   metricsEnabled: boolean;
   alertingEnabled: boolean;
@@ -62,7 +62,7 @@ export class CacheConfigurationService {
   async updateConfig(newConfig: Partial<CacheConfig>): Promise<void> {
     this.config = { ...this.config, ...newConfig };
     this.logger.log('Cache configuration updated');
-    
+
     // Broadcast config change if needed
     await this.broadcastConfigChange();
   }
@@ -99,7 +99,10 @@ export class CacheConfigurationService {
   /**
    * Update existing strategy
    */
-  async updateStrategy(name: string, updates: Partial<CacheStrategy>): Promise<void> {
+  async updateStrategy(
+    name: string,
+    updates: Partial<CacheStrategy>,
+  ): Promise<void> {
     const strategy = this.strategies.get(name);
     if (strategy) {
       const updated = { ...strategy, ...updates };
@@ -143,7 +146,11 @@ export class CacheConfigurationService {
       errors.push('connectionPoolSize must be greater than 0');
     }
 
-    if (!['cache-aside', 'write-through', 'write-behind'].includes(config.strategy)) {
+    if (
+      !['cache-aside', 'write-through', 'write-behind'].includes(
+        config.strategy,
+      )
+    ) {
       errors.push('Invalid cache strategy');
     }
 
@@ -177,14 +184,14 @@ export class CacheConfigurationService {
     if (configData.config) {
       this.config = configData.config;
     }
-    
+
     if (configData.strategies) {
       this.strategies.clear();
       for (const strategy of configData.strategies) {
         this.strategies.set(strategy.name, strategy);
       }
     }
-    
+
     await this.saveConfiguration();
     this.logger.log('Cache configuration imported');
   }
@@ -196,24 +203,61 @@ export class CacheConfigurationService {
       enabled: this.configService.get<boolean>('CACHE_ENABLED', true),
       defaultTTL: this.configService.get<number>('CACHE_DEFAULT_TTL', 3600),
       maxMemory: this.configService.get<string>('CACHE_MAX_MEMORY', '512mb'),
-      strategy: this.configService.get<'cache-aside' | 'write-through' | 'write-behind'>('CACHE_STRATEGY', 'cache-aside'),
-      compressionEnabled: this.configService.get<boolean>('CACHE_COMPRESSION_ENABLED', false),
-      compressionThreshold: this.configService.get<number>('CACHE_COMPRESSION_THRESHOLD', 1024),
-      writeThroughEnabled: this.configService.get<boolean>('CACHE_WRITE_THROUGH_ENABLED', false),
-      writeBehindEnabled: this.configService.get<boolean>('CACHE_WRITE_BEHIND_ENABLED', false),
-      warmupOnStartup: this.configService.get<boolean>('CACHE_WARMUP_ON_STARTUP', false),
-      scheduledWarmupEnabled: this.configService.get<boolean>('CACHE_SCHEDULED_WARMUP_ENABLED', true),
+      strategy: this.configService.get<
+        'cache-aside' | 'write-through' | 'write-behind'
+      >('CACHE_STRATEGY', 'cache-aside'),
+      compressionEnabled: this.configService.get<boolean>(
+        'CACHE_COMPRESSION_ENABLED',
+        false,
+      ),
+      compressionThreshold: this.configService.get<number>(
+        'CACHE_COMPRESSION_THRESHOLD',
+        1024,
+      ),
+      writeThroughEnabled: this.configService.get<boolean>(
+        'CACHE_WRITE_THROUGH_ENABLED',
+        false,
+      ),
+      writeBehindEnabled: this.configService.get<boolean>(
+        'CACHE_WRITE_BEHIND_ENABLED',
+        false,
+      ),
+      warmupOnStartup: this.configService.get<boolean>(
+        'CACHE_WARMUP_ON_STARTUP',
+        false,
+      ),
+      scheduledWarmupEnabled: this.configService.get<boolean>(
+        'CACHE_SCHEDULED_WARMUP_ENABLED',
+        true,
+      ),
       maxBatchSize: this.configService.get<number>('CACHE_MAX_BATCH_SIZE', 100),
-      pipelineEnabled: this.configService.get<boolean>('CACHE_PIPELINE_ENABLED', true),
-      connectionPoolSize: this.configService.get<number>('CACHE_CONNECTION_POOL_SIZE', 10),
-      metricsEnabled: this.configService.get<boolean>('CACHE_METRICS_ENABLED', true),
-      alertingEnabled: this.configService.get<boolean>('CACHE_ALERTING_ENABLED', true),
-      healthCheckInterval: this.configService.get<number>('CACHE_HEALTH_CHECK_INTERVAL', 300),
+      pipelineEnabled: this.configService.get<boolean>(
+        'CACHE_PIPELINE_ENABLED',
+        true,
+      ),
+      connectionPoolSize: this.configService.get<number>(
+        'CACHE_CONNECTION_POOL_SIZE',
+        10,
+      ),
+      metricsEnabled: this.configService.get<boolean>(
+        'CACHE_METRICS_ENABLED',
+        true,
+      ),
+      alertingEnabled: this.configService.get<boolean>(
+        'CACHE_ALERTING_ENABLED',
+        true,
+      ),
+      healthCheckInterval: this.configService.get<number>(
+        'CACHE_HEALTH_CHECK_INTERVAL',
+        300,
+      ),
     };
 
     const validationErrors = this.validateConfig(this.config);
     if (validationErrors.length > 0) {
-      this.logger.warn(`Cache configuration validation errors: ${validationErrors.join(', ')}`);
+      this.logger.warn(
+        `Cache configuration validation errors: ${validationErrors.join(', ')}`,
+      );
     }
 
     this.logger.log('Cache configuration loaded');
@@ -291,7 +335,9 @@ export class CacheConfigurationService {
       // Mock implementation
       this.logger.debug(`Strategy saved: ${strategy.name}`);
     } catch (error) {
-      this.logger.error(`Error saving strategy ${strategy.name}: ${error.message}`);
+      this.logger.error(
+        `Error saving strategy ${strategy.name}: ${error.message}`,
+      );
     }
   }
 

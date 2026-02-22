@@ -23,8 +23,18 @@ describe('IdempotencyService', () => {
       const input = { contractCode: '0x123', contractName: 'TestContract' };
       const context = { version: '1.0' };
 
-      const key1 = service.generateWorkflowIdempotencyKey(workflowType, userId, input, context);
-      const key2 = service.generateWorkflowIdempotencyKey(workflowType, userId, input, context);
+      const key1 = service.generateWorkflowIdempotencyKey(
+        workflowType,
+        userId,
+        input,
+        context,
+      );
+      const key2 = service.generateWorkflowIdempotencyKey(
+        workflowType,
+        userId,
+        input,
+        context,
+      );
 
       expect(key1).toBe(key2);
       expect(key1).toMatch(/^workflow:contract_deployment:user123:[a-f0-9]+$/);
@@ -34,10 +44,21 @@ describe('IdempotencyService', () => {
       const workflowType = 'contract_deployment';
       const userId = 'user123';
       const input1 = { contractCode: '0x123', contractName: 'TestContract' };
-      const input2 = { contractCode: '0x456', contractName: 'DifferentContract' }; // Different name to ensure different hash
+      const input2 = {
+        contractCode: '0x456',
+        contractName: 'DifferentContract',
+      }; // Different name to ensure different hash
 
-      const key1 = service.generateWorkflowIdempotencyKey(workflowType, userId, input1);
-      const key2 = service.generateWorkflowIdempotencyKey(workflowType, userId, input2);
+      const key1 = service.generateWorkflowIdempotencyKey(
+        workflowType,
+        userId,
+        input1,
+      );
+      const key2 = service.generateWorkflowIdempotencyKey(
+        workflowType,
+        userId,
+        input2,
+      );
 
       // Keys should be different due to different contract name
       expect(key1).not.toBe(key2);
@@ -49,8 +70,16 @@ describe('IdempotencyService', () => {
       const userId1 = 'user123';
       const userId2 = 'user456';
 
-      const key1 = service.generateWorkflowIdempotencyKey(workflowType, userId1, input);
-      const key2 = service.generateWorkflowIdempotencyKey(workflowType, userId2, input);
+      const key1 = service.generateWorkflowIdempotencyKey(
+        workflowType,
+        userId1,
+        input,
+      );
+      const key2 = service.generateWorkflowIdempotencyKey(
+        workflowType,
+        userId2,
+        input,
+      );
 
       expect(key1).not.toBe(key2);
     });
@@ -58,12 +87,21 @@ describe('IdempotencyService', () => {
 
   describe('generateStepIdempotencyKey', () => {
     it('should generate consistent step idempotency key', () => {
-      const workflowIdempotencyKey = 'workflow:contract_deployment:user123:abc123';
+      const workflowIdempotencyKey =
+        'workflow:contract_deployment:user123:abc123';
       const stepName = 'deploy_contract';
       const stepInput = { contractAddress: '0x789' };
 
-      const key1 = service.generateStepIdempotencyKey(workflowIdempotencyKey, stepName, stepInput);
-      const key2 = service.generateStepIdempotencyKey(workflowIdempotencyKey, stepName, stepInput);
+      const key1 = service.generateStepIdempotencyKey(
+        workflowIdempotencyKey,
+        stepName,
+        stepInput,
+      );
+      const key2 = service.generateStepIdempotencyKey(
+        workflowIdempotencyKey,
+        stepName,
+        stepInput,
+      );
 
       expect(key1).toBe(key2);
       expect(key1).toMatch(/^step:deploy_contract:[a-f0-9]+$/);
@@ -75,8 +113,14 @@ describe('IdempotencyService', () => {
       const operationType = 'reward_grant';
       const identifier = 'user123';
 
-      const key1 = service.generateUniqueIdempotencyKey(operationType, identifier);
-      const key2 = service.generateUniqueIdempotencyKey(operationType, identifier);
+      const key1 = service.generateUniqueIdempotencyKey(
+        operationType,
+        identifier,
+      );
+      const key2 = service.generateUniqueIdempotencyKey(
+        operationType,
+        identifier,
+      );
 
       expect(key1).not.toBe(key2);
       expect(key1).toMatch(/^reward_grant:user123:[a-f0-9-]+$/);
@@ -89,9 +133,18 @@ describe('IdempotencyService', () => {
       const workflowType = 'contract_deployment';
       const userId = 'user123';
       const input = { contractCode: '0x123' };
-      const expectedKey = service.generateWorkflowIdempotencyKey(workflowType, userId, input);
+      const expectedKey = service.generateWorkflowIdempotencyKey(
+        workflowType,
+        userId,
+        input,
+      );
 
-      const isValid = service.validateIdempotencyKey(expectedKey, workflowType, userId, input);
+      const isValid = service.validateIdempotencyKey(
+        expectedKey,
+        workflowType,
+        userId,
+        input,
+      );
 
       expect(isValid).toBe(true);
     });
@@ -100,11 +153,23 @@ describe('IdempotencyService', () => {
       const workflowType = 'contract_deployment';
       const userId = 'user123';
       const input1 = { contractCode: '0x123', contractName: 'TestContract' };
-      const input2 = { contractCode: '0x456', contractName: 'DifferentContract' }; // Different name
-      const expectedKey = service.generateWorkflowIdempotencyKey(workflowType, userId, input1);
+      const input2 = {
+        contractCode: '0x456',
+        contractName: 'DifferentContract',
+      }; // Different name
+      const expectedKey = service.generateWorkflowIdempotencyKey(
+        workflowType,
+        userId,
+        input1,
+      );
 
       // This should be false since input2 is different from input1
-      const isValid = service.validateIdempotencyKey(expectedKey, workflowType, userId, input2);
+      const isValid = service.validateIdempotencyKey(
+        expectedKey,
+        workflowType,
+        userId,
+        input2,
+      );
 
       expect(isValid).toBe(false);
     });
@@ -171,7 +236,11 @@ describe('IdempotencyService', () => {
       const operation = jest.fn().mockResolvedValue('result');
       const cache = undefined;
 
-      const result = await service.checkIdempotency(idempotencyKey, operation, cache);
+      const result = await service.checkIdempotency(
+        idempotencyKey,
+        operation,
+        cache,
+      );
 
       expect(result).toEqual({ result: 'result', isDuplicate: false });
       expect(operation).toHaveBeenCalledTimes(1);
@@ -186,7 +255,11 @@ describe('IdempotencyService', () => {
         set: jest.fn().mockResolvedValue(undefined),
       };
 
-      const result = await service.checkIdempotency(idempotencyKey, operation, cache);
+      const result = await service.checkIdempotency(
+        idempotencyKey,
+        operation,
+        cache,
+      );
 
       expect(result).toEqual({ result: cachedResult, isDuplicate: true });
       expect(operation).not.toHaveBeenCalled();
@@ -201,7 +274,11 @@ describe('IdempotencyService', () => {
         set: jest.fn().mockResolvedValue(undefined),
       };
 
-      const result = await service.checkIdempotency(idempotencyKey, operation, cache);
+      const result = await service.checkIdempotency(
+        idempotencyKey,
+        operation,
+        cache,
+      );
 
       expect(result).toEqual({ result: 'result', isDuplicate: false });
       expect(operation).toHaveBeenCalledTimes(1);
@@ -217,7 +294,11 @@ describe('IdempotencyService', () => {
         set: jest.fn().mockResolvedValue(undefined),
       };
 
-      const result = await service.checkIdempotency(idempotencyKey, operation, cache);
+      const result = await service.checkIdempotency(
+        idempotencyKey,
+        operation,
+        cache,
+      );
 
       expect(result).toEqual({ result: 'result', isDuplicate: false });
       expect(operation).toHaveBeenCalledTimes(1);

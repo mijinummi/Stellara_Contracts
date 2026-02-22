@@ -7,10 +7,22 @@ import {
   ApiForbiddenResponse,
   ApiInternalServerErrorResponse,
 } from '@nestjs/swagger';
-import { ErrorResponseDto } from '../dtos/api-response.dto';
+
+export class ErrorResponseDto {
+  success: boolean;
+  error?: string;
+  message?: string;
+  statusCode?: number;
+}
+
+export class ApiResponseDto<T> {
+  data: T;
+  meta?: unknown;
+  success?: boolean;
+  message?: string;
+}
 
 export const DOCUMENTED_KEY = 'isDocumented';
-
 
 export function ApiDocumented(options: {
   summary: string;

@@ -5,12 +5,28 @@ import { ConversationState } from '../types/conversation-state.enum';
 export class ConversationStateMachineService {
   private readonly logger = new Logger(ConversationStateMachineService.name);
 
-  private readonly validTransitions: Record<ConversationState, ConversationState[]> = {
+  private readonly validTransitions: Record<
+    ConversationState,
+    ConversationState[]
+  > = {
     [ConversationState.IDLE]: [ConversationState.LISTENING],
-    [ConversationState.LISTENING]: [ConversationState.THINKING, ConversationState.INTERRUPTED],
-    [ConversationState.THINKING]: [ConversationState.RESPONDING, ConversationState.INTERRUPTED],
-    [ConversationState.RESPONDING]: [ConversationState.LISTENING, ConversationState.INTERRUPTED, ConversationState.IDLE],
-    [ConversationState.INTERRUPTED]: [ConversationState.LISTENING, ConversationState.IDLE],
+    [ConversationState.LISTENING]: [
+      ConversationState.THINKING,
+      ConversationState.INTERRUPTED,
+    ],
+    [ConversationState.THINKING]: [
+      ConversationState.RESPONDING,
+      ConversationState.INTERRUPTED,
+    ],
+    [ConversationState.RESPONDING]: [
+      ConversationState.LISTENING,
+      ConversationState.INTERRUPTED,
+      ConversationState.IDLE,
+    ],
+    [ConversationState.INTERRUPTED]: [
+      ConversationState.LISTENING,
+      ConversationState.IDLE,
+    ],
   };
 
   canTransition(from: ConversationState, to: ConversationState): boolean {
@@ -36,7 +52,9 @@ export class ConversationStateMachineService {
   }
 
   isInterruptible(state: ConversationState): boolean {
-    return [ConversationState.THINKING, ConversationState.RESPONDING].includes(state);
+    return [ConversationState.THINKING, ConversationState.RESPONDING].includes(
+      state,
+    );
   }
 
   isTerminalState(state: ConversationState): boolean {

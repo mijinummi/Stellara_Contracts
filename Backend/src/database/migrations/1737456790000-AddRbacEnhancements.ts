@@ -1,4 +1,10 @@
-import { MigrationInterface, QueryRunner, Table, TableColumn, TableForeignKey } from 'typeorm';
+import {
+  MigrationInterface,
+  QueryRunner,
+  Table,
+  TableColumn,
+  TableForeignKey,
+} from 'typeorm';
 import { Role } from '../../auth/roles.enum';
 
 export class AddRbacEnhancements1737456790000 implements MigrationInterface {
@@ -343,28 +349,32 @@ export class AddRbacEnhancements1737456790000 implements MigrationInterface {
     // Drop foreign key constraints first
     const table = await queryRunner.getTable('permission_group_permissions');
     const userPermissionsTable = await queryRunner.getTable('user_permissions');
-    const permissionAuditsTable = await queryRunner.getTable('permission_audits');
+    const permissionAuditsTable =
+      await queryRunner.getTable('permission_audits');
 
     if (table) {
-      const foreignKeys = table.foreignKeys.filter(fk => 
-        fk.columnNames.indexOf('permission_group_id') !== -1 || 
-        fk.columnNames.indexOf('permission_id') !== -1
+      const foreignKeys = table.foreignKeys.filter(
+        (fk) =>
+          fk.columnNames.indexOf('permission_group_id') !== -1 ||
+          fk.columnNames.indexOf('permission_id') !== -1,
       );
       await queryRunner.dropForeignKeys(table, foreignKeys);
     }
 
     if (userPermissionsTable) {
-      const foreignKeys = userPermissionsTable.foreignKeys.filter(fk => 
-        fk.columnNames.indexOf('user_id') !== -1 || 
-        fk.columnNames.indexOf('permission_id') !== -1
+      const foreignKeys = userPermissionsTable.foreignKeys.filter(
+        (fk) =>
+          fk.columnNames.indexOf('user_id') !== -1 ||
+          fk.columnNames.indexOf('permission_id') !== -1,
       );
       await queryRunner.dropForeignKeys(userPermissionsTable, foreignKeys);
     }
 
     if (permissionAuditsTable) {
-      const foreignKeys = permissionAuditsTable.foreignKeys.filter(fk => 
-        fk.columnNames.indexOf('user_id') !== -1 || 
-        fk.columnNames.indexOf('permission_id') !== -1
+      const foreignKeys = permissionAuditsTable.foreignKeys.filter(
+        (fk) =>
+          fk.columnNames.indexOf('user_id') !== -1 ||
+          fk.columnNames.indexOf('permission_id') !== -1,
       );
       await queryRunner.dropForeignKeys(permissionAuditsTable, foreignKeys);
     }

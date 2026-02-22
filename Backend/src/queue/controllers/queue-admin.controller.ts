@@ -1,5 +1,25 @@
-import { Controller, Get, Post, Param, Query, Logger, BadRequestException, Body, Put, Delete, HttpCode, HttpStatus } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiQuery, ApiBody } from '@nestjs/swagger';
+import {
+  Controller,
+  Get,
+  Post,
+  Param,
+  Query,
+  Logger,
+  BadRequestException,
+  Body,
+  Put,
+  Delete,
+  HttpCode,
+  HttpStatus,
+} from '@nestjs/common';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiParam,
+  ApiQuery,
+  ApiBody,
+} from '@nestjs/swagger';
 import { QueueService } from '../services/queue.service';
 import { JobInfo, JobStatus } from '../types/job.types';
 import { EnhancedJobData, JobSchedule } from '../types/enhanced-job.types';
@@ -94,7 +114,10 @@ export class QueueAdminController {
   @ApiResponse({ status: 200, description: 'Job details' })
   @ApiResponse({ status: 404, description: 'Job not found' })
   @ApiResponse({ status: 400, description: 'Invalid queue name' })
-  async getJob(@Param('queueName') queueName: string, @Param('jobId') jobId: string) {
+  async getJob(
+    @Param('queueName') queueName: string,
+    @Param('jobId') jobId: string,
+  ) {
     const validQueues = ['deploy-contract', 'process-tts', 'index-market-news'];
 
     if (!validQueues.includes(queueName)) {
@@ -106,7 +129,9 @@ export class QueueAdminController {
     const job = await this.queueService.getJobInfo(queueName, jobId);
 
     if (!job) {
-      throw new BadRequestException(`Job ${jobId} not found in queue ${queueName}`);
+      throw new BadRequestException(
+        `Job ${jobId} not found in queue ${queueName}`,
+      );
     }
 
     return {
@@ -134,7 +159,10 @@ export class QueueAdminController {
       );
     }
 
-    const dlqItems = await this.queueService.getDeadLetterQueue(queueName, limit);
+    const dlqItems = await this.queueService.getDeadLetterQueue(
+      queueName,
+      limit,
+    );
 
     return {
       success: true,
@@ -150,7 +178,10 @@ export class QueueAdminController {
   @Get('/:queueName/dlq/category/:category')
   @ApiOperation({ summary: 'Get dead-letter queue items by category' })
   @ApiParam({ name: 'category', description: 'Error category to filter by' })
-  @ApiResponse({ status: 200, description: 'Categorized dead-letter queue items' })
+  @ApiResponse({
+    status: 200,
+    description: 'Categorized dead-letter queue items',
+  })
   @ApiResponse({ status: 400, description: 'Invalid queue name' })
   async getDLQByCategory(
     @Param('queueName') queueName: string,
@@ -165,7 +196,11 @@ export class QueueAdminController {
       );
     }
 
-    const dlqItems = await this.queueService.getEnhancedDLQByCategory(queueName, category, limit);
+    const dlqItems = await this.queueService.getEnhancedDLQByCategory(
+      queueName,
+      category,
+      limit,
+    );
 
     return {
       success: true,
@@ -236,7 +271,10 @@ export class QueueAdminController {
       );
     }
 
-    const requeuedJobs = await this.queueService.requeueFromDLQ(queueName, limit);
+    const requeuedJobs = await this.queueService.requeueFromDLQ(
+      queueName,
+      limit,
+    );
 
     return {
       success: true,
@@ -253,7 +291,9 @@ export class QueueAdminController {
    * Bulk requeue jobs from dead-letter queue by category
    */
   @Post('/:queueName/dlq/category/:category/requeue')
-  @ApiOperation({ summary: 'Bulk requeue jobs from dead-letter queue by category' })
+  @ApiOperation({
+    summary: 'Bulk requeue jobs from dead-letter queue by category',
+  })
   @ApiParam({ name: 'category', description: 'Error category to filter by' })
   @ApiResponse({ status: 200, description: 'Jobs requeued successfully' })
   @ApiResponse({ status: 400, description: 'Invalid queue name or error' })
@@ -270,7 +310,11 @@ export class QueueAdminController {
       );
     }
 
-    const requeuedCount = await this.queueService.bulkProcessDLQByCategory(queueName, category, limit);
+    const requeuedCount = await this.queueService.bulkProcessDLQByCategory(
+      queueName,
+      category,
+      limit,
+    );
 
     return {
       success: true,
@@ -288,7 +332,10 @@ export class QueueAdminController {
    */
   @Post('/:queueName/dlq/resurrect/:dlqItemId')
   @ApiOperation({ summary: 'Resurrect a job from DLQ with options' })
-  @ApiParam({ name: 'dlqItemId', description: 'ID of the DLQ item to resurrect' })
+  @ApiParam({
+    name: 'dlqItemId',
+    description: 'ID of the DLQ item to resurrect',
+  })
   @ApiBody({ description: 'Resurrection options', required: false })
   @ApiResponse({ status: 200, description: 'Job resurrected successfully' })
   @ApiResponse({ status: 400, description: 'Invalid queue name or error' })
@@ -305,11 +352,17 @@ export class QueueAdminController {
       );
     }
 
-    const success = await this.queueService.resurrectJobFromDLQ(queueName, dlqItemId, options);
+    const success = await this.queueService.resurrectJobFromDLQ(
+      queueName,
+      dlqItemId,
+      options,
+    );
 
     return {
       success,
-      message: success ? `Job ${dlqItemId} resurrected successfully` : `Failed to resurrect job ${dlqItemId}`,
+      message: success
+        ? `Job ${dlqItemId} resurrected successfully`
+        : `Failed to resurrect job ${dlqItemId}`,
     };
   }
 
@@ -361,7 +414,11 @@ export class QueueAdminController {
       );
     }
 
-    const deletedCount = await this.queueService.purgeDLQByCategory(queueName, category, olderThanDays);
+    const deletedCount = await this.queueService.purgeDLQByCategory(
+      queueName,
+      category,
+      olderThanDays,
+    );
 
     return {
       success: true,
@@ -445,7 +502,8 @@ export class QueueAdminController {
       );
     }
 
-    const analytics = await this.queueService.getPerformanceAnalytics(queueName);
+    const analytics =
+      await this.queueService.getPerformanceAnalytics(queueName);
 
     return {
       success: true,
@@ -558,12 +616,23 @@ export class QueueAdminController {
    * Set system load factor for dynamic priority adjustment
    */
   @Put('/load-factor')
-  @ApiOperation({ summary: 'Set system load factor for dynamic priority adjustment' })
-  @ApiBody({ description: 'Load factor (0.5-2.0)', schema: { type: 'object', properties: { factor: { type: 'number' } } }})
+  @ApiOperation({
+    summary: 'Set system load factor for dynamic priority adjustment',
+  })
+  @ApiBody({
+    description: 'Load factor (0.5-2.0)',
+    schema: { type: 'object', properties: { factor: { type: 'number' } } },
+  })
   @ApiResponse({ status: 200, description: 'Load factor set successfully' })
   async setSystemLoadFactor(@Body() body: { factor: number }) {
-    if (typeof body.factor !== 'number' || body.factor < 0.5 || body.factor > 2.0) {
-      throw new BadRequestException('Load factor must be a number between 0.5 and 2.0');
+    if (
+      typeof body.factor !== 'number' ||
+      body.factor < 0.5 ||
+      body.factor > 2.0
+    ) {
+      throw new BadRequestException(
+        'Load factor must be a number between 0.5 and 2.0',
+      );
     }
 
     await this.queueService.setSystemLoadFactor(body.factor);
@@ -605,12 +674,15 @@ export class QueueAdminController {
    */
   @Post('/:queueName/bulk-add')
   @ApiOperation({ summary: 'Bulk add jobs to a queue' })
-  @ApiBody({ description: 'Array of job specifications', schema: { type: 'array', items: { type: 'object' }}})
+  @ApiBody({
+    description: 'Array of job specifications',
+    schema: { type: 'array', items: { type: 'object' } },
+  })
   @ApiResponse({ status: 200, description: 'Bulk job addition result' })
   @ApiResponse({ status: 400, description: 'Invalid queue name' })
   async bulkAddJobs(
     @Param('queueName') queueName: string,
-    @Body() jobs: Array<{ jobName: string; data: any; options?: any }>
+    @Body() jobs: Array<{ jobName: string; data: any; options?: any }>,
   ) {
     const validQueues = ['deploy-contract', 'process-tts', 'index-market-news'];
 
