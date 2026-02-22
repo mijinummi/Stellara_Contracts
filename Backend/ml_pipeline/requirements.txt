@@ -1,0 +1,6 @@
+pandas>=1.5
+scikit-learn>=1.2
+joblib>=1.2
+fastapi>=0.95
+uvicorn>=0.22
+apscheduler>=3.10
