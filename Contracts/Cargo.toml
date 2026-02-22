@@ -17,6 +17,15 @@ members = [
 ]
 resolver = "2"
 
+[workspace.dependencies]
+soroban-sdk = "20.0.0"
+
+[workspace.metadata.clippy]
+# Additional clippy configuration can go here
+
+[workspace.metadata.husky]
+hooks = ["pre-commit", "pre-push"]
+
 [profile.release]
 opt-level = "z"
 lto = true

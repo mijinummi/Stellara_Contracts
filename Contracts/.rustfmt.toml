@@ -1,0 +1,57 @@
+# Rust formatting configuration for Stellara Contracts
+
+# Basic formatting options
+edition = "2021"
+max_width = 100
+hard_tabs = false
+tab_spaces = 4
+newline_style = "Unix"
+
+# Imports and organization
+reorder_imports = true
+reorder_modules = true
+group_imports = "StdExternalCrate"
+imports_granularity = "Crate"
+reorder_impl_items = false
+
+# Code style
+use_field_init_shorthand = true
+use_try_shorthand = true
+use_small_heuristics = "Max"
+normalize_comments = true
+normalize_doc_attributes = true
+
+# Function formatting
+fn_params_layout = "Tall"
+fn_call_width = 60
+attr_fn_like_width = 70
+
+# Array and collection formatting
+array_width = 60
+single_line_if_else_max_width = 80
+
+# Comments
+wrap_comments = true
+comment_width = 80
+
+# Trailing commas and formatting
+trailing_comma = "Vertical"
+trailing_semicolon = true
+match_block_trailing_comma = false
+
+# Match expressions
+match_arm_blocks = true
+match_arm_leading_pipes = "Never"
+
+# Where clauses
+where_single_line = false
+overflow_delimited_expr = true
+format_code_in_doc_comments = true
+
+# Conditional compilation
+condense_wildcard_suffixes = false
+merge_derives = true
+hex_literal_case = "Upper"
+
+# Format strings
+format_strings = true

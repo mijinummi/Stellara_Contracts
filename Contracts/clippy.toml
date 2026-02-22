@@ -1,0 +1,24 @@
+# Clippy configuration for Stellara Contracts
+
+# Complexity thresholds
+cyclomatic_complexity_threshold = 25
+too_many_arguments_threshold = 10
+type_complexity_threshold = 1000
+
+# Valid identifiers for documentation
+doc-valid-idents = [
+    "API", "AST", "CPU", "CSS", "DOM", "FAQ", "HTML", "HTTP", "HTTPS",
+    "IDE", "IO", "JSON", "OS", "Q&A", "RAM", "RPC", "SQL", "TCP", "TLS",
+    "UDP", "UI", "URI", "URL", "VM", "XML", "XMPP", "XSS", "YAML", "IPFS",
+    "ERC", "Soroban", "Stellar", "NFT", "SFT", "USD", "BTC", "ETH",
+    "DAO", "DeFi", "LP", "AMM", "DEX", "CEX", "FHE", "zkSNARK", "zkSTARK",
+    "MPC", "HD", "BIP", "SLIP", "HD", "PKI", "ECDSA", "Schnorr", "EdDSA",
+    "SHA", "Keccak", "BLAKE", "RIPEMD", "AES", "ChaCha", "Poly1305"
+]
+
+# Disallowed types and methods
+disallowed-types = []
+disallowed-methods = []
+
+# Enable pedantic lints for higher code quality
+warn-on-all-wildcard-imports = true
