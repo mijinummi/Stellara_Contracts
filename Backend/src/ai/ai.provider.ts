@@ -4,3 +4,6 @@ export interface AiProvider {
     tokensUsed: number;
   }>;
 }
+
+export const AI_PROVIDER = 'AI_PROVIDER';
+export const AI_FALLBACK_PROVIDER = 'AI_FALLBACK_PROVIDER';
