@@ -398,3 +398,20 @@ fn test_duplicate_upgrade_approval_prevention() {
     let duplicate = client.try_approve_upgrade(&proposal_id, &approver);
     assert!(duplicate.is_err());
 }
+
+#[test]
+fn test_replay_message_rejected() {
+    let env = Env::default();
+    env.ledger().with_mut(|li| li.timestamp = 1000);
+
+    let (client, _admin, _approver, _executor) = setup_contract(&env);
+    let alice = Address::generate(&env);
+    let bob = Address::generate(&env);
+
+    let payload = String::from_str(&env, "replay test");
+    let id1 = client.send_message(&alice, &bob, &payload);
+    assert_eq!(id1, 1);
+
+    let attempt = client.try_send_message(&alice, &bob, &payload);
+    assert!(attempt.is_err(), "Replay should be rejected");
+}

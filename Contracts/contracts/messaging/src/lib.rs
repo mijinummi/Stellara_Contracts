@@ -5,6 +5,8 @@ use shared::circuit_breaker::{
     CircuitBreaker, CircuitBreakerConfig, CircuitBreakerState, PauseLevel,
 };
 use shared::governance::{GovernanceManager, GovernanceRole, UpgradeProposal};
+use shared::nonce::NonceManager;
+use shared::reentrancy_guard::ReentrancyGuard;
 use soroban_sdk::{
     contract, contractimpl, contracttype, symbol_short, Address, Bytes, Env, Map, String, Symbol,
     Vec,
@@ -28,6 +30,7 @@ pub struct Message {
     pub payload: String,
     pub timestamp: u64,
     pub read: bool,
+    pub processed: bool,
 }
 
 #[contracttype]
@@ -77,6 +80,7 @@ pub struct EncryptedMessage {
     pub payload: Bytes,
     pub timestamp: u64,
     pub read: bool,
+    pub processed: bool,
 }
 
 #[contracttype]
@@ -323,6 +327,10 @@ impl UpgradeableMessagingContract {
             .persistent()
             .set(&symbol_short!("ver"), &CONTRACT_VERSION);
 
+        env.storage().persistent().set(&symbol_short!("source_chain"), &0u32);
+
+        NonceManager::set_chain_id(&env, 0);
+
         // Initialize circuit breaker
         CircuitBreaker::init(&env, cb_config);
 
@@ -339,18 +347,21 @@ impl UpgradeableMessagingContract {
         require_initialized(&env)?;
         check_and_consume_message_rate_limit(&env, &sender)?;
 
-        // Check pause state via CircuitBreaker
         CircuitBreaker::require_not_paused(&env, symbol_short!("send_m"));
+        ReentrancyGuard::enter(&env);
+        NonceManager::enforce_sequential_nonce(&env, 0, env.ledger().sequence() as u64);
+        NonceManager::record_and_verify(&env, 0, env.ledger().sequence() as u64)?;
 
-        // Track activity (1 message = 1 unit volume)
         CircuitBreaker::track_activity(&env, 1);
 
         if sender == recipient {
+            ReentrancyGuard::exit(&env);
             return Err(MessagingError::InvalidRecipient);
         }
 
         let payload_len = payload.len();
         if payload_len == 0 || payload_len > MAX_MESSAGE_LENGTH {
+            ReentrancyGuard::exit(&env);
             return Err(MessagingError::InvalidPayload);
         }
 
@@ -366,6 +377,7 @@ impl UpgradeableMessagingContract {
             payload,
             timestamp: current_timestamp,
             read: false,
+            processed: true,
         };
 
         let mut messages = get_messages_map(&env);
@@ -399,7 +411,6 @@ impl UpgradeableMessagingContract {
             .persistent()
             .set(&symbol_short!("stats"), &stats);
 
-        // Emit MessageSent event
         let message_sent_event = MessageSent {
             message_id,
             sender: sender.clone(),
@@ -411,6 +422,7 @@ impl UpgradeableMessagingContract {
         env.events()
             .publish((symbol_short!("msg_sent"),), message_sent_event);
 
+        ReentrancyGuard::exit(&env);
         Ok(message_id)
     }
 
@@ -435,6 +447,8 @@ impl UpgradeableMessagingContract {
             return Err(MessagingError::AlreadyRead);
         }
 
+        ReentrancyGuard::enter(&env);
+
         let current_timestamp = env.ledger().timestamp();
 
         message.read = true;
@@ -456,7 +470,6 @@ impl UpgradeableMessagingContract {
             .persistent()
             .set(&symbol_short!("stats"), &stats);
 
-        // Emit MessageRead event
         let message_read_event = MessageRead {
             message_id,
             recipient,
@@ -467,6 +480,7 @@ impl UpgradeableMessagingContract {
         env.events()
             .publish((symbol_short!("msg_read"),), message_read_event);
 
+        ReentrancyGuard::exit(&env);
         Ok(())
     }
 
@@ -836,14 +850,20 @@ impl UpgradeableMessagingContract {
         check_and_consume_message_rate_limit(&env, &sender)?;
 
         CircuitBreaker::require_not_paused(&env, symbol_short!("send_em"));
+        ReentrancyGuard::enter(&env);
+        NonceManager::enforce_sequential_nonce(&env, 0, env.ledger().sequence() as u64);
+        NonceManager::record_and_verify(&env, 0, env.ledger().sequence() as u64)?;
+
         CircuitBreaker::track_activity(&env, 1);
 
         if sender == recipient {
+            ReentrancyGuard::exit(&env);
             return Err(MessagingError::InvalidRecipient);
         }
 
         let payload_len = payload.len();
         if payload_len == 0 || payload_len > MAX_MESSAGE_LENGTH {
+            ReentrancyGuard::exit(&env);
             return Err(MessagingError::InvalidPayload);
         }
 
@@ -859,6 +879,7 @@ impl UpgradeableMessagingContract {
             payload,
             timestamp: current_timestamp,
             read: false,
+            processed: true,
         };
 
         let mut messages = get_encrypted_messages_map(&env);
@@ -903,6 +924,7 @@ impl UpgradeableMessagingContract {
         env.events()
             .publish((symbol_short!("emsg_sent"),), message_sent_event);
 
+        ReentrancyGuard::exit(&env);
         Ok(message_id)
     }
 
@@ -967,6 +989,8 @@ impl UpgradeableMessagingContract {
             return Err(MessagingError::AlreadyRead);
         }
 
+        ReentrancyGuard::enter(&env);
+
         let current_timestamp = env.ledger().timestamp();
 
         message.read = true;
@@ -998,6 +1022,7 @@ impl UpgradeableMessagingContract {
         env.events()
             .publish((symbol_short!("emsg_read"),), message_read_event);
 
+        ReentrancyGuard::exit(&env);
         Ok(())
     }
 }

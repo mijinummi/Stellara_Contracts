@@ -3,8 +3,6 @@ use soroban_sdk::{
     Address, Env, Vec, Map, BytesN, Bytes, xdr::ToXdr
 };
 use shared::governance::{GovernanceRole};
-use shared::nonce::NonceManager;
-use shared::reentrancy_guard::ReentrancyGuard;
 
 #[contracttype]
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -37,6 +35,8 @@ pub enum BridgeError {
     InsufficientValidators = 3006,
     AlreadyInitialized = 3007,
     NotInitialized = 3008,
+    MessageNotVerified = 3009,
+    MessageAlreadyProcessed = 3010,
 }
 
 #[contract]
@@ -62,9 +62,7 @@ impl StellaraBridge {
         let mut roles: Map<Address, GovernanceRole> = Map::new(&env);
         roles.set(admin, GovernanceRole::Admin);
         env.storage().persistent().set(&symbol_short!("roles"), &roles);
-
         env.storage().persistent().set(&symbol_short!("initialized"), &true);
-        env.storage().persistent().set(&(symbol_short!("nonce"), 0u64), &0u64);
     }
 
     pub fn deposit(env: Env, from: Address, asset: Address, amount: i128, dest_chain: u32, recipient: Address) -> BytesN<32> {
@@ -77,7 +75,6 @@ impl StellaraBridge {
         Self::check_rate_limit(&env, &asset, amount);
 
         let nonce = env.ledger().sequence() as u64;
-        // Use XDR encoding for hashing to ensure consistency across chains
         let mut data = Bytes::new(&env);
         data.append(&from.clone().to_xdr(&env));
         data.append(&asset.clone().to_xdr(&env));
@@ -111,10 +108,8 @@ impl StellaraBridge {
         
         let message_hash = env.crypto().sha256(&data);
         
-        // Verify validator signatures
         Self::verify_validator_signatures(&env, &message_hash, &signatures, config.validator_threshold);
 
-        // Replay protection
         let nonce_key = (symbol_short!("nonce"), source_chain, nonce);
         if env.storage().persistent().has(&nonce_key) {
             panic!("Replay attack");
@@ -179,7 +174,6 @@ impl StellaraBridge {
         Self::get_config_internal(&env)
     }
 
-    // Internal helpers
     fn get_config_internal(env: &Env) -> BridgeConfig {
         env.storage().persistent().get(&symbol_short!("config")).expect("Not initialized")
     }
