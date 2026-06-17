@@ -127,10 +127,32 @@ impl VerifiableCredentialsContract {
         claims: Map<Symbol, Symbol>,
         expiration_date: Option<u64>,
         proof: Proof,
-    ) -> Symbol {
+    ) -> Result<Symbol, VCError> {
         // Verify issuer is authorized (simplified - in production, check issuer registry)
         let caller = env.current_contract_address();
         require_auth!(&caller);
+
+        // Validate inputs
+        if issuer_did.to_string().is_empty() {
+            return Err(VCError::InvalidCredential);
+        }
+        if subject_did.to_string().is_empty() {
+            return Err(VCError::InvalidSubject);
+        }
+        if proof.proof_value.is_empty() {
+            return Err(VCError::InvalidProof);
+        }
+        if proof.verification_method.to_string().is_empty() {
+            return Err(VCError::InvalidProof);
+        }
+        if proof.proof_purpose.to_string().is_empty() {
+            return Err(VCError::InvalidProof);
+        }
+        if let Some(exp) = expiration_date {
+            if exp <= env.ledger().timestamp() {
+                return Err(VCError::InvalidCredential);
+            }
+        }
 
         // Generate credential ID
         let counter_key = symbol_short!("vc_counter");
@@ -191,35 +213,44 @@ impl VerifiableCredentialsContract {
         // Update counter
         env.storage().persistent().set(&counter_key, &(count + 1));
 
-        credential_id
+        Ok(credential_id)
     }
 
     // Verify a verifiable credential
-    pub fn verify_credential(env: Env, credential_id: Symbol) -> bool {
+    pub fn verify_credential(env: Env, credential_id: Symbol) -> Result<bool, VCError> {
         // Get credential
-        let credential = match Self::get_credential(env.clone(), credential_id.clone()) {
-            Ok(cred) => cred,
-            Err(_) => return false,
-        };
+        let credential = Self::get_credential(env.clone(), credential_id.clone())?;
 
         // Check if credential is revoked
         if Self::is_revoked(env.clone(), credential_id.clone()) {
-            return false;
+            return Ok(false);
         }
 
         // Check expiration
         if let Some(expiration) = credential.expiration_date {
             if env.ledger().timestamp() > expiration {
-                return false;
+                return Ok(false);
             }
         }
 
         // Verify proof (simplified - in production, implement proper cryptographic verification)
         if credential.proof.proof_value.is_empty() {
-            return false;
+            return Err(VCError::InvalidProof);
+        }
+        if credential.proof.verification_method.to_string().is_empty() {
+            return Err(VCError::InvalidProof);
+        }
+        if credential.proof.proof_purpose.to_string().is_empty() {
+            return Err(VCError::InvalidProof);
+        }
+        if credential.issuer.to_string().is_empty() {
+            return Err(VCError::InvalidCredential);
+        }
+        if credential.credential_subject.id.to_string().is_empty() {
+            return Err(VCError::InvalidSubject);
         }
 
-        true
+        Ok(true)
     }
 
     // Revoke a verifiable credential
