@@ -3,6 +3,7 @@ use soroban_sdk::{
     contracterror, require_auth
 };
 use shared::governance::{GovernanceManager, GovernanceRole};
+use shared::events::{extended_topics, CredentialIssuedEvent, CredentialRevokedEvent};
 
 // Verifiable Credential structure
 #[contracttype]
@@ -191,6 +192,17 @@ impl VerifiableCredentialsContract {
         // Update counter
         env.storage().persistent().set(&counter_key, &(count + 1));
 
+        env.events().publish(
+            (extended_topics::CREDENTIAL_ISSUED,),
+            CredentialIssuedEvent {
+                credential_id: credential_id.clone(),
+                issuer_did,
+                subject_did: credential.credential_subject.id.clone(),
+                credential_type: credential.type_.get(1).unwrap_or(symbol_short!("Custom")),
+                timestamp: env.ledger().timestamp(),
+            },
+        );
+
         credential_id
     }
 
@@ -277,8 +289,18 @@ impl VerifiableCredentialsContract {
             .get(&credentials_key)
             .unwrap_or_else(|| Map::new(&env));
 
-        credentials.set(credential_id, credential);
+        credentials.set(credential_id.clone(), credential);
         env.storage().persistent().set(&credentials_key, &credentials);
+
+        env.events().publish(
+            (extended_topics::CREDENTIAL_REVOKED,),
+            CredentialRevokedEvent {
+                credential_id,
+                revoked_by: env.current_contract_address(),
+                reason,
+                timestamp: env.ledger().timestamp(),
+            },
+        );
     }
 
     // Get credential details

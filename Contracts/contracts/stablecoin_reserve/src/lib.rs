@@ -3,6 +3,7 @@ use soroban_sdk::{
     contract, contracterror, contractimpl, contracttype, symbol_short, Address, BytesN, Env, Map,
     Symbol, Vec,
 };
+use shared::events::{extended_topics, ReserveAssetAddedEvent, ReserveAssetUpdatedEvent};
 
 mod custodian_integration;
 mod proof_of_reserves;
@@ -134,9 +135,20 @@ impl StablecoinReserveContract {
             env.clone(),
             asset_type,
             amount,
-            custodian,
+            custodian.clone(),
             verification_hash,
-        )
+        )?;
+
+        env.events().publish(
+            (extended_topics::RESERVE_ASSET_ADDED,),
+            ReserveAssetAddedEvent {
+                asset: custodian.clone(),
+                target_allocation: 0,
+                added_by: env.invoker(),
+                timestamp: env.ledger().timestamp(),
+            },
+        );
+        Ok(())
     }
 
     /// Update reserve asset amount
@@ -151,7 +163,18 @@ impl StablecoinReserveContract {
             return Err(ReserveError::Unauthorized);
         }
 
-        reserve_tracking::update_asset(env.clone(), asset_index, new_amount, verification_hash)
+        reserve_tracking::update_asset(env.clone(), asset_index, new_amount, verification_hash.clone())?;
+
+        env.events().publish(
+            (extended_topics::RESERVE_ASSET_UPDATED,),
+            ReserveAssetUpdatedEvent {
+                asset: env.current_contract_address(),
+                new_allocation: asset_index,
+                updated_by: env.invoker(),
+                timestamp: env.ledger().timestamp(),
+            },
+        );
+        Ok(())
     }
 
     /// Generate daily proof of reserves

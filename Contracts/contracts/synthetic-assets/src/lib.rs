@@ -3,6 +3,11 @@
 use soroban_sdk::{
     contract, contracterror, contractimpl, contracttype, symbol_short, Address, Env, Symbol,
 };
+use shared::events::{
+    extended_topics,
+    AssetRegisteredEvent, CdpOpenedEvent, CdpClosedEvent,
+    CollateralAddedEvent, CdpLiquidatedEvent, PriceUpdatedEvent,
+};
 
 #[contracterror]
 #[derive(Copy, Clone, Debug, Eq, PartialEq, PartialOrd, Ord)]
@@ -83,6 +88,16 @@ impl SyntheticAssetsContract {
             is_active: true,
         };
         env.storage().persistent().set(&asset_symbol, &config);
+
+        env.events().publish(
+            (extended_topics::ASSET_REGISTERED,),
+            AssetRegisteredEvent {
+                asset_symbol: asset_symbol.clone(),
+                registered_by: caller,
+                collateral_ratio: min_cratio as u32,
+                timestamp: env.ledger().timestamp(),
+            },
+        );
         Ok(())
     }
 
@@ -104,6 +119,17 @@ impl SyntheticAssetsContract {
 
         config.oracle_price = new_price;
         env.storage().persistent().set(&asset_symbol, &config);
+
+        env.events().publish(
+            (extended_topics::PRICE_UPDATED,),
+            PriceUpdatedEvent {
+                asset_symbol,
+                old_price: config.oracle_price,
+                new_price,
+                updated_by: caller,
+                timestamp: env.ledger().timestamp(),
+            },
+        );
         Ok(())
     }
 
@@ -129,6 +155,17 @@ impl SyntheticAssetsContract {
             is_active: true,
         };
         env.storage().persistent().set(&cdp_key, &cdp);
+
+        env.events().publish(
+            (extended_topics::CDP_OPENED,),
+            CdpOpenedEvent {
+                cdp_id: cdp_key.clone(),
+                owner: owner.clone(),
+                asset_symbol,
+                collateral_amount,
+                timestamp: env.ledger().timestamp(),
+            },
+        );
         Ok(())
     }
 
@@ -265,6 +302,17 @@ impl SyntheticAssetsContract {
         }
 
         env.storage().persistent().set(&cdp_key, &cdp);
+
+        env.events().publish(
+            (extended_topics::COLLATERAL_ADDED,),
+            CollateralAddedEvent {
+                cdp_id: cdp_key,
+                owner,
+                amount,
+                new_ratio: cdp.collateral_ratio as u32,
+                timestamp: env.ledger().timestamp(),
+            },
+        );
         Ok(())
     }
 
@@ -312,6 +360,19 @@ impl SyntheticAssetsContract {
             .persistent()
             .set(&asset_symbol, &updated_config);
 
+        env.events().publish(
+            (extended_topics::CDP_LIQUIDATED,),
+            CdpLiquidatedEvent {
+                cdp_id: cdp_key,
+                owner: cdp_owner,
+                liquidator,
+                asset_symbol,
+                collateral_seized: seized,
+                debt_repaid: cdp.minted_amount,
+                timestamp: env.ledger().timestamp(),
+            },
+        );
+
         Ok(seized)
     }
 
@@ -335,6 +396,17 @@ impl SyntheticAssetsContract {
         cdp.collateral_amount = 0;
 
         env.storage().persistent().set(&cdp_key, &cdp);
+
+        env.events().publish(
+            (extended_topics::CDP_CLOSED,),
+            CdpClosedEvent {
+                cdp_id: cdp_key,
+                owner,
+                asset_symbol,
+                collateral_returned: returned,
+                timestamp: env.ledger().timestamp(),
+            },
+        );
         Ok(returned)
     }
 

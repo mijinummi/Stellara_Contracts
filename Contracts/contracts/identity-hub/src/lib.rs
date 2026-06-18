@@ -3,6 +3,7 @@ use soroban_sdk::{
     contracterror, require_auth
 };
 use shared::governance::{GovernanceManager, GovernanceRole};
+use shared::events::{extended_topics, HubCreatedEvent, DataEntryAddedEvent, PermissionGrantedEvent, PermissionRevokedEvent, SelectiveDisclosureCreatedEvent};
 
 // Identity Hub data structure
 #[contracttype]
@@ -168,6 +169,15 @@ impl IdentityHubContract {
         env.storage().persistent().set(&owner_map_key, &owner_map);
         env.storage().persistent().set(&counter_key, &(count + 1));
 
+        env.events().publish(
+            (extended_topics::HUB_CREATED,),
+            HubCreatedEvent {
+                hub_id: hub_id.clone(),
+                owner_did,
+                timestamp: env.ledger().timestamp(),
+            },
+        );
+
         hub_id
     }
 
@@ -212,8 +222,18 @@ impl IdentityHubContract {
             .get(&hubs_key)
             .unwrap_or_else(|| Map::new(&env));
 
-        hubs.set(hub_id, hub);
+        hubs.set(hub_id.clone(), hub);
         env.storage().persistent().set(&hubs_key, &hubs);
+
+        env.events().publish(
+            (extended_topics::DATA_ENTRY_ADDED,),
+            DataEntryAddedEvent {
+                hub_id,
+                entry_id: entry_id.clone(),
+                added_by: env.current_contract_address(),
+                timestamp: env.ledger().timestamp(),
+            },
+        );
 
         entry_id
     }
@@ -266,8 +286,19 @@ impl IdentityHubContract {
             .get(&hubs_key)
             .unwrap_or_else(|| Map::new(&env));
 
-        hubs.set(hub_id, hub);
+        hubs.set(hub_id.clone(), hub);
         env.storage().persistent().set(&hubs_key, &hubs);
+
+        env.events().publish(
+            (extended_topics::PERM_GRANTED,),
+            PermissionGrantedEvent {
+                hub_id,
+                permission_id: permission_id.clone(),
+                grantee: env.current_contract_address(),
+                grantor: env.current_contract_address(),
+                timestamp: env.ledger().timestamp(),
+            },
+        );
 
         permission_id
     }
@@ -299,11 +330,19 @@ impl IdentityHubContract {
             .get(&hubs_key)
             .unwrap_or_else(|| Map::new(&env));
 
-        hubs.set(hub_id, hub);
+        hubs.set(hub_id.clone(), hub);
         env.storage().persistent().set(&hubs_key, &hubs);
-    }
 
-    // Create selective disclosure
+        env.events().publish(
+            (extended_topics::PERM_REVOKED,),
+            PermissionRevokedEvent {
+                hub_id,
+                permission_id,
+                revoked_by: env.current_contract_address(),
+                timestamp: env.ledger().timestamp(),
+            },
+        );
+    }    // Create selective disclosure
     pub fn create_selective_disclosure(
         env: Env,
         presenter_did: Symbol,
@@ -354,6 +393,16 @@ impl IdentityHubContract {
         disclosures.set(disclosure_id.clone(), disclosure);
         env.storage().persistent().set(&disclosures_key, &disclosures);
         env.storage().persistent().set(&counter_key, &(count + 1));
+
+        env.events().publish(
+            (extended_topics::DISCLOSURE_CREATED,),
+            SelectiveDisclosureCreatedEvent {
+                disclosure_id: disclosure_id.clone(),
+                hub_id: hub.id,
+                requester: env.current_contract_address(),
+                timestamp: env.ledger().timestamp(),
+            },
+        );
 
         disclosure_id
     }
