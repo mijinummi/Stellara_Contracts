@@ -110,11 +110,11 @@ impl VerifiableCredentialsContract {
         env.storage().persistent().set(&roles_key, &role_map);
         
         // Initialize credential counter
-        let counter_key = symbol_short!("vc_counter");
+        let counter_key = symbol_short!("vc_cnt");
         env.storage().persistent().set(&counter_key, &0u64);
 
         // Initialize revocation registry
-        let revocation_key = symbol_short!("revocations");
+        let revocation_key = symbol_short!("revocatn");
         let revocations: Map<Symbol, RevocationEntry> = Map::new(&env);
         env.storage().persistent().set(&revocation_key, &revocations);
     }
@@ -134,20 +134,20 @@ impl VerifiableCredentialsContract {
         require_auth!(&caller);
 
         // Generate credential ID
-        let counter_key = symbol_short!("vc_counter");
+        let counter_key = symbol_short!("vc_cnt");
         let count: u64 = env.storage().persistent().get(&counter_key).unwrap_or(0);
         let credential_id = symbol_short!(&format!("vc-{}", count + 1));
 
         // Create credential type vector
         let mut type_vec = Vec::new(&env);
-        type_vec.push_back(symbol_short!("VerifiableCredential"));
+        type_vec.push_back(symbol_short!("vc"));
         
         match credential_type {
-            CredentialType::KYCVerified => type_vec.push_back(symbol_short!("KYCVerifiedCredential")),
-            CredentialType::AccreditedInvestor => type_vec.push_back(symbol_short!("AccreditedInvestorCredential")),
-            CredentialType::EducationalAchievement => type_vec.push_back(symbol_short!("EducationalAchievementCredential")),
-            CredentialType::ProfessionalLicense => type_vec.push_back(symbol_short!("ProfessionalLicenseCredential")),
-            CredentialType::Custom => type_vec.push_back(symbol_short!("CustomCredential")),
+            CredentialType::KYCVerified => type_vec.push_back(symbol_short!("kyc_vc")),
+            CredentialType::AccreditedInvestor => type_vec.push_back(symbol_short!("acc_vc")),
+            CredentialType::EducationalAchievement => type_vec.push_back(symbol_short!("edu_vc")),
+            CredentialType::ProfessionalLicense => type_vec.push_back(symbol_short!("pro_vc")),
+            CredentialType::Custom => type_vec.push_back(symbol_short!("cust_vc")),
         }
 
         // Create credential subject
@@ -159,7 +159,7 @@ impl VerifiableCredentialsContract {
         // Create credential status
         let status = CredentialStatus {
             id: symbol_short!(&format!("status-{}", count + 1)),
-            type_: symbol_short!("CredentialStatusList2021"),
+            type_: symbol_short!("csl2021"),
             status: symbol_short!("valid"),
             revocation_reason: None,
         };
@@ -167,7 +167,7 @@ impl VerifiableCredentialsContract {
         // Create verifiable credential
         let credential = VerifiableCredential {
             id: credential_id.clone(),
-            context: symbol_short!("https://www.w3.org/2018/credentials/v1"),
+            context: symbol_short!("w3c_ctx"),
             type_: type_vec,
             issuer: issuer_did,
             issuance_date: env.ledger().timestamp(),
@@ -179,7 +179,7 @@ impl VerifiableCredentialsContract {
         };
 
         // Store credential
-        let credentials_key = symbol_short!("credentials");
+        let credentials_key = symbol_short!("creds");
         let mut credentials: Map<Symbol, VerifiableCredential> = env
             .storage()
             .persistent()
@@ -264,7 +264,7 @@ impl VerifiableCredentialsContract {
         };
 
         // Store revocation
-        let revocations_key = symbol_short!("revocations");
+        let revocations_key = symbol_short!("revocatn");
         let mut revocations: Map<Symbol, RevocationEntry> = env
             .storage()
             .persistent()
@@ -282,7 +282,7 @@ impl VerifiableCredentialsContract {
         }
 
         // Store updated credential
-        let credentials_key = symbol_short!("credentials");
+        let credentials_key = symbol_short!("creds");
         let mut credentials: Map<Symbol, VerifiableCredential> = env
             .storage()
             .persistent()
@@ -310,7 +310,7 @@ impl VerifiableCredentialsContract {
 
     // Get credentials by subject
     pub fn get_credentials_by_subject(env: Env, subject_did: Symbol) -> Vec<Symbol> {
-        let credentials_key = symbol_short!("credentials");
+        let credentials_key = symbol_short!("creds");
         let credentials: Map<Symbol, VerifiableCredential> = env
             .storage()
             .persistent()
@@ -328,7 +328,7 @@ impl VerifiableCredentialsContract {
 
     // Get credentials by issuer
     pub fn get_credentials_by_issuer(env: Env, issuer_did: Symbol) -> Vec<Symbol> {
-        let credentials_key = symbol_short!("credentials");
+        let credentials_key = symbol_short!("creds");
         let credentials: Map<Symbol, VerifiableCredential> = env
             .storage()
             .persistent()
@@ -346,7 +346,7 @@ impl VerifiableCredentialsContract {
 
     // Get revocation status
     pub fn get_revocation_status(env: Env, credential_id: Symbol) -> Option<RevocationEntry> {
-        let revocations_key = symbol_short!("revocations");
+        let revocations_key = symbol_short!("revocatn");
         let revocations: Map<Symbol, RevocationEntry> = env
             .storage()
             .persistent()
@@ -358,13 +358,13 @@ impl VerifiableCredentialsContract {
 
     // Get credential count
     pub fn get_credential_count(env: Env) -> u64 {
-        let counter_key = symbol_short!("vc_counter");
+        let counter_key = symbol_short!("vc_cnt");
         env.storage().persistent().get(&counter_key).unwrap_or(0)
     }
 
     // Get all credentials (for admin)
     pub fn get_all_credentials(env: Env) -> Vec<Symbol> {
-        let credentials_key = symbol_short!("credentials");
+        let credentials_key = symbol_short!("creds");
         let credentials: Map<Symbol, VerifiableCredential> = env
             .storage()
             .persistent()
@@ -380,7 +380,7 @@ impl VerifiableCredentialsContract {
 
     // Check if credential is revoked (internal helper)
     fn is_revoked(env: Env, credential_id: Symbol) -> bool {
-        let revocations_key = symbol_short!("revocations");
+        let revocations_key = symbol_short!("revocatn");
         let revocations: Map<Symbol, RevocationEntry> = env
             .storage()
             .persistent()
@@ -392,7 +392,7 @@ impl VerifiableCredentialsContract {
 
     // Get credential (internal helper)
     fn get_credential(env: Env, credential_id: Symbol) -> Result<VerifiableCredential, VCError> {
-        let credentials_key = symbol_short!("credentials");
+        let credentials_key = symbol_short!("creds");
         let credentials: Map<Symbol, VerifiableCredential> = env
             .storage()
             .persistent()

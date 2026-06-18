@@ -91,7 +91,7 @@ impl DIDRegistryContract {
         env.storage().persistent().set(&roles_key, &role_map);
         
         // Initialize DID counter
-        let counter_key = symbol_short!("did_counter");
+        let counter_key = symbol_short!("did_cnt");
         env.storage().persistent().set(&counter_key, &0u64);
     }
 
@@ -141,7 +141,7 @@ impl DIDRegistryContract {
         env.storage().persistent().set(&dids_key, &dids);
 
         // Update counter
-        let counter_key = symbol_short!("did_counter");
+        let counter_key = symbol_short!("did_cnt");
         let count: u64 = env.storage().persistent().get(&counter_key).unwrap_or(0);
         env.storage().persistent().set(&counter_key, &(count + 1));
 
@@ -209,7 +209,7 @@ impl DIDRegistryContract {
         env.storage().persistent().set(&dids_key, &dids);
 
         // Update counter
-        let counter_key = symbol_short!("did_counter");
+        let counter_key = symbol_short!("did_cnt");
         let count: u64 = env.storage().persistent().get(&counter_key).unwrap_or(0);
         env.storage().persistent().set(&counter_key, &(count + 1));
 
@@ -454,7 +454,7 @@ impl DIDRegistryContract {
 
     // Get DID count
     pub fn get_did_count(env: Env) -> u64 {
-        let counter_key = symbol_short!("did_counter");
+        let counter_key = symbol_short!("did_cnt");
         env.storage().persistent().get(&counter_key).unwrap_or(0)
     }
 }

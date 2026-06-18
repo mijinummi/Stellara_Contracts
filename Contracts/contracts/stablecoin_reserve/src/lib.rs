@@ -103,7 +103,7 @@ impl StablecoinReserveContract {
         // Set stablecoin address
         env.storage()
             .instance()
-            .set(&symbol_short!("stablecoin"), &stablecoin_address);
+            .set(&symbol_short!("stblcoin"), &stablecoin_address);
 
         // Initialize reserve tracking
         reserve_tracking::initialize(env.clone());
@@ -113,7 +113,7 @@ impl StablecoinReserveContract {
 
         // Log initialization
         env.events().publish(
-            (symbol_short!("reserve"), symbol_short!("initialized")),
+            (symbol_short!("reserve"), symbol_short!("initd")),
             (stablecoin_address, env.ledger().timestamp()),
         );
     }

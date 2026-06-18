@@ -317,11 +317,11 @@ All on-chain state changes emit standardised events via `shared::events`. Off-ch
 | `PROPOSAL_CANCELLED` | `cancel` | trading, messaging, amm, stablecoin-reserve | `ProposalCancelledEvent` |
 | `REWARD_ADDED` | `reward` | social-rewards | `RewardAddedEvent` |
 | `REWARD_CLAIMED` | `claimed` | social-rewards | `RewardClaimedEvent` |
-| `POLICY_CREATED` | `pol_create` | parametric-insurance | `PolicyCreatedEvent` |
-| `POLICY_CANCELLED` | `pol_cancel` | parametric-insurance | `PolicyCancelledEvent` |
-| `POLICY_EXPIRED` | `pol_expire` | parametric-insurance | `PolicyExpiredEvent` |
+| `POLICY_CREATED` | `pol_crt` | parametric-insurance | `PolicyCreatedEvent` |
+| `POLICY_CANCELLED` | `pol_cnl` | parametric-insurance | `PolicyCancelledEvent` |
+| `POLICY_EXPIRED` | `pol_exp` | parametric-insurance | `PolicyExpiredEvent` |
 | `TRIGGER_ACTIVATED` | `trig_act` | parametric-insurance | `TriggerActivatedEvent` |
-| `CLAIM_PAID` | `claim_paid` | parametric-insurance | `ClaimPaidEvent` |
+| `CLAIM_PAID` | `clm_paid` | parametric-insurance | `ClaimPaidEvent` |
 | `LIQUIDITY_DEPOSITED` | `liq_dep` | parametric-insurance | `LiquidityDepositedEvent` |
 | `LIQUIDITY_WITHDRAWN` | `liq_wdraw` | parametric-insurance | `LiquidityWithdrawnEvent` |
 | `TRANSFER` | `transfer` | token | — |
@@ -331,17 +331,17 @@ All on-chain state changes emit standardised events via `shared::events`. Off-ch
 | `VESTING_GRANTED` | `v_grant` | academy (vesting) | `VestingGrantedEvent` |
 | `VESTING_CLAIMED` | `v_claim` | academy (vesting) | `VestingClaimedEvent` |
 | `VESTING_REVOKED` | `v_revoke` | academy (vesting) | `VestingRevokedEvent` |
-| `DID_CREATED` | `did_create` | did-registry | `DidCreatedEvent` |
-| `DID_UPDATED` | `did_update` | did-registry | `DidUpdatedEvent` |
+| `DID_CREATED` | `did_crt` | did-registry | `DidCreatedEvent` |
+| `DID_UPDATED` | `did_upd` | did-registry | `DidUpdatedEvent` |
 | `DID_DEACTIVATED` | `did_deact` | did-registry | `DidDeactivatedEvent` |
 | `VERIF_METHOD_ADDED` | `vm_added` | did-registry | `VerificationMethodAddedEvent` |
 | `SERVICE_ADDED` | `svc_added` | did-registry | `ServiceAddedEvent` |
-| `HUB_CREATED` | `hub_create` | identity-hub | `HubCreatedEvent` |
+| `HUB_CREATED` | `hub_crt` | identity-hub | `HubCreatedEvent` |
 | `DATA_ENTRY_ADDED` | `data_add` | identity-hub | `DataEntryAddedEvent` |
-| `PERM_GRANTED` | `perm_grant` | identity-hub | `PermissionGrantedEvent` |
+| `PERM_GRANTED` | `prm_grnt` | identity-hub | `PermissionGrantedEvent` |
 | `PERM_REVOKED` | `perm_rev` | identity-hub | `PermissionRevokedEvent` |
-| `DISCLOSURE_CREATED` | `disc_creat` | identity-hub | `SelectiveDisclosureCreatedEvent` |
-| `CREDENTIAL_ISSUED` | `cred_issue` | verifiable-credentials | `CredentialIssuedEvent` |
+| `DISCLOSURE_CREATED` | `disc_crt` | identity-hub | `SelectiveDisclosureCreatedEvent` |
+| `CREDENTIAL_ISSUED` | `cred_iss` | verifiable-credentials | `CredentialIssuedEvent` |
 | `CREDENTIAL_REVOKED` | `cred_rev` | verifiable-credentials | `CredentialRevokedEvent` |
 | `ASSET_REGISTERED` | `asset_reg` | synthetic-assets | `AssetRegisteredEvent` |
 | `CDP_OPENED` | `cdp_open` | synthetic-assets | `CdpOpenedEvent` |

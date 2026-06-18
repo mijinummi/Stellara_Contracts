@@ -123,8 +123,8 @@ fn test_academy_rewards_trigger_social_rewards() {
 
     // ── Event assertions ──────────────────────────────────────────────────────
     // academy-rewards emits a badge_mint and badge_redeem event
-    assert_event_emitted(&env, symbol_short!("badge_mint"));
-    assert_event_emitted(&env, symbol_short!("badge_redeem"));
+    assert_event_emitted(&env, symbol_short!("bdg_mint"));
+    assert_event_emitted(&env, symbol_short!("bdg_redm"));
     // social_rewards emits a reward event when add_reward is called
     assert_event_emitted(&env, symbol_short!("reward"));
 }
@@ -245,7 +245,7 @@ fn test_messaging_notifications_from_other_contract_flows() {
 
     // ── Event assertions ──────────────────────────────────────────────────────
     assert_event_emitted(&env, symbol_short!("msg_sent"));
-    assert_event_emitted(&env, symbol_short!("badge_redeem"));
+    assert_event_emitted(&env, symbol_short!("bdg_redm"));
 }
 
 #[test]

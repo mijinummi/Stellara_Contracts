@@ -115,7 +115,7 @@ impl IdentityHubContract {
         env.storage().persistent().set(&roles_key, &role_map);
         
         // Initialize hub counter
-        let counter_key = symbol_short!("hub_counter");
+        let counter_key = symbol_short!("hub_cnt");
         env.storage().persistent().set(&counter_key, &0u64);
     }
 
@@ -126,7 +126,7 @@ impl IdentityHubContract {
         require_auth!(&caller);
 
         // Generate hub ID
-        let counter_key = symbol_short!("hub_counter");
+        let counter_key = symbol_short!("hub_cnt");
         let count: u64 = env.storage().persistent().get(&counter_key).unwrap_or(0);
         let hub_id = symbol_short!(&format!("hub-{}", count + 1));
 
@@ -155,7 +155,7 @@ impl IdentityHubContract {
         hubs.set(hub_id.clone(), hub);
         
         // Store owner to hub mapping
-        let owner_map_key = symbol_short!("owner_to_hub");
+        let owner_map_key = symbol_short!("own_hub");
         let mut owner_map: Map<Symbol, Symbol> = env
             .storage()
             .persistent()
@@ -366,7 +366,7 @@ impl IdentityHubContract {
         }
 
         // Generate disclosure ID
-        let counter_key = symbol_short!("disclosure_counter");
+        let counter_key = symbol_short!("disc_cnt");
         let count: u64 = env.storage().persistent().get(&counter_key).unwrap_or(0);
         let disclosure_id = symbol_short!(&format!("disclosure-{}", count + 1));
 
@@ -383,7 +383,7 @@ impl IdentityHubContract {
         };
 
         // Store disclosure
-        let disclosures_key = symbol_short!("disclosures");
+        let disclosures_key = symbol_short!("disclosrs");
         let mut disclosures: Map<Symbol, SelectiveDisclosure> = env
             .storage()
             .persistent()
@@ -480,7 +480,7 @@ impl IdentityHubContract {
 
     // Get hub by owner DID
     pub fn get_hub_by_owner(env: Env, owner_did: Symbol) -> Symbol {
-        let owner_map_key = symbol_short!("owner_to_hub");
+        let owner_map_key = symbol_short!("own_hub");
         let owner_map: Map<Symbol, Symbol> = env
             .storage()
             .persistent()
@@ -492,7 +492,7 @@ impl IdentityHubContract {
 
     // Get hub count
     pub fn get_hub_count(env: Env) -> u64 {
-        let counter_key = symbol_short!("hub_counter");
+        let counter_key = symbol_short!("hub_cnt");
         env.storage().persistent().get(&counter_key).unwrap_or(0)
     }
 
@@ -509,7 +509,7 @@ impl IdentityHubContract {
     }
 
     fn get_disclosure(env: Env, disclosure_id: Symbol) -> Result<SelectiveDisclosure, IdentityHubError> {
-        let disclosures_key = symbol_short!("disclosures");
+        let disclosures_key = symbol_short!("disclosrs");
         let disclosures: Map<Symbol, SelectiveDisclosure> = env
             .storage()
             .persistent()
@@ -523,7 +523,7 @@ impl IdentityHubContract {
         for condition in conditions.iter() {
             // Simplified condition checking
             // In production, implement proper condition evaluation
-            if condition.type_ == symbol_short!("time_limit") {
+            if condition.type_ == symbol_short!("time_lmt") {
                 let current_time = env.ledger().timestamp();
                 let limit = condition.value.to_u64().unwrap();
                 if current_time > limit {

@@ -32,11 +32,11 @@ pub mod topics {
     pub const REWARD_CLAIMED: Symbol = symbol_short!("claimed");
 
     // Parametric insurance events
-    pub const POLICY_CREATED: Symbol = symbol_short!("pol_create");
-    pub const POLICY_CANCELLED: Symbol = symbol_short!("pol_cancel");
-    pub const POLICY_EXPIRED: Symbol = symbol_short!("pol_expire");
+    pub const POLICY_CREATED: Symbol = symbol_short!("pol_crt");
+    pub const POLICY_CANCELLED: Symbol = symbol_short!("pol_cnl");
+    pub const POLICY_EXPIRED: Symbol = symbol_short!("pol_exp");
     pub const TRIGGER_ACTIVATED: Symbol = symbol_short!("trig_act");
-    pub const CLAIM_PAID: Symbol = symbol_short!("claim_paid");
+    pub const CLAIM_PAID: Symbol = symbol_short!("clm_paid");
     pub const LIQUIDITY_DEPOSITED: Symbol = symbol_short!("liq_dep");
     pub const LIQUIDITY_WITHDRAWN: Symbol = symbol_short!("liq_wdraw");
 
@@ -734,21 +734,21 @@ pub mod extended_topics {
     use soroban_sdk::{symbol_short, Symbol};
 
     // DID registry
-    pub const DID_CREATED: Symbol             = symbol_short!("did_create");
-    pub const DID_UPDATED: Symbol             = symbol_short!("did_update");
+    pub const DID_CREATED: Symbol             = symbol_short!("did_crt");
+    pub const DID_UPDATED: Symbol             = symbol_short!("did_upd");
     pub const DID_DEACTIVATED: Symbol         = symbol_short!("did_deact");
     pub const VERIF_METHOD_ADDED: Symbol      = symbol_short!("vm_added");
     pub const SERVICE_ADDED: Symbol           = symbol_short!("svc_added");
 
     // Identity hub
-    pub const HUB_CREATED: Symbol             = symbol_short!("hub_create");
+    pub const HUB_CREATED: Symbol             = symbol_short!("hub_crt");
     pub const DATA_ENTRY_ADDED: Symbol        = symbol_short!("data_add");
-    pub const PERM_GRANTED: Symbol            = symbol_short!("perm_grant");
+    pub const PERM_GRANTED: Symbol            = symbol_short!("prm_grnt");
     pub const PERM_REVOKED: Symbol            = symbol_short!("perm_rev");
-    pub const DISCLOSURE_CREATED: Symbol      = symbol_short!("disc_creat");
+    pub const DISCLOSURE_CREATED: Symbol      = symbol_short!("disc_crt");
 
     // Verifiable credentials
-    pub const CREDENTIAL_ISSUED: Symbol       = symbol_short!("cred_issue");
+    pub const CREDENTIAL_ISSUED: Symbol       = symbol_short!("cred_iss");
     pub const CREDENTIAL_REVOKED: Symbol      = symbol_short!("cred_rev");
 
     // Synthetic assets
