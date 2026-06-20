@@ -243,7 +243,7 @@ impl GovernanceManager {
     pub fn execute_proposal(
         env: &Env,
         proposal_id: u64,
-        executor: Address,
+        _executor: Address,
     ) -> Result<(), GovernanceError> {
         // Validate executor has permission OR allow any (for backward compatibility)
         // Keep old behavior where any address can execute approved proposals

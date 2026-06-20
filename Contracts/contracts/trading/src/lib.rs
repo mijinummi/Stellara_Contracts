@@ -1,6 +1,6 @@
 #![no_std]
 
-use shared::acl::{ACL, ROLE_ADMIN, ROLE_APPROVER, ROLE_EXECUTOR, PERMISSION_PAUSE, PERMISSION_UNPAUSE, PERMISSION_SET_RATE, PERMISSION_PREMIUM, PERMISSION_MGR_ACL};
+use shared::acl::{ACL, ROLE_ADMIN, PERMISSION_PAUSE, PERMISSION_UNPAUSE, PERMISSION_SET_RATE, PERMISSION_PREMIUM, PERMISSION_MGR_ACL};
 use shared::circuit_breaker::{
     CircuitBreaker, CircuitBreakerConfig, CircuitBreakerState, PauseLevel,
 };
@@ -25,7 +25,6 @@ mod storage_keys {
     use soroban_sdk::{symbol_short, Symbol};
 
     pub const INIT: Symbol = symbol_short!("init");
-    pub const ROLES: Symbol = symbol_short!("roles");
     pub const STATS: Symbol = symbol_short!("stats");
     pub const VERSION: Symbol = symbol_short!("ver");
     pub const TRADE_COUNT: Symbol = symbol_short!("t_cnt");

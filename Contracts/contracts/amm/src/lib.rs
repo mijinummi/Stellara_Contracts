@@ -16,7 +16,7 @@ use position::{
     mint_position, read_position, require_position, write_position,
 };
 
-use shared::acl::{ACL, ROLE_ADMIN, ROLE_APPROVER, ROLE_EXECUTOR, PERMISSION_PAUSE, PERMISSION_UNPAUSE, PERMISSION_NEW_POOL, PERMISSION_MGR_ACL};
+use shared::acl::{ACL, ROLE_ADMIN, PERMISSION_PAUSE, PERMISSION_UNPAUSE, PERMISSION_NEW_POOL, PERMISSION_MGR_ACL};
 use shared::circuit_breaker::{CircuitBreaker, CircuitBreakerConfig, CircuitBreakerState, PauseLevel};
 use shared::governance::{GovernanceManager, UpgradeProposal};
 use soroban_sdk::{
@@ -27,7 +27,6 @@ use soroban_sdk::{
 mod keys {
     use soroban_sdk::{symbol_short, Symbol};
     pub const INIT: Symbol = symbol_short!("amm_init");
-    pub const ROLES: Symbol = symbol_short!("roles");
     pub const POOL_CNT: Symbol = symbol_short!("pool_cnt");
 }
 

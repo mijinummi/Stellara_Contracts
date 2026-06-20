@@ -1,10 +1,10 @@
 #![no_std]
 
-use shared::acl::{ACL, ROLE_ADMIN, ROLE_APPROVER, ROLE_EXECUTOR, PERMISSION_PAUSE, PERMISSION_UNPAUSE, PERMISSION_SET_RATE, PERMISSION_PREMIUM, PERMISSION_MGR_ACL};
+use shared::acl::{ACL, ROLE_ADMIN, PERMISSION_PAUSE, PERMISSION_UNPAUSE, PERMISSION_SET_RATE, PERMISSION_PREMIUM, PERMISSION_MGR_ACL};
 use shared::circuit_breaker::{
     CircuitBreaker, CircuitBreakerConfig, CircuitBreakerState, PauseLevel,
 };
-use shared::governance::{GovernanceManager, GovernanceRole, UpgradeProposal};
+use shared::governance::{GovernanceManager, UpgradeProposal};
 use shared::nonce::NonceManager;
 use shared::reentrancy_guard::ReentrancyGuard;
 use soroban_sdk::{
