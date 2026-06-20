@@ -4,6 +4,7 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import { RedisIoAdapter } from './websocket/redis-io.adapter';
 import { ThrottleGuard } from './throttle/throttle.guard';
+import { ConfigValidationService } from './config/config-validation.service';
 
 const REQUIRED_ENV_VARS = ['JWT_SECRET', 'DB_HOST', 'REDIS_URL'] as const;
 
@@ -32,6 +33,11 @@ async function bootstrap() {
 
   app.enableShutdownHooks();
 
+  // Validate configuration at startup
+  const configValidationService = app.get(ConfigValidationService);
+  configValidationService.validate();
+
+  // Enable validation globally
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,

@@ -17,6 +17,7 @@ import { MarketDataModule } from './market-data/market-data.module';
 import { AiModule } from './ai/ai.module';
 
 import { RolesGuard } from './guards/roles.guard';
+import { ConfigValidationService } from './config/config-validation.service';
 
 import { Workflow } from './workflow/entities/workflow.entity';
 import { WorkflowStep } from './workflow/entities/workflow-step.entity';
@@ -26,7 +27,7 @@ import { LoginNonce } from './auth/entities/login-nonce.entity';
 import { RefreshToken } from './auth/entities/refresh-token.entity';
 import { ApiToken } from './auth/entities/api-token.entity';
 import { AuditModule } from './audit/audit.module';
-import { AuditLog } from './audit/audit.entity';
+import { AuditLog, AuditLogArchive } from './audit/audit.entity';
 import { VoiceJob } from './voice/entities/voice-job.entity';
 import { ThrottleModule } from './throttle/throttle.module';
 import { HealthModule } from './health/health.module';
@@ -47,7 +48,7 @@ import { HealthModule } from './health/health.module';
         host: configService.get('DB_HOST') || 'localhost',
         port: configService.get('DB_PORT') || 5432,
         username: configService.get('DB_USERNAME') || 'postgres',
-        password: configService.get('DB_PASSWORD') || 'password',
+        password: configService.get('DB_PASSWORD'),
         database: configService.get('DB_DATABASE') || 'stellara_workflows',
         entities: [
           Workflow,
@@ -58,6 +59,7 @@ import { HealthModule } from './health/health.module';
           RefreshToken,
           ApiToken,
           AuditLog,
+          AuditLogArchive,
           VoiceJob,
         ],
         synchronize: configService.get('NODE_ENV') === 'development',
@@ -82,6 +84,12 @@ import { HealthModule } from './health/health.module';
 
   providers: [
     AppService,
+    ConfigValidationService,
+
+    /**
+     * Global RBAC enforcement
+     * Applies @Roles() checks across all controllers
+     */
     {
       provide: APP_GUARD,
       useClass: RolesGuard,

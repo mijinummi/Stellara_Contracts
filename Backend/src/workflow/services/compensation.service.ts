@@ -27,7 +27,7 @@ export class CompensationService {
 
     const workflow = await this.workflowRepository.findOne({
       where: { id: workflowId },
-      relations: ['steps'],
+      relations: { steps: true },
     });
 
     if (!workflow) {
@@ -155,7 +155,7 @@ export class CompensationService {
           isCompensated: false,
         },
       ],
-      relations: ['steps'],
+      relations: { steps: true },
       order: { createdAt: 'DESC' },
     });
   }
@@ -183,7 +183,7 @@ export class CompensationService {
 
     const workflow = await this.workflowRepository.findOne({
       where: { id: workflowId },
-      relations: ['steps'],
+      relations: { steps: true },
     });
 
     if (!workflow) {

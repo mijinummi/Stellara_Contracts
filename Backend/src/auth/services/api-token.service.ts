@@ -71,7 +71,7 @@ export class ApiTokenService {
     // Get all non-revoked, non-expired tokens
     const tokens = await this.apiTokenRepository.find({
       where: { revoked: false },
-      relations: ['user'],
+      relations: { user: true },
     });
 
     // Check each token against the plain token
@@ -121,15 +121,15 @@ export class ApiTokenService {
   async listUserApiTokens(userId: string): Promise<ApiToken[]> {
     return await this.apiTokenRepository.find({
       where: { userId },
-      select: [
-        'id',
-        'name',
-        'role',
-        'expiresAt',
-        'revoked',
-        'lastUsedAt',
-        'createdAt',
-      ],
+      select: {
+        id: true,
+        name: true,
+        role: true,
+        expiresAt: true,
+        revoked: true,
+        lastUsedAt: true,
+        createdAt: true,
+      },
       order: { createdAt: 'DESC' },
     });
   }

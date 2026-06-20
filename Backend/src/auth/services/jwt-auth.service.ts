@@ -91,7 +91,7 @@ export class JwtAuthService {
   ): Promise<{ accessToken: string; newRefreshToken: string }> {
     const tokenRecord = await this.refreshTokenRepository.findOne({
       where: { token: refreshToken },
-      relations: ['user'],
+      relations: { user: true },
     });
 
     if (!tokenRecord) {

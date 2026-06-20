@@ -72,7 +72,7 @@ export class WorkflowService implements OnModuleInit {
   async getWorkflow(id: string): Promise<Workflow | null> {
     return await this.workflowRepository.findOne({
       where: { id },
-      relations: ['steps'],
+      relations: { steps: true },
     });
   }
 
@@ -88,7 +88,7 @@ export class WorkflowService implements OnModuleInit {
 
     const [workflows, total] = await this.workflowRepository.findAndCount({
       where: { userId },
-      relations: ['steps'],
+      relations: { steps: true },
       order: { createdAt: 'DESC' },
       skip,
       take: limit,
@@ -109,7 +109,7 @@ export class WorkflowService implements OnModuleInit {
 
     const [workflows, total] = await this.workflowRepository.findAndCount({
       where: { walletAddress },
-      relations: ['steps'],
+      relations: { steps: true },
       order: { createdAt: 'DESC' },
       skip,
       take: limit,
@@ -130,7 +130,7 @@ export class WorkflowService implements OnModuleInit {
 
     const [workflows, total] = await this.workflowRepository.findAndCount({
       where: { state },
-      relations: ['steps'],
+      relations: { steps: true },
       order: { createdAt: 'DESC' },
       skip,
       take: limit,
@@ -204,7 +204,7 @@ export class WorkflowService implements OnModuleInit {
         state: WorkflowState.FAILED,
         retryCount: 0, // Only show workflows that haven't been retried
       },
-      relations: ['steps'],
+      relations: { steps: true },
       order: { failedAt: 'DESC' },
     });
   }
@@ -223,7 +223,7 @@ export class WorkflowService implements OnModuleInit {
           WorkflowState.CANCELLED,
         ]),
       },
-      relations: ['steps'],
+      relations: { steps: true },
       order: { createdAt: 'DESC' },
     });
   }
@@ -263,7 +263,7 @@ export class WorkflowService implements OnModuleInit {
         retryCount: 0, // Only workflows that haven't been retried yet
         nextRetryAt: LessThan(now),
       },
-      relations: ['steps'],
+      relations: { steps: true },
       order: { nextRetryAt: 'ASC' },
     });
   }

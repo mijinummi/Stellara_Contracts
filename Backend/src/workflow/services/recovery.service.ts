@@ -64,7 +64,7 @@ export class RecoveryService implements OnModuleInit {
     // Find workflows in RUNNING state that may have been abandoned
     const orphanedWorkflows = await this.workflowRepository.find({
       where: { state: WorkflowState.RUNNING },
-      relations: ['steps'],
+      relations: { steps: true },
     });
 
     this.logger.log(
@@ -154,7 +154,7 @@ export class RecoveryService implements OnModuleInit {
         state: StepState.RUNNING,
         updatedAt: LessThan(cutoffTime),
       },
-      relations: ['workflow'],
+      relations: { workflow: true },
     });
 
     this.logger.log(`Found ${stuckSteps.length} potentially stuck steps`);

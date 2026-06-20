@@ -52,7 +52,7 @@ export class WalletService {
   async findUserByWallet(publicKey: string): Promise<User | null> {
     const binding = await this.walletBindingRepository.findOne({
       where: { publicKey },
-      relations: ['user'],
+      relations: { user: true },
     });
 
     return binding?.user || null;

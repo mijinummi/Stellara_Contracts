@@ -56,7 +56,7 @@ export class WorkflowAdminController {
 
     const [workflows, total] = await this.workflowRepository.findAndCount({
       where,
-      relations: ['steps'],
+      relations: { steps: true },
       order: { createdAt: 'DESC' },
       skip,
       take: limit,
@@ -81,7 +81,7 @@ export class WorkflowAdminController {
   async getWorkflow(@Param('id') id: string) {
     const workflow = await this.workflowRepository.findOne({
       where: { id },
-      relations: ['steps'],
+      relations: { steps: true },
     });
 
     if (!workflow) {
@@ -98,7 +98,7 @@ export class WorkflowAdminController {
   async getWorkflowTimeline(@Param('id') id: string) {
     const workflow = await this.workflowRepository.findOne({
       where: { id },
-      relations: ['steps'],
+      relations: { steps: true },
     });
 
     if (!workflow) {
@@ -365,7 +365,7 @@ export class WorkflowAdminController {
         { idempotencyKey: Like(`%${query}%`) },
         { walletAddress: Like(`%${query}%`) },
       ],
-      relations: ['steps'],
+      relations: { steps: true },
       order: { createdAt: 'DESC' },
       skip,
       take: limit,

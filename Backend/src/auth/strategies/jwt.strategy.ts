@@ -14,19 +14,23 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
   ) {
+    const secret = configService.get('JWT_SECRET');
+    if (!secret) {
+      throw new Error(
+        'JWT_SECRET is not defined in environment variables',
+      );
+    }
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
-      secretOrKey:
-        configService.get('JWT_SECRET') ||
-        'default-secret-change-in-production',
+      secretOrKey: secret,
     });
   }
 
   async validate(payload: JwtPayload): Promise<User> {
     const user = await this.userRepository.findOne({
       where: { id: payload.sub },
-      relations: ['wallets'],
+      relations: { wallets: true },
     });
 
     if (!user) {
