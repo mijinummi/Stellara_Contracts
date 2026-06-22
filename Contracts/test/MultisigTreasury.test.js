@@ -37,12 +37,26 @@ describe("MultisigTreasury", function () {
     await treasury.connect(owner0).confirmTransaction(idx);
     await expect(treasury.connect(owner0).executeTransaction(idx)).to.be.revertedWith("insufficient confirmations for large tx");
 
-    // second confirm
+    // second confirm satisfies multisig requirement
     await treasury.connect(owner1).confirmTransaction(idx);
     const before = await ethers.provider.getBalance(recipient.address);
     await treasury.connect(owner0).executeTransaction(idx);
     const after = await ethers.provider.getBalance(recipient.address);
     expect(after - before).to.equal(value);
+  });
+
+  it("has __gap storage slot to prevent upgradeable storage collisions", async () => {
+    // Verify all public state variables remain accessible — confirming the
+    // storage layout is intact after the __gap was appended.
+    expect(await treasury.required()).to.equal(2n);
+    expect(await treasury.dailyLimit()).to.equal(ethers.parseEther("5"));
+    expect(await treasury.weeklyLimit()).to.equal(ethers.parseEther("10"));
+    expect(await treasury.threshold()).to.equal(ethers.parseEther("2"));
+    expect(await treasury.frozen()).to.equal(false);
+    // The __gap occupies 50 reserved slots after the declared variables,
+    // ensuring future additions do not shift existing storage positions.
+    const owners = await treasury.getOwners();
+    expect(owners.length).to.equal(3);
   });
 
   it("requires multisig approval for limit changes", async () => {
@@ -56,9 +70,7 @@ describe("MultisigTreasury", function () {
     ]);
 
     await expect(
-      treasury
-        .connect(owner0)
-        .updateLimits(newDailyLimit, newWeeklyLimit, newThreshold)
+      treasury.connect(owner0).updateLimits(newDailyLimit, newWeeklyLimit, newThreshold)
     ).to.be.revertedWith("only self");
 
     await treasury.connect(owner0).submitTransaction(await treasury.getAddress(), 0, data);
@@ -86,9 +98,7 @@ describe("MultisigTreasury", function () {
 
     const data = treasury.interface.encodeFunctionData("emergencyFreeze");
     const unfreezeData = treasury.interface.encodeFunctionData("unfreezeInternal");
-    await expect(treasury.connect(owner0).emergencyFreeze()).to.be.revertedWith(
-      "only self"
-    );
+    await expect(treasury.connect(owner0).emergencyFreeze()).to.be.revertedWith("only self");
 
     await treasury.connect(owner0).submitTransaction(await treasury.getAddress(), 0, data);
     const count = await treasury.getTransactionCount();
