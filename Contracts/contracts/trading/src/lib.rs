@@ -1,12 +1,14 @@
 #![no_std]
 
-use shared::acl::ACL;
+use shared::acl::{ACL, ROLE_ADMIN, PERMISSION_PAUSE, PERMISSION_UNPAUSE, PERMISSION_SET_RATE, PERMISSION_PREMIUM, PERMISSION_MGR_ACL};
 use shared::circuit_breaker::{
     CircuitBreaker, CircuitBreakerConfig, CircuitBreakerState, PauseLevel,
 };
 use shared::fees::FeeManager;
-use shared::governance::{GovernanceManager, GovernanceRole, UpgradeProposal};
-use soroban_sdk::{contract, contractimpl, contracttype, symbol_short, Address, Env, Symbol, Vec};
+use shared::governance::{GovernanceManager, UpgradeProposal};
+use soroban_sdk::{
+    contract, contractimpl, contracttype, symbol_short, Address, Bytes, BytesN, Env, Symbol, Vec,
+};
 
 /// Version of this contract implementation
 const CONTRACT_VERSION: u32 = 1;
@@ -15,19 +17,23 @@ const CONTRACT_VERSION: u32 = 1;
 const MAX_RECENT_TRADES: u32 = 100;
 /// Hard cap on the number of orders that can be executed atomically in one batch
 const MAX_BATCH_SIZE: u32 = 25;
+/// Default validity window for submitted solvency proofs
+const DEFAULT_SOLVENCY_PROOF_TTL_SECS: u64 = 3600;
 
 /// Storage keys as constants to avoid repeated symbol creation
 mod storage_keys {
     use soroban_sdk::{symbol_short, Symbol};
 
     pub const INIT: Symbol = symbol_short!("init");
-    pub const ROLES: Symbol = symbol_short!("roles");
     pub const STATS: Symbol = symbol_short!("stats");
     pub const VERSION: Symbol = symbol_short!("ver");
     pub const TRADE_COUNT: Symbol = symbol_short!("t_cnt");
     pub const RL_CFG: Symbol = symbol_short!("rl_cfg");
     pub const PREM: Symbol = symbol_short!("prem");
     pub const ORDER_COUNT: Symbol = symbol_short!("o_cnt");
+    pub const PRIV_TRADE_COUNT: Symbol = symbol_short!("pt_cnt");
+    pub const PRIV_AUDIT_COUNT: Symbol = symbol_short!("pa_cnt");
+    pub const SOLVENCY_TTL: Symbol = symbol_short!("s_ttl");
 }
 
 /// Trading contract with upgradeability and governance
@@ -160,6 +166,67 @@ pub struct OrderMatched {
     pub price: i128,
     pub timestamp: u64,
 }
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct PrivateBalanceCommitment {
+    pub commitment: BytesN<32>,
+    pub nonce: u64,
+    pub updated_at: u64,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct SolvencyProofRecord {
+    pub proof_hash: BytesN<32>,
+    pub assets_commitment: BytesN<32>,
+    pub liabilities_commitment: BytesN<32>,
+    pub balance_commitment: BytesN<32>,
+    pub nonce: u64,
+    pub submitted_at: u64,
+    pub expires_at: u64,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct PrivateTradeRecord {
+    pub id: u64,
+    pub trader: Address,
+    pub pair: Symbol,
+    pub price: i128,
+    pub is_buy: bool,
+    pub amount_commitment: BytesN<32>,
+    pub balance_commitment: BytesN<32>,
+    pub solvency_proof_hash: BytesN<32>,
+    pub timestamp: u64,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ComplianceViewKey {
+    pub encrypted_key: Bytes,
+    pub key_version: u32,
+    pub updated_at: u64,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct PrivateTradeAuditRecord {
+    pub audit_id: u64,
+    pub trade_id: u64,
+    pub auditor: Address,
+    pub trader: Address,
+    pub action: Symbol,
+    pub timestamp: u64,
+}
+
+#[contracttype]
+#[derive(Clone, Debug)]
+pub struct PrivateTradeAuditView {
+    pub trade: PrivateTradeRecord,
+    pub proof: Vec<SolvencyProofRecord>,
+    pub trader_view_key: Vec<ComplianceViewKey>,
+    pub selective_disclosure: Vec<Bytes>,
+}
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, PartialOrd, Ord)]
 #[repr(u32)]
@@ -178,6 +245,13 @@ pub enum TradeError {
     OrderNotCancelable = 3012,
     NoLiquidity = 3013,
     OrderWouldNotFullyFill = 3014,
+    InvalidCommitment = 3015,
+    MissingPrivateBalance = 3016,
+    MissingSolvencyProof = 3017,
+    InvalidSolvencyProof = 3018,
+    SolvencyProofExpired = 3019,
+    PrivateTradeNotFound = 3020,
+    AuditUnauthorized = 3021,
 }
 
 impl From<TradeError> for soroban_sdk::Error {
@@ -738,21 +812,14 @@ impl UpgradeableTradingContract {
             return Err(TradeError::Unauthorized);
         }
 
-        let mut roles = soroban_sdk::Map::new(&env);
-        roles.set(admin.clone(), GovernanceRole::Admin);
-        for approver in approvers.iter() {
-            roles.set(approver, GovernanceRole::Approver);
-        }
-        roles.set(executor, GovernanceRole::Executor);
+        GovernanceManager::init_governance_roles(&env, admin.clone(), approvers.clone(), executor.clone());
 
-        let admin_role = Symbol::new(&env, "admin");
-        ACL::create_role(&env, &admin_role);
-        ACL::assign_role(&env, &admin, &admin_role);
-        ACL::assign_permission(&env, &admin_role, &Symbol::new(&env, "set_rate"));
-        ACL::assign_permission(&env, &admin_role, &Symbol::new(&env, "premium"));
-        ACL::assign_permission(&env, &admin_role, &Symbol::new(&env, "pause"));
-        ACL::assign_permission(&env, &admin_role, &Symbol::new(&env, "unpause"));
-        ACL::assign_permission(&env, &admin_role, &Symbol::new(&env, "manage_acl"));
+        // Assign additional permissions to admin role
+        ACL::assign_permission(&env, &ROLE_ADMIN, &PERMISSION_SET_RATE);
+        ACL::assign_permission(&env, &ROLE_ADMIN, &PERMISSION_PREMIUM);
+        ACL::assign_permission(&env, &ROLE_ADMIN, &PERMISSION_PAUSE);
+        ACL::assign_permission(&env, &ROLE_ADMIN, &PERMISSION_UNPAUSE);
+        ACL::assign_permission(&env, &ROLE_ADMIN, &PERMISSION_MGR_ACL);
 
         let stats = TradeStats {
             total_trades: 0,
@@ -770,7 +837,6 @@ impl UpgradeableTradingContract {
 
         let storage = env.storage().persistent();
         storage.set(&storage_keys::INIT, &true);
-        storage.set(&storage_keys::ROLES, &roles);
         storage.set(&storage_keys::STATS, &stats);
         storage.set(&storage_keys::VERSION, &CONTRACT_VERSION);
         storage.set(&storage_keys::TRADE_COUNT, &0u64);
@@ -998,7 +1064,7 @@ impl UpgradeableTradingContract {
     ) -> Result<(), TradeError> {
         admin.require_auth();
         require_initialized(&env)?;
-        ACL::require_permission(&env, &admin, &Symbol::new(&env, "set_rate"));
+        ACL::require_permission(&env, &admin, &PERMISSION_SET_RATE);
 
         if window_secs == 0 || user_limit == 0 || global_limit == 0 || premium_user_limit == 0 {
             return Err(TradeError::InvalidRateLimitConfig);
@@ -1024,7 +1090,7 @@ impl UpgradeableTradingContract {
     ) -> Result<(), TradeError> {
         admin.require_auth();
         require_initialized(&env)?;
-        ACL::require_permission(&env, &admin, &Symbol::new(&env, "premium"));
+        ACL::require_permission(&env, &admin, &PERMISSION_PREMIUM);
 
         let mut premium_users: soroban_sdk::Map<Address, bool> = env
             .storage()
@@ -1145,7 +1211,7 @@ impl UpgradeableTradingContract {
     pub fn set_pause_level(env: Env, admin: Address, level: PauseLevel) -> Result<(), TradeError> {
         admin.require_auth();
         require_initialized(&env)?;
-        ACL::require_permission(&env, &admin, &Symbol::new(&env, "pause"));
+        ACL::require_permission(&env, &admin, &PERMISSION_PAUSE);
         set_trade_pause_level(&env, level);
         Ok(())
     }
@@ -1154,7 +1220,7 @@ impl UpgradeableTradingContract {
     pub fn pause_function(env: Env, admin: Address, func_name: Symbol) -> Result<(), TradeError> {
         admin.require_auth();
         require_initialized(&env)?;
-        ACL::require_permission(&env, &admin, &Symbol::new(&env, "pause"));
+        ACL::require_permission(&env, &admin, &PERMISSION_PAUSE);
         pause_trade_function(&env, func_name);
         Ok(())
     }
@@ -1163,7 +1229,7 @@ impl UpgradeableTradingContract {
     pub fn unpause_function(env: Env, admin: Address, func_name: Symbol) -> Result<(), TradeError> {
         admin.require_auth();
         require_initialized(&env)?;
-        ACL::require_permission(&env, &admin, &Symbol::new(&env, "unpause"));
+        ACL::require_permission(&env, &admin, &PERMISSION_UNPAUSE);
         unpause_trade_function(&env, func_name);
         Ok(())
     }
@@ -1182,7 +1248,7 @@ impl UpgradeableTradingContract {
     pub fn pause(env: Env, admin: Address) -> Result<(), TradeError> {
         admin.require_auth();
         require_initialized(&env)?;
-        ACL::require_permission(&env, &admin, &Symbol::new(&env, "pause"));
+        ACL::require_permission(&env, &admin, &PERMISSION_PAUSE);
         set_trade_pause_level(&env, PauseLevel::Full);
         Ok(())
     }
@@ -1191,7 +1257,7 @@ impl UpgradeableTradingContract {
     pub fn unpause(env: Env, admin: Address) -> Result<(), TradeError> {
         admin.require_auth();
         require_initialized(&env)?;
-        ACL::require_permission(&env, &admin, &Symbol::new(&env, "unpause"));
+        ACL::require_permission(&env, &admin, &PERMISSION_UNPAUSE);
         set_trade_pause_level(&env, PauseLevel::None);
         Ok(())
     }
@@ -1199,7 +1265,7 @@ impl UpgradeableTradingContract {
     pub fn create_role(env: Env, admin: Address, role: Symbol) -> Result<(), TradeError> {
         admin.require_auth();
         require_initialized(&env)?;
-        ACL::require_permission(&env, &admin, &Symbol::new(&env, "manage_acl"));
+        ACL::require_permission(&env, &admin, &PERMISSION_MGR_ACL);
         ACL::create_role(&env, &role);
         Ok(())
     }
@@ -1212,7 +1278,7 @@ impl UpgradeableTradingContract {
     ) -> Result<(), TradeError> {
         admin.require_auth();
         require_initialized(&env)?;
-        ACL::require_permission(&env, &admin, &Symbol::new(&env, "manage_acl"));
+        ACL::require_permission(&env, &admin, &PERMISSION_MGR_ACL);
         ACL::assign_role(&env, &user, &role);
         Ok(())
     }
@@ -1225,7 +1291,7 @@ impl UpgradeableTradingContract {
     ) -> Result<(), TradeError> {
         admin.require_auth();
         require_initialized(&env)?;
-        ACL::require_permission(&env, &admin, &Symbol::new(&env, "manage_acl"));
+        ACL::require_permission(&env, &admin, &PERMISSION_MGR_ACL);
         ACL::assign_permission(&env, &role, &permission);
         Ok(())
     }
@@ -1238,7 +1304,7 @@ impl UpgradeableTradingContract {
     ) -> Result<(), TradeError> {
         admin.require_auth();
         require_initialized(&env)?;
-        ACL::require_permission(&env, &admin, &Symbol::new(&env, "manage_acl"));
+        ACL::require_permission(&env, &admin, &PERMISSION_MGR_ACL);
         ACL::assign_permissions_batch(&env, &role, &permissions);
         Ok(())
     }
@@ -1251,7 +1317,7 @@ impl UpgradeableTradingContract {
     ) -> Result<(), TradeError> {
         admin.require_auth();
         require_initialized(&env)?;
-        ACL::require_permission(&env, &admin, &Symbol::new(&env, "manage_acl"));
+        ACL::require_permission(&env, &admin, &PERMISSION_MGR_ACL);
         ACL::set_parent_role(&env, &child, &parent);
         Ok(())
     }
@@ -1350,6 +1416,304 @@ impl UpgradeableTradingContract {
         GovernanceManager::cancel_proposal(&env, proposal_id, admin)
             .map_err(|_| TradeError::Unauthorized)
     }
+
+    /// Submit a ZK proof of solvency
+    pub fn submit_solvency_proof(
+        env: Env,
+        trader: Address,
+        proof_hash: BytesN<32>,
+        assets_commitment: BytesN<32>,
+        liabilities_commitment: BytesN<32>,
+        balance_commitment: BytesN<32>,
+    ) -> Result<(), TradeError> {
+        trader.require_auth();
+        require_initialized(&env)?;
+
+        // Validate inputs - commitments and proof hash should not be all zeros
+        if proof_hash.to_array().iter().all(|&b| b == 0) {
+            return Err(TradeError::InvalidSolvencyProof);
+        }
+        if assets_commitment.to_array().iter().all(|&b| b == 0) {
+            return Err(TradeError::InvalidSolvencyProof);
+        }
+        if liabilities_commitment.to_array().iter().all(|&b| b == 0) {
+            return Err(TradeError::InvalidSolvencyProof);
+        }
+        if balance_commitment.to_array().iter().all(|&b| b == 0) {
+            return Err(TradeError::InvalidSolvencyProof);
+        }
+
+        let now = env.ledger().timestamp();
+        let ttl_secs: u64 = env
+            .storage()
+            .persistent()
+            .get(&storage_keys::SOLVENCY_TTL)
+            .unwrap_or(DEFAULT_SOLVENCY_PROOF_TTL_SECS);
+
+        let record_key = (symbol_short!("solv_prf"), trader.clone());
+        let nonce: u64 = env
+            .storage()
+            .persistent()
+            .get(&record_key)
+            .map(|r: SolvencyProofRecord| r.nonce + 1)
+            .unwrap_or(1);
+
+        let record = SolvencyProofRecord {
+            proof_hash: proof_hash.clone(),
+            assets_commitment,
+            liabilities_commitment,
+            balance_commitment,
+            nonce,
+            submitted_at: now,
+            expires_at: now + ttl_secs,
+        };
+
+        env.storage().persistent().set(&record_key, &record);
+
+        env.events()
+            .publish((symbol_short!("solv_sub"),), (trader, proof_hash));
+
+        Ok(())
+    }
+
+    /// Update private balance commitment
+    pub fn update_private_balance(
+        env: Env,
+        trader: Address,
+        commitment: BytesN<32>,
+    ) -> Result<(), TradeError> {
+        trader.require_auth();
+        require_initialized(&env)?;
+
+        // Validate commitment is not all zeros
+        if commitment.to_array().iter().all(|&b| b == 0) {
+            return Err(TradeError::InvalidCommitment);
+        }
+
+        let record_key = (symbol_short!("prv_bal"), trader.clone());
+        let nonce: u64 = env
+            .storage()
+            .persistent()
+            .get(&record_key)
+            .map(|r: PrivateBalanceCommitment| r.nonce + 1)
+            .unwrap_or(1);
+
+        let record = PrivateBalanceCommitment {
+            commitment: commitment.clone(),
+            nonce,
+            updated_at: env.ledger().timestamp(),
+        };
+
+        env.storage().persistent().set(&record_key, &record);
+
+        env.events()
+            .publish((symbol_short!("bal_upd"),), (trader, commitment));
+
+        Ok(())
+    }
+
+    /// Execute a private trade
+    pub fn execute_private_trade(
+        env: Env,
+        trader: Address,
+        pair: Symbol,
+        price: i128,
+        is_buy: bool,
+        amount_commitment: BytesN<32>,
+        balance_commitment: BytesN<32>,
+        solvency_proof_hash: BytesN<32>,
+    ) -> Result<u64, TradeError> {
+        trader.require_auth();
+        require_initialized(&env)?;
+
+        // Validate inputs
+        if price <= 0 {
+            return Err(TradeError::InvalidPrice);
+        }
+        if amount_commitment.to_array().iter().all(|&b| b == 0) {
+            return Err(TradeError::InvalidCommitment);
+        }
+        if balance_commitment.to_array().iter().all(|&b| b == 0) {
+            return Err(TradeError::InvalidCommitment);
+        }
+        if solvency_proof_hash.to_array().iter().all(|&b| b == 0) {
+            return Err(TradeError::InvalidSolvencyProof);
+        }
+
+        // Verify solvency proof
+        let solv_key = (symbol_short!("solv_prf"), trader.clone());
+        let solv_record: SolvencyProofRecord = env
+            .storage()
+            .persistent()
+            .get(&solv_key)
+            .ok_or(TradeError::MissingSolvencyProof)?;
+
+        let now = env.ledger().timestamp();
+        if now > solv_record.expires_at {
+            return Err(TradeError::SolvencyProofExpired);
+        }
+
+        if solv_record.proof_hash != solvency_proof_hash {
+            return Err(TradeError::InvalidSolvencyProof);
+        }
+
+        // Increment private trade count
+        let mut trade_id: u64 = env
+            .storage()
+            .persistent()
+            .get(&storage_keys::PRIV_TRADE_COUNT)
+            .unwrap_or(0);
+        trade_id += 1;
+        env.storage()
+            .persistent()
+            .set(&storage_keys::PRIV_TRADE_COUNT, &trade_id);
+
+        let trade = PrivateTradeRecord {
+            id: trade_id,
+            trader: trader.clone(),
+            pair: pair.clone(),
+            price,
+            is_buy,
+            amount_commitment: amount_commitment.clone(),
+            balance_commitment: balance_commitment.clone(),
+            solvency_proof_hash: solvency_proof_hash.clone(),
+            timestamp: now,
+        };
+
+        let trade_key = (symbol_short!("prv_trd"), trade_id);
+        env.storage().persistent().set(&trade_key, &trade);
+
+        // Update balance commitment mapping
+        let bal_key = (symbol_short!("prv_bal"), trader.clone());
+        let bal_nonce: u64 = env
+            .storage()
+            .persistent()
+            .get(&bal_key)
+            .map(|r: PrivateBalanceCommitment| r.nonce + 1)
+            .unwrap_or(1);
+        let bal_record = PrivateBalanceCommitment {
+            commitment: balance_commitment.clone(),
+            nonce: bal_nonce,
+            updated_at: now,
+        };
+        env.storage().persistent().set(&bal_key, &bal_record);
+
+        env.events().publish(
+            (symbol_short!("prv_exec"),),
+            (
+                trade_id,
+                trader,
+                pair,
+                amount_commitment,
+                balance_commitment,
+            ),
+        );
+
+        Ok(trade_id)
+    }
+
+    /// Register a compliance view key
+    pub fn register_compliance_view_key(
+        env: Env,
+        trader: Address,
+        encrypted_key: Bytes,
+    ) -> Result<(), TradeError> {
+        trader.require_auth();
+        require_initialized(&env)?;
+
+        let key_symbol = (symbol_short!("cmp_key"), trader.clone());
+        let version: u32 = env
+            .storage()
+            .persistent()
+            .get(&key_symbol)
+            .map(|k: ComplianceViewKey| k.key_version + 1)
+            .unwrap_or(1);
+
+        let record = ComplianceViewKey {
+            encrypted_key: encrypted_key.clone(),
+            key_version: version,
+            updated_at: env.ledger().timestamp(),
+        };
+
+        env.storage().persistent().set(&key_symbol, &record);
+
+        env.events()
+            .publish((symbol_short!("key_reg"),), (trader, version));
+
+        Ok(())
+    }
+
+    /// Audit a private trade
+    pub fn audit_private_trade(
+        env: Env,
+        auditor: Address,
+        trade_id: u64,
+        action: Symbol,
+    ) -> Result<PrivateTradeAuditView, TradeError> {
+        auditor.require_auth();
+        require_initialized(&env)?;
+
+        // Simple auth check - require 'audit' permission
+        let auditor_permission = Symbol::new(&env, "audit");
+        if !ACL::has_permission(&env, &auditor, &auditor_permission) {
+            return Err(TradeError::AuditUnauthorized);
+        }
+
+        let trade_key = (symbol_short!("prv_trd"), trade_id);
+        let trade: PrivateTradeRecord = env
+            .storage()
+            .persistent()
+            .get(&trade_key)
+            .ok_or(TradeError::PrivateTradeNotFound)?;
+
+        let solv_key = (symbol_short!("solv_prf"), trade.trader.clone());
+        let proof = env.storage().persistent().get(&solv_key);
+
+        let key_symbol = (symbol_short!("cmp_key"), trade.trader.clone());
+        let trader_view_key = env.storage().persistent().get(&key_symbol);
+
+        let mut audit_id: u64 = env
+            .storage()
+            .persistent()
+            .get(&storage_keys::PRIV_AUDIT_COUNT)
+            .unwrap_or(0);
+        audit_id += 1;
+        env.storage()
+            .persistent()
+            .set(&storage_keys::PRIV_AUDIT_COUNT, &audit_id);
+
+        let record = PrivateTradeAuditRecord {
+            audit_id,
+            trade_id,
+            auditor: auditor.clone(),
+            trader: trade.trader.clone(),
+            action: action.clone(),
+            timestamp: env.ledger().timestamp(),
+        };
+
+        let audit_key = (symbol_short!("prv_aud"), audit_id);
+        env.storage().persistent().set(&audit_key, &record);
+
+        env.events()
+            .publish((symbol_short!("prv_audt"),), (audit_id, trade_id, auditor));
+
+        let mut proof_vec = Vec::new(&env);
+        if let Some(p) = proof {
+            proof_vec.push_back(p);
+        }
+
+        let mut key_vec = Vec::new(&env);
+        if let Some(k) = trader_view_key {
+            key_vec.push_back(k);
+        }
+
+        Ok(PrivateTradeAuditView {
+            trade,
+            proof: proof_vec,
+            trader_view_key: key_vec,
+            selective_disclosure: Vec::new(&env),
+        })
+    }
 }
 
 #[cfg(test)]
@@ -1357,3 +1721,5 @@ mod test;
 
 #[cfg(test)]
 mod bench;
+
+mod verification;

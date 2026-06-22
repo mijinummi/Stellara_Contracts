@@ -1,12 +1,12 @@
 import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
-import { DatabaseModule } from '../database.module';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { StellarMonitorModule } from '../stellar-monitor/stellar-monitor.module';
 import { HealthController } from './health.controller';
-import { HealthService } from './health.service';
+import { DatabaseHealthIndicator } from './database-health.indicator';
 
 @Module({
-  imports: [ConfigModule, DatabaseModule],
+  imports: [StellarMonitorModule, TypeOrmModule.forFeature([])],
   controllers: [HealthController],
-  providers: [HealthService],
+  providers: [DatabaseHealthIndicator],
 })
 export class HealthModule {}

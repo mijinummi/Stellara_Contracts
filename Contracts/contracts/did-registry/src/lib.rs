@@ -1,8 +1,13 @@
 use soroban_sdk::{
-    contracttype, symbol_short, Address, Env, Symbol, Vec, Map, Bytes, BytesN,
+    contracttype, symbol_short, Address, Env, Symbol, Vec, Map, Bytes,
     contracterror, require_auth
 };
 use shared::governance::{GovernanceManager, GovernanceRole};
+use shared::events::{
+    extended_topics,
+    DidCreatedEvent, DidUpdatedEvent, DidDeactivatedEvent,
+    VerificationMethodAddedEvent, ServiceAddedEvent,
+};
 
 // DID Document structure
 #[contracttype]
@@ -17,6 +22,7 @@ pub struct DIDDocument {
     pub created_at: u64,
     pub updated_at: u64,
     pub deactivated: bool,
+    pub owner: Address, // Add owner field
 }
 
 #[contracttype]
@@ -86,17 +92,47 @@ impl DIDRegistryContract {
         env.storage().persistent().set(&roles_key, &role_map);
         
         // Initialize DID counter
-        let counter_key = symbol_short!("did_counter");
+        let counter_key = symbol_short!("did_cnt");
         env.storage().persistent().set(&counter_key, &0u64);
+    }
+
+    // Check if caller has governance permission or is the owner
+    fn is_authorized(env: &Env, caller: &Address, document: &DIDDocument) -> bool {
+        // Check if caller is the owner
+        if caller == &document.owner {
+            return true;
+        }
+        // Check if caller has admin role
+        let roles_key = symbol_short!("roles");
+        let role_map: Map<Address, GovernanceRole> = env
+            .storage()
+            .persistent()
+            .get(&roles_key)
+            .unwrap_or_else(|| Map::new(env));
+        
+        if let Some(role) = role_map.get(caller.clone()) {
+            if role <= GovernanceRole::Admin {
+                return true;
+            }
+        }
+        
+        false
     }
 
     // Create DID document for did:stellar
     pub fn create_stellar_did(
         env: Env,
+        caller: Address,
         stellar_address: Address,
         verification_methods: Vec<VerificationMethod>,
         services: Vec<Service>,
     ) -> Symbol {
+        // Require caller authentication
+        require_auth!(&caller);
+        
+        // Check governance role
+        GovernanceManager::require_role(&env, &caller, GovernanceRole::Admin);
+
         // Validate stellar address format
         let did_str = format!("did:stellar:{}", stellar_address);
         let did_id = symbol_short!(&did_str);
@@ -122,6 +158,7 @@ impl DIDRegistryContract {
             created_at: env.ledger().timestamp(),
             updated_at: env.ledger().timestamp(),
             deactivated: false,
+            owner: stellar_address, // Set owner as the stellar address
         };
 
         // Store DID document
@@ -136,9 +173,19 @@ impl DIDRegistryContract {
         env.storage().persistent().set(&dids_key, &dids);
 
         // Update counter
-        let counter_key = symbol_short!("did_counter");
+        let counter_key = symbol_short!("did_cnt");
         let count: u64 = env.storage().persistent().get(&counter_key).unwrap_or(0);
         env.storage().persistent().set(&counter_key, &(count + 1));
+
+        env.events().publish(
+            (extended_topics::DID_CREATED,),
+            DidCreatedEvent {
+                did: did_id.clone(),
+                controller: stellar_address,
+                method: symbol_short!("stellar"),
+                timestamp: env.ledger().timestamp(),
+            },
+        );
 
         did_id
     }
@@ -146,10 +193,18 @@ impl DIDRegistryContract {
     // Create DID document for did:key
     pub fn create_key_did(
         env: Env,
+        caller: Address,
         public_key: Bytes, // Multibase encoded
+        owner: Address, // Explicit owner
         verification_methods: Vec<VerificationMethod>,
         services: Vec<Service>,
     ) -> Symbol {
+        // Require caller authentication
+        require_auth!(&caller);
+        
+        // Check governance role
+        GovernanceManager::require_role(&env, &caller, GovernanceRole::Admin);
+
         // Validate public key format
         if public_key.is_empty() {
             panic!("Invalid public key");
@@ -180,6 +235,7 @@ impl DIDRegistryContract {
             created_at: env.ledger().timestamp(),
             updated_at: env.ledger().timestamp(),
             deactivated: false,
+            owner, // Set explicit owner
         };
 
         // Store DID document
@@ -194,9 +250,19 @@ impl DIDRegistryContract {
         env.storage().persistent().set(&dids_key, &dids);
 
         // Update counter
-        let counter_key = symbol_short!("did_counter");
+        let counter_key = symbol_short!("did_cnt");
         let count: u64 = env.storage().persistent().get(&counter_key).unwrap_or(0);
         env.storage().persistent().set(&counter_key, &(count + 1));
+
+        env.events().publish(
+            (extended_topics::DID_CREATED,),
+            DidCreatedEvent {
+                did: did_id.clone(),
+                controller: env.current_contract_address(),
+                method: symbol_short!("key"),
+                timestamp: env.ledger().timestamp(),
+            },
+        );
 
         did_id
     }
@@ -209,17 +275,21 @@ impl DIDRegistryContract {
     // Update DID document (requires authentication)
     pub fn update_did_document(
         env: Env,
+        caller: Address,
         did: Symbol,
         verification_methods: Option<Vec<VerificationMethod>>,
         services: Option<Vec<Service>>,
     ) {
-        let caller = env.current_contract_address();
+        // Require caller authentication
+        require_auth!(&caller);
         
         // Get existing document
         let mut document = Self::get_did_document(env.clone(), did.clone()).unwrap();
         
-        // Check if caller is authorized (simplified - in production, use proper DID auth)
-        require_auth!(&caller);
+        // Check if caller is authorized
+        if !Self::is_authorized(&env, &caller, &document) {
+            panic!("Unauthorized");
+        }
 
         if document.deactivated {
             panic!("DID is deactivated");
@@ -251,19 +321,31 @@ impl DIDRegistryContract {
             .get(&dids_key)
             .unwrap_or_else(|| Map::new(&env));
 
-        dids.set(did, document);
+        dids.set(did.clone(), document);
         env.storage().persistent().set(&dids_key, &dids);
+
+        env.events().publish(
+            (extended_topics::DID_UPDATED,),
+            DidUpdatedEvent {
+                did,
+                controller: env.current_contract_address(),
+                timestamp: env.ledger().timestamp(),
+            },
+        );
     }
 
     // Deactivate DID
-    pub fn deactivate_did(env: Env, did: Symbol) {
-        let caller = env.current_contract_address();
+    pub fn deactivate_did(env: Env, caller: Address, did: Symbol) {
+        // Require caller authentication
+        require_auth!(&caller);
         
         // Get existing document
         let mut document = Self::get_did_document(env.clone(), did.clone()).unwrap();
         
-        // Check authorization
-        require_auth!(&caller);
+        // Check if caller is authorized
+        if !Self::is_authorized(&env, &caller, &document) {
+            panic!("Unauthorized");
+        }
 
         if document.deactivated {
             panic!("DID already deactivated");
@@ -280,23 +362,36 @@ impl DIDRegistryContract {
             .get(&dids_key)
             .unwrap_or_else(|| Map::new(&env));
 
-        dids.set(did, document);
+        dids.set(did.clone(), document);
         env.storage().persistent().set(&dids_key, &dids);
+
+        env.events().publish(
+            (extended_topics::DID_DEACTIVATED,),
+            DidDeactivatedEvent {
+                did,
+                deactivated_by: env.current_contract_address(),
+                timestamp: env.ledger().timestamp(),
+            },
+        );
     }
 
     // Add verification method
     pub fn add_verification_method(
         env: Env,
+        caller: Address,
         did: Symbol,
         verification_method: VerificationMethod,
     ) {
-        let caller = env.current_contract_address();
+        // Require caller authentication
+        require_auth!(&caller);
         
         // Get existing document
         let mut document = Self::get_did_document(env.clone(), did.clone()).unwrap();
         
-        // Check authorization
-        require_auth!(&caller);
+        // Check if caller is authorized
+        if !Self::is_authorized(&env, &caller, &document) {
+            panic!("Unauthorized");
+        }
 
         if document.deactivated {
             panic!("DID is deactivated");
@@ -321,19 +416,32 @@ impl DIDRegistryContract {
             .get(&dids_key)
             .unwrap_or_else(|| Map::new(&env));
 
-        dids.set(did, document);
+        dids.set(did.clone(), document);
         env.storage().persistent().set(&dids_key, &dids);
+
+        env.events().publish(
+            (extended_topics::VERIF_METHOD_ADDED,),
+            VerificationMethodAddedEvent {
+                did: did.clone(),
+                method_id: verification_method.id.clone(),
+                controller: env.current_contract_address(),
+                timestamp: env.ledger().timestamp(),
+            },
+        );
     }
 
     // Add service
-    pub fn add_service(env: Env, did: Symbol, service: Service) {
-        let caller = env.current_contract_address();
+    pub fn add_service(env: Env, caller: Address, did: Symbol, service: Service) {
+        // Require caller authentication
+        require_auth!(&caller);
         
         // Get existing document
         let mut document = Self::get_did_document(env.clone(), did.clone()).unwrap();
         
-        // Check authorization
-        require_auth!(&caller);
+        // Check if caller is authorized
+        if !Self::is_authorized(&env, &caller, &document) {
+            panic!("Unauthorized");
+        }
 
         if document.deactivated {
             panic!("DID is deactivated");
@@ -346,7 +454,7 @@ impl DIDRegistryContract {
             }
         }
 
-        document.service.push_back(service);
+        document.service.push_back(service.clone());
         document.updated_at = env.ledger().timestamp();
 
         // Store updated document
@@ -357,8 +465,18 @@ impl DIDRegistryContract {
             .get(&dids_key)
             .unwrap_or_else(|| Map::new(&env));
 
-        dids.set(did, document);
+        dids.set(did.clone(), document);
         env.storage().persistent().set(&dids_key, &dids);
+
+        env.events().publish(
+            (extended_topics::SERVICE_ADDED,),
+            ServiceAddedEvent {
+                did,
+                service_id: service.id,
+                controller: env.current_contract_address(),
+                timestamp: env.ledger().timestamp(),
+            },
+        );
     }
 
     // Get DID document (internal helper)
@@ -374,7 +492,13 @@ impl DIDRegistryContract {
     }
 
     // Get all DIDs (for admin)
-    pub fn get_all_dids(env: Env) -> Vec<Symbol> {
+    pub fn get_all_dids(env: Env, caller: Address) -> Vec<Symbol> {
+        // Require caller authentication
+        require_auth!(&caller);
+        
+        // Check governance role
+        GovernanceManager::require_role(&env, &caller, GovernanceRole::Admin);
+        
         let dids_key = symbol_short!("dids");
         let dids: Map<Symbol, DIDDocument> = env
             .storage()
@@ -391,7 +515,7 @@ impl DIDRegistryContract {
 
     // Get DID count
     pub fn get_did_count(env: Env) -> u64 {
-        let counter_key = symbol_short!("did_counter");
+        let counter_key = symbol_short!("did_cnt");
         env.storage().persistent().get(&counter_key).unwrap_or(0)
     }
 }

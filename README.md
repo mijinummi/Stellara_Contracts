@@ -44,6 +44,7 @@ Project Structure
 ├── GOVERNANCE_GUIDE.md # Step-by-step governance procedures
 ├── QUICK_REFERENCE.md  # Quick reference card
 └── README.md           # This file
+
 Prerequisites
 Rust 1.70 or later
 Soroban SDK 20.5.0
@@ -65,7 +66,6 @@ cargo test  # Includes 10+ upgradeability tests
 Governance & Upgradeability
 Quick Start
 All contracts now support governance-controlled upgrades:
-
 # 1. Initialize with governance roles
 stellar contract invoke --id $CONTRACT_ID --source admin -- \
   init --admin $ADMIN --approvers [$A1,$A2,$A3] --executor $EXECUTOR
@@ -88,6 +88,7 @@ Governance Features
 ✅ Role-Based Control: Admin, Approver, Executor roles
 ✅ Transparent: All proposals on-chain and queryable
 ✅ Circuit Breakers: Rejection and cancellation mechanisms
+
 Documentation
 UPGRADEABILITY.md: 10+ sections covering:
 
@@ -135,12 +136,12 @@ stellar contract invoke \
   --admin "$ADMIN_ADDRESS" \
   --approvers '["$APPROVER1", "$APPROVER2", "$APPROVER3"]' \
   --executor "$EXECUTOR_ADDRESS"
+  
 Contract Descriptions
 Trading Contract ✨ (Upgradeable)
 Manages decentralized trading operations with governance support.
 
 Key Functions:
-
 init(): Initialize with governance roles
 trade(): Execute a trade on specified pair with fee collection
 get_stats(): Retrieve trading statistics
@@ -159,9 +160,7 @@ Academy Contract (✨ NEW: Vesting & Rewards)
 Manages educational credentials, achievements, and secure vesting of academy rewards.
 
 Two Core Features:
-
 Vesting Module (NEW) - Time-based vesting of tokens/badges
-
 grant_vesting(): Create vesting schedule (admin only)
 claim(): Atomic claim of vested tokens (single-claim semantics)
 revoke(): Revoke grant with timelock protection
@@ -237,7 +236,6 @@ Ecosystem Repositories
 
 Contributing
 🤝 Contributing:
-
 Fork the repository
 Create a feature branch
 Submit a pull request

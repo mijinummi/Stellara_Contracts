@@ -58,7 +58,7 @@ fn test_create_stellar_did() {
 
     let services = Vec::new(&env);
 
-    let did_id = client.create_stellar_did(&stellar_address, &verification_methods, &services);
+    let did_id = client.create_stellar_did(&admin, &stellar_address, &verification_methods, &services);
     
     // Verify DID was created
     assert_eq!(client.get_did_count(), 1);
@@ -67,6 +67,7 @@ fn test_create_stellar_did() {
     assert_eq!(document.id, did_id);
     assert_eq!(document.verification_methods.len(), 1);
     assert_eq!(document.deactivated, false);
+    assert_eq!(document.owner, stellar_address);
 }
 
 #[test]
@@ -89,6 +90,7 @@ fn test_create_key_did() {
 
     // Create DID
     let public_key = Bytes::from_slice(&env, b"z6MkhaXgBZDvotDkL5257faiztiGiC2QtKLGpbnnEGta2do7");
+    let owner = Address::generate(&env);
     
     let mut verification_methods = Vec::new(&env);
     let vm = VerificationMethod {
@@ -102,7 +104,7 @@ fn test_create_key_did() {
 
     let services = Vec::new(&env);
 
-    let did_id = client.create_key_did(&public_key, &verification_methods, &services);
+    let did_id = client.create_key_did(&admin, &public_key, &owner, &verification_methods, &services);
     
     // Verify DID was created
     assert_eq!(client.get_did_count(), 1);
@@ -111,6 +113,7 @@ fn test_create_key_did() {
     assert_eq!(document.id, did_id);
     assert_eq!(document.verification_methods.len(), 1);
     assert_eq!(document.deactivated, false);
+    assert_eq!(document.owner, owner);
 }
 
 #[test]
@@ -136,7 +139,7 @@ fn test_add_verification_method() {
     let verification_methods = Vec::new(&env);
     let services = Vec::new(&env);
 
-    let did_id = client.create_stellar_did(&stellar_address, &verification_methods, &services);
+    let did_id = client.create_stellar_did(&admin, &stellar_address, &verification_methods, &services);
     
     // Add verification method
     let new_vm = VerificationMethod {
@@ -147,7 +150,7 @@ fn test_add_verification_method() {
         created_at: env.ledger().timestamp(),
     };
 
-    client.add_verification_method(&did_id, &new_vm);
+    client.add_verification_method(&stellar_address, &did_id, &new_vm);
     
     // Verify
     let document = client.resolve_did(&did_id);
@@ -178,7 +181,7 @@ fn test_add_service() {
     let verification_methods = Vec::new(&env);
     let services = Vec::new(&env);
 
-    let did_id = client.create_stellar_did(&stellar_address, &verification_methods, &services);
+    let did_id = client.create_stellar_did(&admin, &stellar_address, &verification_methods, &services);
     
     // Add service
     let service = Service {
@@ -188,7 +191,7 @@ fn test_add_service() {
         created_at: env.ledger().timestamp(),
     };
 
-    client.add_service(&did_id, &service);
+    client.add_service(&stellar_address, &did_id, &service);
     
     // Verify
     let document = client.resolve_did(&did_id);
@@ -219,12 +222,42 @@ fn test_deactivate_did() {
     let verification_methods = Vec::new(&env);
     let services = Vec::new(&env);
 
-    let did_id = client.create_stellar_did(&stellar_address, &verification_methods, &services);
+    let did_id = client.create_stellar_did(&admin, &stellar_address, &verification_methods, &services);
     
     // Deactivate DID
-    client.deactivate_did(&did_id);
+    client.deactivate_did(&stellar_address, &did_id);
     
     // Verify
     let document = client.resolve_did(&did_id);
     assert_eq!(document.deactivated, true);
+}
+
+#[test]
+fn test_get_all_dids() {
+    let env = Env::default();
+    let contract_id = env.register_contract(None, DIDRegistryContract);
+    let client = DIDRegistryContractClient::new(&env, &contract_id);
+
+    // Setup
+    let admin = Address::generate(&env);
+    let approver1 = Address::generate(&env);
+    let approver2 = Address::generate(&env);
+    let executor = Address::generate(&env);
+
+    let mut approvers = Vec::new(&env);
+    approvers.push_back(approver1.clone());
+    approvers.push_back(approver2.clone());
+
+    client.initialize(&admin, &approvers, &executor);
+
+    // Create DIDs
+    let stellar_address1 = Address::generate(&env);
+    let did_id1 = client.create_stellar_did(&admin, &stellar_address1, &Vec::new(&env), &Vec::new(&env));
+
+    let stellar_address2 = Address::generate(&env);
+    let did_id2 = client.create_stellar_did(&admin, &stellar_address2, &Vec::new(&env), &Vec::new(&env));
+
+    // Get all DIDs (admin only)
+    let all_dids = client.get_all_dids(&admin);
+    assert_eq!(all_dids.len(), 2);
 }

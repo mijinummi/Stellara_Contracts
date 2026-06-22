@@ -1,6 +1,7 @@
 [workspace]
 members = [
     "contracts/trading",
+    "contracts/staking-rewards",
     "contracts/social_rewards",
     "contracts/messaging",
     "contracts/academy",
@@ -8,7 +9,11 @@ members = [
     "contracts/synthetic-assets",
 
     "contracts/tcr",
+    "contracts/cross-chain-router",
+    "contracts/amm",
+    "contracts/staking-rewards",
     "integration-tests",
     "shared",
+    "contracts/upgradeability",
 ]
 resolver = "2"

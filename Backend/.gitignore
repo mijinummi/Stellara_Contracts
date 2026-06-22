@@ -1,6 +1,7 @@
 # compiled output
 /dist
 /node_modules
+/build
 
 # Logs
 logs
@@ -34,7 +35,41 @@ lerna-debug.log*
 !.vscode/launch.json
 !.vscode/extensions.json
 
-# Environment
+# dotenv environment variable files
 .env
 .env.local
 .env.*.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env.backup
+.env.bak
+.env.backup.*
+
+# Secrets and sensitive files
+.vault/
+vault-data/
+*.pem
+*.key
+*.pub
+*.pfx
+*.p12
+secrets.json
+credentials.json
+service-account-key.json
+
+# Secret scanning
+.secrets.baseline
+
+# temp directory
+.temp
+.tmp
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Diagnostic reports (https://nodejs.org/api/report.html)
+report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json

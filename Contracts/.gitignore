@@ -2,6 +2,12 @@
 
 # dependencies
 /node_modules
+/.npm
+
+# hardhat cache/artifacts
+/artifacts
+/cache
+/Library
 
 # next.js
 /.next/

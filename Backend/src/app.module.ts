@@ -1,46 +1,121 @@
 import { Module } from '@nestjs/common';
+import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { ThrottlerModule } from '@nestjs/throttler';
+import { ScheduleModule } from '@nestjs/schedule';
+import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
+
 import { AppController } from './app.controller';
-import { UserController } from './user.controller';
 import { AppService } from './app.service';
-import { validateEnv } from './config/env.validation';
-import { ReputationModule } from './reputation/reputation.module';
-import { DatabaseModule } from './database.module';
+
+import { buildTypeOrmOptions } from './database/database.config';
+
+import { RedisModule } from './redis/redis.module';
+import { VoiceModule } from './voice/voice.module';
+import { StellarMonitorModule } from './stellar-monitor/stellar-monitor.module';
+import { WorkflowModule } from './workflow/workflow.module';
+import { QueueModule } from './queue/queue.module';
+import { AuthModule } from './auth/auth.module';
+import { MarketDataModule } from './market-data/market-data.module';
+import { AiModule } from './ai/ai.module';
+
+import { RolesGuard } from './guards/roles.guard';
+import { ConfigValidationService } from './config/config-validation.service';
+
+import { Workflow } from './workflow/entities/workflow.entity';
+import { WorkflowStep } from './workflow/entities/workflow-step.entity';
+import { User } from './auth/entities/user.entity';
+import { WalletBinding } from './auth/entities/wallet-binding.entity';
+import { LoginNonce } from './auth/entities/login-nonce.entity';
+import { RefreshToken } from './auth/entities/refresh-token.entity';
+import { ApiToken } from './auth/entities/api-token.entity';
+import { AuditModule } from './audit/audit.module';
+import { AuditLog, AuditLogArchive } from './audit/audit.entity';
+import { VoiceJob } from './voice/entities/voice-job.entity';
+import { ThrottleModule } from './throttle/throttle.module';
 import { HealthModule } from './health/health.module';
-import { IndexerModule } from './indexer/indexer.module';
-import { NotificationModule } from './notification/notification.module';
-import { StorageModule } from './storage/storage.module';
-import { InsuranceModule } from '../insurance/insurance.module';
+import { ObservabilityModule } from './observability/observability.module';
+import { TracingInterceptor } from './observability/interceptors/tracing.interceptor';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      envFilePath: '.env',
-      validate: validateEnv,
     }),
-    ThrottlerModule.forRootAsync({
+
+    ScheduleModule.forRoot(),
+
+TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
-      useFactory: (config: ConfigService) => ({
-        throttlers: [
-          {
-            ttl: 60000, // 1 minute
-            limit: 100, // 100 requests per minute per IP
-          },
+      useFactory: (configService: ConfigService) => ({
+        type: 'postgres',
+        host: configService.get('DB_HOST') || 'localhost',
+        port: configService.get('DB_PORT') || 5432,
+        username: configService.get('DB_USERNAME') || 'postgres',
+        password: configService.get('DB_PASSWORD'),
+        database: configService.get('DB_DATABASE') || 'stellara_workflows',
+        entities: [
+          Workflow,
+          WorkflowStep,
+          User,
+          WalletBinding,
+          LoginNonce,
+          RefreshToken,
+          ApiToken,
+          AuditLog,
+          AuditLogArchive,
+VoiceJob,
         ],
+        synchronize: false,
+        logging: configService.get('NODE_ENV') === 'development',
+        extra: {
+          max: 20,
+          min: 5,
+          idleTimeoutMillis: 30000,
+        },
+        retryAttempts: 5,
+        retryDelay: 3000,
+        migrations: ['src/database/migrations/*{.ts,.js}'],
       }),
     }),
-    ReputationModule,
-    DatabaseModule,
+
+    RedisModule,
+    AuthModule,
+    VoiceModule,
+    StellarMonitorModule,
+    WorkflowModule,
+    QueueModule,
+    MarketDataModule,
+    AuditModule,
+    ThrottleModule,
+    AiModule,
     HealthModule,
-    IndexerModule,
-    NotificationModule,
-    StorageModule,
-    InsuranceModule,
+    ObservabilityModule,
   ],
-  controllers: [AppController, UserController],
-  providers: [AppService],
+
+  controllers: [AppController],
+
+  providers: [
+    AppService,
+    ConfigValidationService,
+
+    /**
+     * Global RBAC enforcement
+     * Applies @Roles() checks across all controllers
+     */
+    {
+      provide: APP_GUARD,
+      useClass: RolesGuard,
+    },
+
+    /**
+     * Global tracing interceptor — propagates trace IDs and records
+     * HTTP request metrics via ObservabilityModule.
+     */
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: TracingInterceptor,
+    },
+  ],
 })
 export class AppModule {}

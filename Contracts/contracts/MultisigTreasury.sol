@@ -79,13 +79,7 @@ contract MultisigTreasury {
 
         // Allow confirming unfreeze calls even when frozen; all other txs require unfrozen state.
         if (frozen) {
-            bytes4 selector;
-            if (txn.data.length >= 4) {
-                bytes memory d = txn.data;
-                assembly { selector := mload(add(d, 32)) }
-            }
-            bool isUnfreezeCall = (txn.to == address(this) && txn.data.length >= 4 && selector == this.unfreezeInternal.selector);
-            require(isUnfreezeCall, "frozen");
+            require(_isSelfCall(txn, this.unfreezeInternal.selector), "frozen");
         }
 
         isConfirmed[_txIndex][msg.sender] = true;
@@ -108,21 +102,14 @@ contract MultisigTreasury {
         Transaction storage txn = transactions[_txIndex];
         require(!txn.executed, "already executed");
 
-        // Special-case: if this is an internal unfreeze call, require full multisig
-        bytes4 selector;
-        if (txn.data.length >= 4) {
-            bytes memory d = txn.data;
-            assembly { selector := mload(add(d, 32)) }
-        }
-        bool isUnfreezeCall = (txn.to == address(this) && txn.data.length >= 4 && selector == this.unfreezeInternal.selector);
+        // Sensitive self-calls must be approved by the full multisig set.
+        bool isUnfreezeCall = _isSelfCall(txn, this.unfreezeInternal.selector);
+        bool isLimitUpdateCall = _isSelfCall(txn, this.updateLimits.selector);
+        bool isEmergencyFreezeCall = _isSelfCall(txn, this.emergencyFreeze.selector);
+        require(!frozen || isUnfreezeCall, "frozen");
 
-        // Unfreeze calls may execute while frozen; all other calls require unfrozen state.
-        if (!isUnfreezeCall) {
-            require(!frozen, "frozen");
-        }
-
-        if (isUnfreezeCall) {
-            require(txn.numConfirmations >= required, "insufficient confirmations for unfreeze");
+        if (isUnfreezeCall || isLimitUpdateCall || isEmergencyFreezeCall) {
+            require(txn.numConfirmations >= required, "insufficient confirmations for sensitive action");
         } else if (txn.value > threshold) {
             require(txn.numConfirmations >= required, "insufficient confirmations for large tx");
         } else {
@@ -158,15 +145,17 @@ contract MultisigTreasury {
         emit ExecuteTransaction(msg.sender, _txIndex);
     }
 
-    function updateLimits(uint _dailyLimit, uint _weeklyLimit, uint _threshold) external onlyOwner {
+    function updateLimits(uint _dailyLimit, uint _weeklyLimit, uint _threshold) external {
+        require(msg.sender == address(this), "only self");
         dailyLimit = _dailyLimit;
         weeklyLimit = _weeklyLimit;
         threshold = _threshold;
         emit LimitsUpdated(_dailyLimit, _weeklyLimit, _threshold);
     }
 
-    // Emergency freeze: immediate and fast
-    function emergencyFreeze() external onlyOwner {
+    // Emergency freeze must be approved via multisig to avoid a single-owner lockout.
+    function emergencyFreeze() external {
+        require(msg.sender == address(this), "only self");
         frozen = true;
         emit EmergencyFrozen(msg.sender);
     }
@@ -185,6 +174,11 @@ contract MultisigTreasury {
     function getTransaction(uint _txIndex) external view returns (address to, uint value, bytes memory data, bool executed, uint numConfirmations, uint created) {
         Transaction storage t = transactions[_txIndex];
         return (t.to, t.value, t.data, t.executed, t.numConfirmations, t.created);
+    }
+
+    function _isSelfCall(Transaction storage txn, bytes4 selector) internal view returns (bool) {
+        bytes memory callData = txn.data;
+        return txn.to == address(this) && callData.length >= 4 && bytes4(callData) == selector;
     }
 
     /**

@@ -1,12 +1,15 @@
 #![no_std]
 
-use shared::acl::ACL;
+use shared::acl::{ACL, ROLE_ADMIN, PERMISSION_PAUSE, PERMISSION_UNPAUSE, PERMISSION_SET_RATE, PERMISSION_PREMIUM, PERMISSION_MGR_ACL};
 use shared::circuit_breaker::{
     CircuitBreaker, CircuitBreakerConfig, CircuitBreakerState, PauseLevel,
 };
-use shared::governance::{GovernanceManager, GovernanceRole, UpgradeProposal};
+use shared::governance::{GovernanceManager, UpgradeProposal};
+use shared::nonce::NonceManager;
+use shared::reentrancy_guard::ReentrancyGuard;
 use soroban_sdk::{
-    contract, contractimpl, contracttype, symbol_short, Address, Env, Map, String, Symbol, Vec,
+    contract, contractimpl, contracttype, symbol_short, Address, Bytes, Env, Map, String, Symbol,
+    Vec,
 };
 
 const CONTRACT_VERSION: u32 = 1;
@@ -27,6 +30,7 @@ pub struct Message {
     pub payload: String,
     pub timestamp: u64,
     pub read: bool,
+    pub processed: bool,
 }
 
 #[contracttype]
@@ -65,6 +69,28 @@ pub struct MessageRead {
     pub recipient: Address,
     pub sender: Address,
     pub timestamp: u64,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct EncryptedMessage {
+    pub id: u64,
+    pub sender: Address,
+    pub recipient: Address,
+    pub payload: Bytes,
+    pub timestamp: u64,
+    pub read: bool,
+    pub processed: bool,
+}
+
+#[contracttype]
+#[derive(Clone, Debug)]
+pub struct EncryptedMessageSent {
+    pub message_id: u64,
+    pub sender: Address,
+    pub recipient: Address,
+    pub timestamp: u64,
+    pub payload_length: u32,
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, PartialOrd, Ord)]
@@ -112,6 +138,13 @@ fn get_messages_map(env: &Env) -> Map<u64, Message> {
     env.storage()
         .persistent()
         .get(&symbol_short!("msgs"))
+        .unwrap_or_else(|| Map::new(env))
+}
+
+fn get_encrypted_messages_map(env: &Env) -> Map<u64, EncryptedMessage> {
+    env.storage()
+        .persistent()
+        .get(&symbol_short!("enc_msgs"))
         .unwrap_or_else(|| Map::new(env))
 }
 
@@ -251,23 +284,14 @@ impl UpgradeableMessagingContract {
 
         env.storage().persistent().set(&init_key, &true);
 
-        let roles_key = symbol_short!("roles");
-        let mut roles = Map::new(&env);
-        roles.set(admin.clone(), GovernanceRole::Admin);
+        GovernanceManager::init_governance_roles(&env, admin.clone(), approvers.clone(), executor.clone());
 
-        for approver in approvers.iter() {
-            roles.set(approver, GovernanceRole::Approver);
-        }
-
-        roles.set(executor, GovernanceRole::Executor);
-        env.storage().persistent().set(&roles_key, &roles);
-
-        let admin_role = Symbol::new(&env, "admin");
-        ACL::create_role(&env, &admin_role);
-        ACL::assign_role(&env, &admin, &admin_role);
-        ACL::assign_permission(&env, &admin_role, &Symbol::new(&env, "set_rate"));
-        ACL::assign_permission(&env, &admin_role, &Symbol::new(&env, "premium"));
-        ACL::assign_permission(&env, &admin_role, &Symbol::new(&env, "manage_acl"));
+        // Assign additional permissions to admin role
+        ACL::assign_permission(&env, &ROLE_ADMIN, &PERMISSION_SET_RATE);
+        ACL::assign_permission(&env, &ROLE_ADMIN, &PERMISSION_PREMIUM);
+        ACL::assign_permission(&env, &ROLE_ADMIN, &PERMISSION_PAUSE);
+        ACL::assign_permission(&env, &ROLE_ADMIN, &PERMISSION_UNPAUSE);
+        ACL::assign_permission(&env, &ROLE_ADMIN, &PERMISSION_MGR_ACL);
 
         env.storage().persistent().set(
             &symbol_short!("stats"),
@@ -294,6 +318,10 @@ impl UpgradeableMessagingContract {
             .persistent()
             .set(&symbol_short!("ver"), &CONTRACT_VERSION);
 
+        env.storage().persistent().set(&symbol_short!("src_chain"), &0u32);
+
+        NonceManager::set_chain_id(&env, 0);
+
         // Initialize circuit breaker
         CircuitBreaker::init(&env, cb_config);
 
@@ -310,18 +338,21 @@ impl UpgradeableMessagingContract {
         require_initialized(&env)?;
         check_and_consume_message_rate_limit(&env, &sender)?;
 
-        // Check pause state via CircuitBreaker
         CircuitBreaker::require_not_paused(&env, symbol_short!("send_m"));
+        ReentrancyGuard::enter(&env);
+        NonceManager::enforce_sequential_nonce(&env, 0, env.ledger().sequence() as u64);
+        let _ = NonceManager::record_and_verify(&env, 0, env.ledger().sequence() as u64);
 
-        // Track activity (1 message = 1 unit volume)
         CircuitBreaker::track_activity(&env, 1);
 
         if sender == recipient {
+            ReentrancyGuard::exit(&env);
             return Err(MessagingError::InvalidRecipient);
         }
 
         let payload_len = payload.len();
         if payload_len == 0 || payload_len > MAX_MESSAGE_LENGTH {
+            ReentrancyGuard::exit(&env);
             return Err(MessagingError::InvalidPayload);
         }
 
@@ -337,6 +368,7 @@ impl UpgradeableMessagingContract {
             payload,
             timestamp: current_timestamp,
             read: false,
+            processed: true,
         };
 
         let mut messages = get_messages_map(&env);
@@ -370,7 +402,6 @@ impl UpgradeableMessagingContract {
             .persistent()
             .set(&symbol_short!("stats"), &stats);
 
-        // Emit MessageSent event
         let message_sent_event = MessageSent {
             message_id,
             sender: sender.clone(),
@@ -382,6 +413,7 @@ impl UpgradeableMessagingContract {
         env.events()
             .publish((symbol_short!("msg_sent"),), message_sent_event);
 
+        ReentrancyGuard::exit(&env);
         Ok(message_id)
     }
 
@@ -406,6 +438,8 @@ impl UpgradeableMessagingContract {
             return Err(MessagingError::AlreadyRead);
         }
 
+        ReentrancyGuard::enter(&env);
+
         let current_timestamp = env.ledger().timestamp();
 
         message.read = true;
@@ -427,7 +461,6 @@ impl UpgradeableMessagingContract {
             .persistent()
             .set(&symbol_short!("stats"), &stats);
 
-        // Emit MessageRead event
         let message_read_event = MessageRead {
             message_id,
             recipient,
@@ -438,6 +471,7 @@ impl UpgradeableMessagingContract {
         env.events()
             .publish((symbol_short!("msg_read"),), message_read_event);
 
+        ReentrancyGuard::exit(&env);
         Ok(())
     }
 
@@ -494,7 +528,7 @@ impl UpgradeableMessagingContract {
         level: PauseLevel,
     ) -> Result<(), MessagingError> {
         admin.require_auth();
-        ACL::require_permission(&env, &admin, &Symbol::new(&env, "pause"));
+        ACL::require_permission(&env, &admin, &PERMISSION_PAUSE);
         CircuitBreaker::set_pause_level(&env, admin, level);
         Ok(())
     }
@@ -505,7 +539,7 @@ impl UpgradeableMessagingContract {
         func_name: Symbol,
     ) -> Result<(), MessagingError> {
         admin.require_auth();
-        ACL::require_permission(&env, &admin, &Symbol::new(&env, "pause"));
+        ACL::require_permission(&env, &admin, &PERMISSION_PAUSE);
         CircuitBreaker::pause_function(&env, admin, func_name);
         Ok(())
     }
@@ -516,7 +550,7 @@ impl UpgradeableMessagingContract {
         func_name: Symbol,
     ) -> Result<(), MessagingError> {
         admin.require_auth();
-        ACL::require_permission(&env, &admin, &Symbol::new(&env, "unpause"));
+        ACL::require_permission(&env, &admin, &PERMISSION_UNPAUSE);
         CircuitBreaker::unpause_function(&env, admin, func_name);
         Ok(())
     }
@@ -550,7 +584,7 @@ impl UpgradeableMessagingContract {
     ) -> Result<(), MessagingError> {
         admin.require_auth();
         require_initialized(&env)?;
-        ACL::require_permission(&env, &admin, &Symbol::new(&env, "set_rate"));
+        ACL::require_permission(&env, &admin, &PERMISSION_SET_RATE);
 
         if window_secs == 0 || user_limit == 0 || global_limit == 0 || premium_user_limit == 0 {
             return Err(MessagingError::InvalidRateLimitConfig);
@@ -575,7 +609,7 @@ impl UpgradeableMessagingContract {
     ) -> Result<(), MessagingError> {
         admin.require_auth();
         require_initialized(&env)?;
-        ACL::require_permission(&env, &admin, &Symbol::new(&env, "premium"));
+        ACL::require_permission(&env, &admin, &PERMISSION_PREMIUM);
 
         let mut premium_users: Map<Address, bool> = env
             .storage()
@@ -597,7 +631,7 @@ impl UpgradeableMessagingContract {
     pub fn create_role(env: Env, admin: Address, role: Symbol) -> Result<(), MessagingError> {
         admin.require_auth();
         require_initialized(&env)?;
-        ACL::require_permission(&env, &admin, &Symbol::new(&env, "manage_acl"));
+        ACL::require_permission(&env, &admin, &PERMISSION_MGR_ACL);
         ACL::create_role(&env, &role);
         Ok(())
     }
@@ -610,7 +644,7 @@ impl UpgradeableMessagingContract {
     ) -> Result<(), MessagingError> {
         admin.require_auth();
         require_initialized(&env)?;
-        ACL::require_permission(&env, &admin, &Symbol::new(&env, "manage_acl"));
+        ACL::require_permission(&env, &admin, &PERMISSION_MGR_ACL);
         ACL::assign_role(&env, &user, &role);
         Ok(())
     }
@@ -623,7 +657,7 @@ impl UpgradeableMessagingContract {
     ) -> Result<(), MessagingError> {
         admin.require_auth();
         require_initialized(&env)?;
-        ACL::require_permission(&env, &admin, &Symbol::new(&env, "manage_acl"));
+        ACL::require_permission(&env, &admin, &PERMISSION_MGR_ACL);
         ACL::assign_permission(&env, &role, &permission);
         Ok(())
     }
@@ -636,7 +670,7 @@ impl UpgradeableMessagingContract {
     ) -> Result<(), MessagingError> {
         admin.require_auth();
         require_initialized(&env)?;
-        ACL::require_permission(&env, &admin, &Symbol::new(&env, "manage_acl"));
+        ACL::require_permission(&env, &admin, &PERMISSION_MGR_ACL);
         ACL::assign_permissions_batch(&env, &role, &permissions);
         Ok(())
     }
@@ -649,7 +683,7 @@ impl UpgradeableMessagingContract {
     ) -> Result<(), MessagingError> {
         admin.require_auth();
         require_initialized(&env)?;
-        ACL::require_permission(&env, &admin, &Symbol::new(&env, "manage_acl"));
+        ACL::require_permission(&env, &admin, &PERMISSION_MGR_ACL);
         ACL::set_parent_role(&env, &child, &parent);
         Ok(())
     }
@@ -675,17 +709,9 @@ impl UpgradeableMessagingContract {
 
     #[allow(dead_code)]
     fn require_admin_role(env: &Env, admin: &Address) -> Result<(), MessagingError> {
-        let roles: Map<Address, GovernanceRole> = env
-            .storage()
-            .persistent()
-            .get(&symbol_short!("roles"))
-            .ok_or(MessagingError::Unauthorized)?;
-
-        let role = roles
-            .get(admin.clone())
-            .ok_or(MessagingError::Unauthorized)?;
-
-        if role != GovernanceRole::Admin {
+        // Check if the user has the admin role via ACL
+        let user_roles = ACL::get_user_roles(env, admin);
+        if !user_roles.iter().any(|r| r == ROLE_ADMIN) {
             return Err(MessagingError::Unauthorized);
         }
 
@@ -771,6 +797,216 @@ impl UpgradeableMessagingContract {
 
         GovernanceManager::cancel_proposal(&env, proposal_id, admin)
             .map_err(|_| MessagingError::Unauthorized)
+    }
+
+    pub fn register_encryption_key(
+        env: Env,
+        user: Address,
+        key: Bytes,
+    ) -> Result<(), MessagingError> {
+        user.require_auth();
+        require_initialized(&env)?;
+
+        let mut keys = env
+            .storage()
+            .persistent()
+            .get(&symbol_short!("enc_keys"))
+            .unwrap_or_else(|| Map::<Address, Bytes>::new(&env));
+        keys.set(user.clone(), key.clone());
+        env.storage()
+            .persistent()
+            .set(&symbol_short!("enc_keys"), &keys);
+
+        env.events()
+            .publish((symbol_short!("key_reg"),), (user, key));
+        Ok(())
+    }
+
+    pub fn send_encrypted_message(
+        env: Env,
+        sender: Address,
+        recipient: Address,
+        payload: Bytes,
+    ) -> Result<u64, MessagingError> {
+        sender.require_auth();
+        require_initialized(&env)?;
+        check_and_consume_message_rate_limit(&env, &sender)?;
+
+        CircuitBreaker::require_not_paused(&env, symbol_short!("send_em"));
+        ReentrancyGuard::enter(&env);
+        NonceManager::enforce_sequential_nonce(&env, 0, env.ledger().sequence() as u64);
+        let _ = NonceManager::record_and_verify(&env, 0, env.ledger().sequence() as u64);
+
+        CircuitBreaker::track_activity(&env, 1);
+
+        if sender == recipient {
+            ReentrancyGuard::exit(&env);
+            return Err(MessagingError::InvalidRecipient);
+        }
+
+        let payload_len = payload.len();
+        if payload_len == 0 || payload_len > MAX_MESSAGE_LENGTH {
+            ReentrancyGuard::exit(&env);
+            return Err(MessagingError::InvalidPayload);
+        }
+
+        let mut stats = get_stats_internal(&env);
+        let message_id = stats.last_message_id + 1;
+
+        let current_timestamp = env.ledger().timestamp();
+
+        let message = EncryptedMessage {
+            id: message_id,
+            sender: sender.clone(),
+            recipient: recipient.clone(),
+            payload,
+            timestamp: current_timestamp,
+            read: false,
+            processed: true,
+        };
+
+        let mut messages = get_encrypted_messages_map(&env);
+        messages.set(message_id, message);
+        env.storage()
+            .persistent()
+            .set(&symbol_short!("enc_msgs"), &messages);
+
+        let inbox_key = symbol_short!("einbox");
+        let sent_key = symbol_short!("esent");
+
+        let mut recipient_ids = get_user_message_ids(&env, &inbox_key, &recipient);
+        recipient_ids.push_back(message_id);
+        set_user_message_ids(&env, &inbox_key, &recipient, recipient_ids);
+
+        let mut sender_ids = get_user_message_ids(&env, &sent_key, &sender);
+        sender_ids.push_back(message_id);
+        set_user_message_ids(&env, &sent_key, &sender, sender_ids);
+
+        let mut unread_counts = get_unread_counts(&env);
+        let unread_count = unread_counts.get(recipient.clone()).unwrap_or(0);
+        unread_counts.set(recipient.clone(), unread_count + 1);
+        env.storage()
+            .persistent()
+            .set(&symbol_short!("unread"), &unread_counts);
+
+        stats.total_messages += 1;
+        stats.unread_messages += 1;
+        stats.last_message_id = message_id;
+        env.storage()
+            .persistent()
+            .set(&symbol_short!("stats"), &stats);
+
+        let message_sent_event = EncryptedMessageSent {
+            message_id,
+            sender: sender.clone(),
+            recipient,
+            timestamp: current_timestamp,
+            payload_length: payload_len as u32,
+        };
+
+        env.events()
+            .publish((symbol_short!("emsg_sent"),), message_sent_event);
+
+        ReentrancyGuard::exit(&env);
+        Ok(message_id)
+    }
+
+    pub fn get_encrypted_messages(
+        env: Env,
+        user: Address,
+        include_sent: bool,
+        include_received: bool,
+        unread_only: bool,
+    ) -> Result<Vec<EncryptedMessage>, MessagingError> {
+        user.require_auth();
+        require_initialized(&env)?;
+
+        let messages = get_encrypted_messages_map(&env);
+        let mut result = Vec::new(&env);
+
+        if include_received {
+            let inbox_key = symbol_short!("einbox");
+            let inbox_ids = get_user_message_ids(&env, &inbox_key, &user);
+            for message_id in inbox_ids.iter() {
+                if let Some(message) = messages.get(message_id) {
+                    if !unread_only || !message.read {
+                        result.push_back(message);
+                    }
+                }
+            }
+        }
+
+        if include_sent {
+            let sent_key = symbol_short!("esent");
+            let sent_ids = get_user_message_ids(&env, &sent_key, &user);
+            for message_id in sent_ids.iter() {
+                if let Some(message) = messages.get(message_id) {
+                    if !unread_only || !message.read {
+                        result.push_back(message);
+                    }
+                }
+            }
+        }
+
+        Ok(result)
+    }
+
+    pub fn mark_encrypted_as_read(
+        env: Env,
+        recipient: Address,
+        message_id: u64,
+    ) -> Result<(), MessagingError> {
+        recipient.require_auth();
+        require_initialized(&env)?;
+
+        let mut messages = get_encrypted_messages_map(&env);
+        let mut message = messages
+            .get(message_id)
+            .ok_or(MessagingError::MessageNotFound)?;
+
+        if message.recipient != recipient {
+            return Err(MessagingError::Unauthorized);
+        }
+
+        if message.read {
+            return Err(MessagingError::AlreadyRead);
+        }
+
+        ReentrancyGuard::enter(&env);
+
+        let current_timestamp = env.ledger().timestamp();
+
+        message.read = true;
+        messages.set(message_id, message.clone());
+        env.storage()
+            .persistent()
+            .set(&symbol_short!("enc_msgs"), &messages);
+
+        let mut unread_counts = get_unread_counts(&env);
+        let unread_count = unread_counts.get(recipient.clone()).unwrap_or(0);
+        unread_counts.set(recipient.clone(), unread_count.saturating_sub(1));
+        env.storage()
+            .persistent()
+            .set(&symbol_short!("unread"), &unread_counts);
+
+        let mut stats = get_stats_internal(&env);
+        stats.unread_messages = stats.unread_messages.saturating_sub(1);
+        env.storage()
+            .persistent()
+            .set(&symbol_short!("stats"), &stats);
+
+        let message_read_event = MessageRead {
+            message_id,
+            recipient,
+            sender: message.sender,
+            timestamp: current_timestamp,
+        };
+
+        env.events()
+            .publish((symbol_short!("emsg_read"),), message_read_event);
+
+        ReentrancyGuard::exit(&env);
+        Ok(())
     }
 }
 
