@@ -22,6 +22,6 @@ export class WebhookDeliveryProcessor {
     this.logger.debug(
       `Processing webhook delivery job ${job.id}: event ${event.id} -> consumer ${consumer.id}`,
     );
-    await this.webhookDeliveryService.deliverEventToConsumer(event, consumer);
+    await this.webhookDeliveryService.deliverEventToConsumer(event, consumer, job.attemptsMade + 1);
   }
 }
