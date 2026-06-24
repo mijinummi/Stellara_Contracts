@@ -198,13 +198,6 @@ impl SyntheticAssetsContract {
             .get(&asset_symbol)
             .ok_or(Error::AssetNotFound)?;
 
-        // Pull collateral from owner into the contract
-        TokenClient::new(&env, &config.collateral_token).transfer(
-            &owner,
-            &env.current_contract_address(),
-            &collateral_amount,
-        );
-
         let cdp_key = Self::cdp_key(&owner, &asset_symbol);
         let cdp = CDP {
             owner: owner.clone(),
@@ -219,6 +212,10 @@ impl SyntheticAssetsContract {
         };
         env.storage().persistent().set(&cdp_key, &cdp);
 
+        // Pull collateral from owner into the contract. Storage written
+        // first so any reentrant observation of this contract's state
+        // already reflects the ownership change before the token
+        // movement settles (PR #802 hardening).
         TokenClient::new(&env, &config.collateral_token)
             .transfer(&owner, &env.current_contract_address(), &collateral_amount);
 
@@ -348,6 +345,11 @@ impl SyntheticAssetsContract {
         env.storage()
             .persistent()
             .set(&asset_symbol, &updated_config);
+
+        // PR #802: actually burn the user's synthetic tokens so the
+        // ledger balance matches the debt reduction recorded above.
+        TokenClient::new(&env, &config.synthetic_token).burn(&owner, &burn_amount);
+
         Ok(())
     }
 
@@ -378,13 +380,6 @@ impl SyntheticAssetsContract {
             .persistent()
             .get(&cdp_key)
             .ok_or(Error::CDPNotFound)?;
-
-        // Pull additional collateral from owner into the contract
-        TokenClient::new(&env, &config.collateral_token).transfer(
-            &owner,
-            &env.current_contract_address(),
-            &amount,
-        );
 
         cdp.collateral_amount += amount;
 
