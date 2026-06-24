@@ -71,11 +71,17 @@ contract MultisigTreasury {
         return txIndex;
     }
 
-    function confirmTransaction(uint _txIndex) external onlyOwner notFrozen {
+    function confirmTransaction(uint _txIndex) external onlyOwner {
         require(_txIndex < transactions.length, "tx does not exist");
         Transaction storage txn = transactions[_txIndex];
         require(!txn.executed, "already executed");
         require(!isConfirmed[_txIndex][msg.sender], "already confirmed");
+
+        // Allow confirming unfreeze calls even when frozen; all other txs require unfrozen state.
+        if (frozen) {
+            require(_isSelfCall(txn, this.unfreezeInternal.selector), "frozen");
+        }
+
         isConfirmed[_txIndex][msg.sender] = true;
         txn.numConfirmations += 1;
         emit ConfirmTransaction(msg.sender, _txIndex);
@@ -174,4 +180,11 @@ contract MultisigTreasury {
         bytes memory callData = txn.data;
         return txn.to == address(this) && callData.length >= 4 && bytes4(callData) == selector;
     }
+
+    /**
+     * @dev Storage gap to reserve space for future state variables when upgrading
+     * via a proxy pattern. Reduces storage collision risk across upgrade versions.
+     * Size: 50 slots (standard OpenZeppelin pattern).
+     */
+    uint256[50] private __gap;
 }

@@ -2,10 +2,12 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
-import { APP_GUARD } from '@nestjs/core';
+import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
+
+import { buildTypeOrmOptions } from './database/database.config';
 
 import { RedisModule } from './redis/redis.module';
 import { VoiceModule } from './voice/voice.module';
@@ -31,6 +33,8 @@ import { AuditLog, AuditLogArchive } from './audit/audit.entity';
 import { VoiceJob } from './voice/entities/voice-job.entity';
 import { ThrottleModule } from './throttle/throttle.module';
 import { HealthModule } from './health/health.module';
+import { ObservabilityModule } from './observability/observability.module';
+import { TracingInterceptor } from './observability/interceptors/tracing.interceptor';
 
 @Module({
   imports: [
@@ -40,7 +44,7 @@ import { HealthModule } from './health/health.module';
 
     ScheduleModule.forRoot(),
 
-    TypeOrmModule.forRootAsync({
+TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => ({
@@ -60,10 +64,18 @@ import { HealthModule } from './health/health.module';
           ApiToken,
           AuditLog,
           AuditLogArchive,
-          VoiceJob,
+VoiceJob,
         ],
-        synchronize: configService.get('NODE_ENV') === 'development',
+        synchronize: false,
         logging: configService.get('NODE_ENV') === 'development',
+        extra: {
+          max: 20,
+          min: 5,
+          idleTimeoutMillis: 30000,
+        },
+        retryAttempts: 5,
+        retryDelay: 3000,
+        migrations: ['src/database/migrations/*{.ts,.js}'],
       }),
     }),
 
@@ -78,6 +90,7 @@ import { HealthModule } from './health/health.module';
     ThrottleModule,
     AiModule,
     HealthModule,
+    ObservabilityModule,
   ],
 
   controllers: [AppController],
@@ -93,6 +106,15 @@ import { HealthModule } from './health/health.module';
     {
       provide: APP_GUARD,
       useClass: RolesGuard,
+    },
+
+    /**
+     * Global tracing interceptor — propagates trace IDs and records
+     * HTTP request metrics via ObservabilityModule.
+     */
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: TracingInterceptor,
     },
   ],
 })

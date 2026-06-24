@@ -1,10 +1,15 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { InjectQueue } from '@nestjs/bull';
+import type { Queue } from 'bull';
+import { createHmac } from 'crypto';
 import axios, { AxiosInstance, AxiosRequestConfig } from 'axios';
 import { WebhookConsumer } from '../entities/webhook-consumer.entity';
 import { StellarEvent } from '../entities/stellar-event.entity';
 import { ConsumerManagementService } from './consumer-management.service';
 import { EventStorageService } from './event-storage.service';
 import { DeliveryStatus, EventType } from '../types/stellar.types';
+import { WebhookDeliveryJobData } from '../processors/webhook-delivery.processor';
+import { validateWebhookUrl } from '../utils/ssrf.util';
 
 interface DeliveryResult {
   success: boolean;
@@ -17,26 +22,36 @@ interface DeliveryResult {
 export class WebhookDeliveryService {
   private readonly logger = new Logger(WebhookDeliveryService.name);
   private readonly httpClient: AxiosInstance;
-  private readonly deliveryQueue: Array<{
-    event: StellarEvent;
-    consumer: WebhookConsumer;
-  }> = [];
-  private isProcessingQueue = false;
+
+  /** Exponential backoff schedule between attempts: 1s, 5s, 30s, 5m, 30m. */
+  static readonly RETRY_DELAYS_MS = [1000, 5000, 30000, 300000, 1800000];
+  /** Max delivery attempts before an event is moved to the dead-letter state. */
+  static readonly MAX_ATTEMPTS = 5;
+  /** Outbound HMAC signature header name. */
+  static readonly SIGNATURE_HEADER = 'X-Stellara-Signature';
+
+  // Keys (`${eventId}:${consumerId}`) already delivered — guarantees idempotency
+  // so a duplicate queue entry or retry can never double-deliver.
+  private readonly delivered = new Set<string>();
+  // Keys currently queued/in-flight — prevents queueing the same pair twice.
+  private readonly inFlight = new Set<string>();
 
   constructor(
+    @InjectQueue('webhook-delivery') private readonly deliveryQueue: Queue<WebhookDeliveryJobData>,
     private readonly consumerManagementService: ConsumerManagementService,
     private readonly eventStorageService: EventStorageService,
   ) {
     this.httpClient = axios.create({
-      timeout: 10000, // 10 second default timeout
+      timeout: 10000,
       headers: {
         'Content-Type': 'application/json',
         'User-Agent': 'Stellar-Monitor/1.0',
       },
     });
+  }
 
-    // Setup automatic queue processing
-    setInterval(() => this.processQueue(), 1000); // Process queue every second
+  private deliveryKey(eventId: string, consumerId: string): string {
+    return `${eventId}:${consumerId}`;
   }
 
   async queueEventForDelivery(event: StellarEvent): Promise<void> {
@@ -49,82 +64,87 @@ export class WebhookDeliveryService {
       return;
     }
 
-    // Add event to queue for each active consumer
     for (const consumer of activeConsumers) {
-      this.deliveryQueue.push({ event, consumer });
+      const key = this.deliveryKey(event.id, consumer.id);
+      if (this.delivered.has(key) || this.inFlight.has(key)) {
+        this.logger.debug(
+          `Skipping duplicate queue for event ${event.id} / consumer ${consumer.id}`,
+        );
+        continue;
+      }
+      this.inFlight.add(key);
+      await this.deliveryQueue.add(
+        { event, consumer },
+        {
+          attempts: consumer.maxRetries,
+          backoff: { type: 'exponential', delay: 1000 },
+          removeOnComplete: true,
+        },
+      );
       this.logger.debug(`Queued event ${event.id} for consumer ${consumer.id}`);
-    }
-
-    // Start processing if not already running
-    if (!this.isProcessingQueue) {
-      this.processQueue();
     }
   }
 
-  private async processQueue(): Promise<void> {
-    if (this.isProcessingQueue || this.deliveryQueue.length === 0) {
+  /** Called by WebhookDeliveryProcessor — delivers one event to one consumer. */
+  async deliverEventToConsumer(
+    event: StellarEvent,
+    consumer: WebhookConsumer,
+    attempt: number,
+  ): Promise<void> {
+    const startTime = Date.now();
+    const key = this.deliveryKey(event.id, consumer.id);
+
+    // Idempotency: never deliver the same event to the same consumer twice.
+    if (this.delivered.has(key)) {
+      this.logger.debug(
+        `Event ${event.id} already delivered to consumer ${consumer.id}, skipping`,
+      );
       return;
     }
 
-    this.isProcessingQueue = true;
-    this.logger.debug(
-      `Processing delivery queue with ${this.deliveryQueue.length} items`,
-    );
-
     try {
-      // Process items in batches to avoid overwhelming the system
-      const batchSize = 10;
-      const batch = this.deliveryQueue.splice(0, batchSize);
-
-      await Promise.all(
-        batch.map(async ({ event, consumer }) => {
-          await this.deliverEventToConsumer(event, consumer);
-        }),
-      );
-    } catch (error) {
-      this.logger.error(
-        `Error processing delivery queue: ${error.message}`,
-        error.stack,
-      );
-    } finally {
-      this.isProcessingQueue = false;
-    }
-  }
-
-  private async deliverEventToConsumer(
-    event: StellarEvent,
-    consumer: WebhookConsumer,
-  ): Promise<void> {
-    const startTime = Date.now();
-
-    try {
-      // Check if consumer is still active (might have been deactivated during queue processing)
       const freshConsumer =
         await this.consumerManagementService.getConsumerById(consumer.id);
       if (!freshConsumer.isActive) {
         this.logger.debug(
           `Skipping delivery to inactive consumer ${consumer.id}`,
         );
+        this.inFlight.delete(key);
         return;
       }
 
-      const result = await this.attemptDelivery(event, freshConsumer);
+      // SSRF protection: validate the (possibly re-pointed) URL right before
+      // calling it. An unsafe URL is permanently undeliverable — dead-letter it
+      // immediately rather than retrying.
+      try {
+        await validateWebhookUrl(freshConsumer.url);
+      } catch (ssrfError) {
+        this.logger.warn(
+          `Refusing delivery to unsafe URL for consumer ${consumer.id}: ${ssrfError.message}`,
+        );
+        await this.moveToDeadLetter(event, consumer, attempt, ssrfError.message);
+        return;
+      }
 
+      const result = await this.attemptDelivery(event, freshConsumer, attempt);
       const responseTime = Date.now() - startTime;
 
       if (result.success) {
+        this.delivered.add(key);
+        this.inFlight.delete(key);
         this.logger.log(
           `Successfully delivered event ${event.id} to consumer ${consumer.id}`,
         );
         await this.handleSuccessfulDelivery(event, consumer, responseTime);
       } else {
         this.logger.warn(
-          `Failed to deliver event ${event.id} to consumer ${consumer.id}: ${result.errorMessage}`,
+          `Failed to deliver event ${event.id} to consumer ${consumer.id} (attempt ${attempt}): ${result.errorMessage}`,
         );
-        await this.handleFailedDelivery(event, consumer, result, responseTime);
+        await this.handleFailedDelivery(event, consumer, result, attempt);
+        // Re-throw so Bull can apply retry/backoff
+        throw new Error(result.errorMessage || 'Delivery failed');
       }
     } catch (error) {
-      const responseTime = Date.now() - startTime;
       this.logger.error(
         `Exception during delivery to consumer ${consumer.id}: ${error.message}`,
         error.stack,
@@ -132,18 +152,17 @@ export class WebhookDeliveryService {
       await this.handleFailedDelivery(
         event,
         consumer,
-        {
-          success: false,
-          errorMessage: error.message,
-        },
-        responseTime,
+        { success: false, errorMessage: error.message },
+        attempt,
       );
+      throw error;
     }
   }
 
   private async attemptDelivery(
     event: StellarEvent,
     consumer: WebhookConsumer,
+    attempt: number,
   ): Promise<DeliveryResult> {
     const payload = {
       id: event.id,
@@ -156,38 +175,39 @@ export class WebhookDeliveryService {
       deliveredAt: new Date().toISOString(),
     };
 
+    const body = JSON.stringify(payload);
+
     const config: AxiosRequestConfig = {
       timeout: consumer.timeoutMs,
       headers: {
         'X-Stellar-Event-ID': event.id,
         'X-Stellar-Event-Type': event.eventType,
-        'X-Delivery-Attempt': (event.deliveryAttempts + 1).toString(),
+        'X-Delivery-Attempt': attempt.toString(),
+        // Idempotency key lets consumers dedupe on their side too.
+        'X-Idempotency-Key': this.deliveryKey(event.id, consumer.id),
       },
     };
 
-    // Add signature if consumer has a secret
+    // Add HMAC-SHA256 signature if consumer has a secret so the consumer can
+    // verify the payload originated from us and was not tampered with.
+    // The secret is stored encrypted; decrypt it here for signing only.
     if (consumer.secret) {
-      const signature = this.generateSignature(
-        JSON.stringify(payload),
-        consumer.secret,
-      );
-      config.headers = {
-        ...config.headers,
-        'X-Signature': signature,
-      };
+      const plaintextSecret =
+        await this.consumerManagementService.getDecryptedSecret(consumer.id);
+      if (plaintextSecret) {
+        config.headers = {
+          ...config.headers,
+          [WebhookDeliveryService.SIGNATURE_HEADER]: this.generateSignature(
+            body,
+            plaintextSecret,
+          ),
+        };
+      }
     }
 
     try {
-      const response = await this.httpClient.post(
-        consumer.url,
-        payload,
-        config,
-      );
-
-      return {
-        success: true,
-        statusCode: response.status,
-      };
+      const response = await this.httpClient.post(consumer.url, body, config);
+      return { success: true, statusCode: response.status };
     } catch (error) {
       return {
         success: false,
@@ -202,21 +222,23 @@ export class WebhookDeliveryService {
     consumer: WebhookConsumer,
     responseTime: number,
   ): Promise<void> {
-    // Update event status
     await this.eventStorageService.updateEventStatus(
       event.id,
       DeliveryStatus.DELIVERED,
       consumer.id,
     );
 
-    // Update consumer stats
+    // Update consumer stats and reset the in-flight attempt counter.
     await this.consumerManagementService.updateDeliveryStats(consumer.id, true);
+    await this.consumerManagementService.recordDeliveryProgress(
+      consumer.id,
+      0,
+      null,
+    );
 
-    // Mark event as processed if delivered to all consumers
     const activeConsumers =
       await this.consumerManagementService.getActiveConsumers();
-    const deliveredCount = (event.deliveredTo?.length || 0) + 1; // +1 for current delivery
-
+    const deliveredCount = (event.deliveredTo?.length || 0) + 1;
     if (deliveredCount >= activeConsumers.length) {
       await this.eventStorageService.markEventAsProcessed(event.id);
     }
@@ -226,58 +248,64 @@ export class WebhookDeliveryService {
     event: StellarEvent,
     consumer: WebhookConsumer,
     result: DeliveryResult,
-    responseTime: number,
+    attempt: number,
   ): Promise<void> {
-    // Update consumer stats
-    await this.consumerManagementService.updateDeliveryStats(
+    // Update consumer stats and record the attempt/error on the consumer.
+    await this.consumerManagementService.updateDeliveryStats(consumer.id, false);
+    await this.consumerManagementService.recordDeliveryProgress(
       consumer.id,
-      false,
+      attempt,
+      result.errorMessage ?? null,
     );
 
-    const attemptNumber = event.deliveryAttempts + 1;
-
-    if (attemptNumber >= consumer.maxRetries) {
-      // Max retries reached - mark as failed
-      await this.eventStorageService.updateEventStatus(
-        event.id,
-        DeliveryStatus.FAILED,
-        consumer.id,
-        result.errorMessage,
-      );
-
-      this.logger.warn(
-        `Max retries reached for event ${event.id} to consumer ${consumer.id}`,
-      );
-    } else {
-      // Schedule retry with exponential backoff
-      const delay = this.calculateBackoffDelay(attemptNumber);
-      this.logger.debug(
-        `Scheduling retry ${attemptNumber}/${consumer.maxRetries} for event ${event.id} in ${delay}ms`,
-      );
-
-      setTimeout(() => {
-        this.deliveryQueue.push({ event, consumer });
-        if (!this.isProcessingQueue) {
-          this.processQueue();
-        }
-      }, delay);
+    if (attempt >= WebhookDeliveryService.MAX_ATTEMPTS) {
+      // Max attempts reached — move to dead-letter.
+      await this.moveToDeadLetter(event, consumer, attempt, result.errorMessage);
+      return;
     }
+
+    // Bull handles the retry schedule via its own backoff config, so we only
+    // need to update the event status here to reflect the pending retry.
+    await this.eventStorageService.updateEventStatus(
+      event.id,
+      DeliveryStatus.RETRYING,
+      consumer.id,
+      result.errorMessage,
+    );
   }
 
+  private async moveToDeadLetter(
+    event: StellarEvent,
+    consumer: WebhookConsumer,
+    attempt: number,
+    errorMessage?: string,
+  ): Promise<void> {
+    this.inFlight.delete(this.deliveryKey(event.id, consumer.id));
+
+    await this.eventStorageService.updateEventStatus(
+      event.id,
+      DeliveryStatus.DEAD_LETTER,
+      consumer.id,
+      errorMessage,
+    );
+
+    this.logger.error(
+      `Event ${event.id} moved to dead-letter for consumer ${consumer.id} after ${attempt} attempt(s): ${errorMessage ?? 'unknown error'}`,
+    );
+  }
+
+  /**
+   * Returns the backoff delay (ms) to wait before the next attempt.
+   * `attempt` is the 1-based number of the attempt that just failed.
+   */
   private calculateBackoffDelay(attempt: number): number {
-    // Exponential backoff: 1s, 2s, 4s, 8s, 16s, etc.
-    const baseDelay = 1000; // 1 second
-    const maxDelay = 300000; // 5 minutes max
-    return Math.min(baseDelay * Math.pow(2, attempt - 1), maxDelay);
+    const delays = WebhookDeliveryService.RETRY_DELAYS_MS;
+    const index = Math.min(attempt - 1, delays.length - 1);
+    return delays[index];
   }
 
   private generateSignature(payload: string, secret: string): string {
-    // In production, use proper HMAC signing
-    // This is a simplified example
-    return require('crypto')
-      .createHmac('sha256', secret)
-      .update(payload)
-      .digest('hex');
+    return createHmac('sha256', secret).update(payload).digest('hex');
   }
 
   async deliverTestEvent(consumerId: string): Promise<DeliveryResult> {
@@ -285,10 +313,14 @@ export class WebhookDeliveryService {
       await this.consumerManagementService.getConsumerById(consumerId);
 
     if (!consumer.isActive) {
-      return {
-        success: false,
-        errorMessage: 'Consumer is not active',
-      };
+      return { success: false, errorMessage: 'Consumer is not active' };
+    }
+
+    // Validate the URL before sending a test event too.
+    try {
+      await validateWebhookUrl(consumer.url);
+    } catch (error) {
+      return { success: false, errorMessage: error.message };
     }
 
     const testEvent: Partial<StellarEvent> = {
@@ -298,17 +330,14 @@ export class WebhookDeliveryService {
       timestamp: new Date(),
       transactionHash: 'test-transaction-hash',
       sourceAccount: 'test-source-account',
-      payload: {
-        test: true,
-        message: 'This is a test event',
-      },
+      payload: { test: true, message: 'This is a test event' },
     };
 
-    return this.attemptDelivery(testEvent as StellarEvent, consumer);
+    return this.attemptDelivery(testEvent as StellarEvent, consumer, 1);
   }
 
-  getQueueSize(): number {
-    return this.deliveryQueue.length;
+  async getQueueSize(): Promise<number> {
+    return this.deliveryQueue.count();
   }
 
   async getDeliveryStats(): Promise<{
@@ -316,12 +345,14 @@ export class WebhookDeliveryService {
     activeConsumers: number;
     pendingEvents: number;
   }> {
-    const activeConsumers =
-      await this.consumerManagementService.getActiveConsumers();
-    const pendingEvents = await this.eventStorageService.getPendingEvents();
+    const [activeConsumers, pendingEvents, queueSize] = await Promise.all([
+      this.consumerManagementService.getActiveConsumers(),
+      this.eventStorageService.getPendingEvents(),
+      this.deliveryQueue.count(),
+    ]);
 
     return {
-      queueSize: this.deliveryQueue.length,
+      queueSize,
       activeConsumers: activeConsumers.length,
       pendingEvents: pendingEvents.length,
     };
