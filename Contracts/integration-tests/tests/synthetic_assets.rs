@@ -23,6 +23,11 @@ use soroban_sdk::{
 };
 use synthetic_assets::{SyntheticAssetsContract, SyntheticAssetsContractClient};
 
+// Default staleness window for integration tests: 1 day. `register_asset`
+// rejects zero; 86_400 is also large enough that the default test-clock
+// timestamp of 0 leaves a fresh `update_price` call within window.
+const DEFAULT_MAX_AGE: u64 = 86_400;
+
 /// Deploy a fresh synthetic-assets contract, mint some collateral to the user,
 /// register a sane asset, and return all the wiring the tests need.
 fn boot(
@@ -71,6 +76,7 @@ fn boot(
         &50_i32,
         &coll_addr,
         &synth_addr,
+        &DEFAULT_MAX_AGE,
     );
     sc.update_price(&admin, &asset, &1_000_000); // $1.00
     coll_admin.mint(&user, &user_balance);
@@ -260,6 +266,7 @@ fn mint_without_oracle_price_returns_error_no_token_movement() {
         &50_i32,
         &coll_addr,
         &synth_addr,
+        &DEFAULT_MAX_AGE,
     );
     // Note: deliberately NO update_price — oracle_price stays at zero.
 
@@ -306,6 +313,7 @@ fn register_asset_rejects_liq_cratio_above_min() {
         &50_i32,
         &coll_addr,
         &synth_addr,
+        &DEFAULT_MAX_AGE,
     );
     assert!(res.is_err());
     // The asset must NOT be registered.

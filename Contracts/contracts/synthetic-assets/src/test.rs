@@ -20,6 +20,12 @@ fn create_collateral_token(
     )
 }
 
+// `deploy_contract` is unused now that every test inlines its own
+// `env.register_contract(None, SyntheticAssetsContract)` and
+// `SyntheticAssetsContractClient::new` calls; keep the helper around so
+// future tests can opt into a one-liner setup without copy-pasting four
+// lines of boilerplate.
+#[allow(dead_code)]
 fn deploy_contract(env: &Env) -> (Address, SyntheticAssetsContractClient<'static>) {
     let contract_id = env.register_contract(None, SyntheticAssetsContract);
     let client = SyntheticAssetsContractClient::new(env, &contract_id);
