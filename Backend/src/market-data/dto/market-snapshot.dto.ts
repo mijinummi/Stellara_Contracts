@@ -31,6 +31,14 @@ export class AssetPriceDto {
   @ApiProperty({ description: 'Market cap in USD' })
   @IsNumber()
   marketCap: number;
+
+  @ApiProperty({ description: 'Data freshness status (e.g., fresh, stale)' })
+  @IsString()
+  dataFreshness: string;
+
+  @ApiProperty({ description: 'Data source' })
+  @IsString()
+  source: string;
 }
 
 export class MarketSnapshotDto {
@@ -48,6 +56,11 @@ export class MarketSnapshotDto {
   @ApiPropertyOptional({ description: 'Whether data was served from cache' })
   @IsOptional()
   cached?: boolean;
+
+  @ApiPropertyOptional({ description: 'Data freshness status (e.g., fresh, stale)' })
+  @IsOptional()
+  @IsString()
+  dataFreshness?: string;
 }
 
 export class GetMarketSnapshotQueryDto {
