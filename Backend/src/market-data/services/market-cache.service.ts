@@ -51,7 +51,9 @@ export class MarketCacheService {
   }
 
   /**
-   * Set data in cache with TTL
+   * Set data in cache with SWR support.
+   * The freshnessTtl controls the logical staleness window, while data
+   * lives in Redis for 24h so last-known-good data is always available.
    */
   async set<T>(
     key: string,
@@ -61,31 +63,110 @@ export class MarketCacheService {
   ): Promise<void> {
     try {
       const cacheKey = this.generateCacheKey(key, namespace);
-      const ttl = customTtl || this.getTtlForNamespace(namespace);
+      const freshnessTtl = customTtl || this.getTtlForNamespace(namespace);
+      // Keep data alive for 24h in Redis to support last-known-good fallback
+      const redisTtl = Math.max(freshnessTtl, 86400);
 
-      // Store data
+      // Store data with extended Redis TTL
       await this.redisService.client.set(cacheKey, JSON.stringify(value), {
-        EX: ttl,
+        EX: redisTtl,
       });
 
-      // Update metadata
+      // Store metadata with the logical freshness TTL
       await Promise.all([
         this.redisService.client.set(
           `${cacheKey}:metadata`,
           JSON.stringify({
             createdAt: Date.now(),
-            ttl,
+            freshnessTtl,
+            redisTtl,
             namespace,
           }),
-          { EX: ttl },
+          { EX: redisTtl },
         ),
         this.redisService.client.incr(`${namespace}:stats:total-entries`),
       ]);
 
-      this.logger.debug(`Cached data: ${cacheKey} (TTL: ${ttl}s)`);
+      this.logger.debug(
+        `Cached data: ${cacheKey} (freshnessTtl: ${freshnessTtl}s, redisTtl: ${redisTtl}s)`,
+      );
     } catch (error) {
       this.logger.error(`Error setting cache: ${error.message}`, error.stack);
       // Fail gracefully - cache write failure shouldn't block operation
+    }
+  }
+
+  /**
+   * Get metadata for a cached key, used by SWR to determine staleness.
+   * Returns null if no metadata is found.
+   */
+  async getMetadata(
+    key: string,
+    namespace: CacheNamespace,
+  ): Promise<{ createdAt: number; freshnessTtl: number; namespace: string } | null> {
+    try {
+      const cacheKey = this.generateCacheKey(key, namespace);
+      const raw = await this.redisService.client.get(`${cacheKey}:metadata`);
+      if (!raw) return null;
+      return JSON.parse(raw);
+    } catch (error) {
+      this.logger.error(`Error getting metadata: ${error.message}`, error.stack);
+      return null;
+    }
+  }
+
+  /**
+   * Check if a cached item is stale (older than its logical freshness TTL).
+   * Returns true if stale or if metadata is unavailable.
+   */
+  async isStale(key: string, namespace: CacheNamespace): Promise<boolean> {
+    const meta = await this.getMetadata(key, namespace);
+    if (!meta) return true;
+    const ageMs = Date.now() - meta.createdAt;
+    return ageMs > meta.freshnessTtl * 1000;
+  }
+
+  /**
+   * Persist last-known-good data (used as graceful degradation fallback).
+   * Stored with no expiry (or very long TTL: 7 days).
+   */
+  async setLastKnownGood<T>(
+    key: string,
+    namespace: CacheNamespace,
+    value: T,
+  ): Promise<void> {
+    try {
+      const lkgKey = `lkg:${this.generateCacheKey(key, namespace)}`;
+      await this.redisService.client.set(lkgKey, JSON.stringify(value), {
+        EX: 7 * 86400, // 7 days
+      });
+      this.logger.debug(`Saved last-known-good: ${lkgKey}`);
+    } catch (error) {
+      this.logger.error(
+        `Error saving last-known-good: ${error.message}`,
+        error.stack,
+      );
+    }
+  }
+
+  /**
+   * Retrieve last-known-good data for graceful degradation fallback.
+   */
+  async getLastKnownGood<T>(
+    key: string,
+    namespace: CacheNamespace,
+  ): Promise<T | null> {
+    try {
+      const lkgKey = `lkg:${this.generateCacheKey(key, namespace)}`;
+      const raw = await this.redisService.client.get(lkgKey);
+      if (!raw) return null;
+      return JSON.parse(raw) as T;
+    } catch (error) {
+      this.logger.error(
+        `Error getting last-known-good: ${error.message}`,
+        error.stack,
+      );
+      return null;
     }
   }
 
