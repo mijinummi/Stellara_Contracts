@@ -20,6 +20,8 @@ import { AiModule } from './ai/ai.module';
 
 import { RolesGuard } from './guards/roles.guard';
 import { ConfigValidationService } from './config/config-validation.service';
+import { SecretsMaskingService } from './config/secrets-masking.service';
+import { SecretsRotationService } from './config/secrets-rotation.service';
 
 import { Workflow } from './workflow/entities/workflow.entity';
 import { WorkflowStep } from './workflow/entities/workflow-step.entity';
@@ -98,6 +100,8 @@ VoiceJob,
   providers: [
     AppService,
     ConfigValidationService,
+    SecretsMaskingService,
+    SecretsRotationService,
 
     /**
      * Global RBAC enforcement

@@ -4,6 +4,10 @@
 
 Follow one of these methods to set up local secrets for development.
 
+> **New in this release:** Runtime secrets masking and rotation hooks.
+> See the [Secret Rotation Procedures](#secret-rotation-procedures) section
+> below for zero-downtime rotation using the updated `provision-dev.sh` script.
+
 ## Option 1: HashiCorp Vault (Recommended)
 
 ### Installation
@@ -529,3 +533,92 @@ For issues, check:
 5. **Documentation**: [Backend README](../README.md)
 
 Contact the team or check the team wiki for environment-specific issues.
+
+---
+
+## Secret Rotation Procedures
+
+The `provision-dev.sh` script ships with built-in rotation subcommands.  Each
+command:
+
+1. Generates a cryptographically-random replacement value via `openssl rand`.
+2. Patches the new value into Vault (preserving the previous value under a
+   `previous` key for the JWT grace period).
+3. Exports the new value to the current shell environment.
+4. POSTs a rotation notification to the running app's
+   `POST /api/secrets/rotate` endpoint so that in-process listeners (e.g.
+   `RedisService`) reconnect immediately without a restart.
+
+### Prerequisites
+
+```bash
+export VAULT_ADDR='http://localhost:8200'
+export VAULT_TOKEN='devroot'
+```
+
+### Rotate JWT\_SECRET
+
+```bash
+./scripts/vault/provision-dev.sh rotate-jwt
+```
+
+What happens:
+- A new 48-byte base64 key replaces the `secret` field.
+- The old value is stored under `previous` in Vault for a grace period
+  (existing signed tokens remain valid until they expire naturally).
+- The app is notified and reloads the signing key in-process.
+
+### Rotate REDIS\_PASSWORD
+
+```bash
+./scripts/vault/provision-dev.sh rotate-redis
+```
+
+What happens:
+- A new Redis password is written to Vault.
+- The app's `RedisService` rotation hook is triggered — all three Redis
+  client instances (client, pubClient, subClient) reconnect automatically.
+- **Manual step**: update `requirepass` in your `redis.conf` to match, then
+  `redis-cli CONFIG SET requirepass <new-password>`.
+
+### Rotate DB\_PASSWORD
+
+```bash
+./scripts/vault/provision-dev.sh rotate-db
+```
+
+What happens:
+- A new Postgres password is written to Vault.
+- If `psql` is on PATH the script applies `ALTER USER … WITH PASSWORD` on the
+  local dev database automatically.
+- The app receives a rotation notification so any pooled connections are
+  recycled.
+
+### Rotate All Secrets at Once
+
+```bash
+./scripts/vault/provision-dev.sh rotate-all
+```
+
+Runs `rotate-jwt`, `rotate-redis`, and `rotate-db` in sequence.
+
+---
+
+## Runtime Masking
+
+The `SecretsMaskingService` (see `src/config/secrets-masking.service.ts`)
+ensures that **secret values are never logged in full**.  The masking layer:
+
+- Substitutes literal env-var values (e.g. the actual `JWT_SECRET` string)
+  with `***JWT_SECRET***` in all log output.
+- Applies regex rules to mask:
+  - Bearer tokens in `Authorization` headers.
+  - Passwords embedded in connection URLs
+    (`redis://:password@host`, `postgres://user:password@host`).
+  - Query-string and JSON-encoded secret fields.
+- Sanitises `Error.message` and `Error.stack` before they reach the logger.
+
+If you see `***JWT_SECRET***` or `***DB_PASSWORD***` in log output, that
+confirms masking is working correctly.
+
+---

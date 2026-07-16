@@ -5,8 +5,33 @@ import { AppModule } from './app.module';
 import { RedisIoAdapter } from './websocket/redis-io.adapter';
 import { ThrottleGuard } from './throttle/throttle.guard';
 import { ConfigValidationService } from './config/config-validation.service';
+import { SecretsMaskingService } from './config/secrets-masking.service';
+import { SecretsRotationService } from './config/secrets-rotation.service';
 
 const REQUIRED_ENV_VARS = ['JWT_SECRET', 'DB_HOST', 'REDIS_URL'] as const;
+
+/**
+ * Lightweight inline masker used before the DI container is ready
+ * (i.e., in the top-level bootstrap().catch handler).
+ * Replaces any literal value of every known secret env-var with `***KEY***`.
+ */
+function maskBootstrapError(message: string): string {
+  const knownKeys = [
+    'JWT_SECRET', 'DB_PASSWORD', 'REDIS_URL', 'REDIS_PASSWORD',
+    'DATABASE_URL', 'VAULT_TOKEN', 'LLM_API_KEY', 'OPENAI_API_KEY',
+    'STRIPE_SECRET_KEY', 'AWS_SECRET_ACCESS_KEY',
+  ];
+  let safe = message;
+  for (const key of knownKeys) {
+    const value = process.env[key];
+    if (value && value.length >= 4 && safe.includes(value)) {
+      safe = safe.split(value).join(`***${key}***`);
+    }
+  }
+  // Also mask passwords in connection URLs
+  safe = safe.replace(/(rediss?|postgres|mysql|mongodb):\/\/[^:@\s]*:[^@\s]+@/gi, '$1://***:***@');
+  return safe;
+}
 
 function validateRequiredEnv(): void {
   const missing: string[] = [];
@@ -33,9 +58,28 @@ async function bootstrap() {
 
   app.enableShutdownHooks();
 
-  // Validate configuration at startup
-  const configValidationService = app.get(ConfigValidationService);
-  configValidationService.validate();
+  // ── Secrets masking & rotation ───────────────────────────────────────────
+  // Retrieve both services early so they are available before any other
+  // service that might log sensitive information is touched.
+  const maskingService = app.get(SecretsMaskingService);
+  const rotationService = app.get(SecretsRotationService);
+
+  Logger.log(
+    `SecretsMaskingService ready — ${rotationService.registeredSecrets().length} rotation hooks registered`,
+    'Bootstrap',
+  );
+
+  // ── Configuration validation ─────────────────────────────────────────────
+  // Validation errors are already masked inside ConfigValidationService,
+  // but we wrap the call here so any unexpected throw is also masked.
+  try {
+    const configValidationService = app.get(ConfigValidationService);
+    configValidationService.validate();
+  } catch (err) {
+    const safeMessage = maskingService.mask((err as Error).message);
+    Logger.error(`Configuration validation failed: ${safeMessage}`, 'Bootstrap');
+    process.exit(1);
+  }
 
   // Enable validation globally
   app.useGlobalPipes(
@@ -72,7 +116,14 @@ async function bootstrap() {
 }
 
 bootstrap().catch((err) => {
-  Logger.error(`Failed to start application: ${(err as Error).message}`, (err as Error).stack, 'Bootstrap');
+  // Use the module-scoped inline masker — DI may not be available here
+  const safeMessage = maskBootstrapError((err as Error).message);
+  const safeStack = maskBootstrapError((err as Error).stack ?? '');
+  Logger.error(
+    `Failed to start application: ${safeMessage}`,
+    safeStack,
+    'Bootstrap',
+  );
   process.exit(1);
 });
 

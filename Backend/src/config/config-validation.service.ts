@@ -3,12 +3,16 @@ import { ConfigService } from '@nestjs/config';
 import { validateSync } from 'class-validator';
 import { plainToInstance } from 'class-transformer';
 import { ConfigDto } from './config.dto';
+import { SecretsMaskingService } from './secrets-masking.service';
 
 @Injectable()
 export class ConfigValidationService {
   private readonly logger = new Logger(ConfigValidationService.name);
 
-  constructor(private readonly configService: ConfigService) {}
+  constructor(
+    private readonly configService: ConfigService,
+    private readonly maskingService: SecretsMaskingService,
+  ) {}
 
   validate(): void {
     const isProduction = this.configService.get('NODE_ENV') === 'production';
@@ -38,9 +42,12 @@ export class ConfigValidationService {
         .map((error) => Object.values(error.constraints || {}).join(', '))
         .join('; ');
 
-      this.logger.error(`Configuration validation failed: ${errorMessages}`);
+      // Mask any secret values that may have leaked into validation messages
+      const safeMessages = this.maskingService.mask(errorMessages);
+
+      this.logger.error(`Configuration validation failed: ${safeMessages}`);
       throw new Error(
-        `Configuration validation failed: ${errorMessages}. Please check your environment variables.`,
+        `Configuration validation failed: ${safeMessages}. Please check your environment variables.`,
       );
     }
 
@@ -52,7 +59,7 @@ export class ConfigValidationService {
     this.logger.log('Configuration validation passed');
   }
 
-  private validateProductionSecrets(envVars: any): void {
+  private validateProductionSecrets(envVars: Record<string, string | undefined>): void {
     const jwtSecret = envVars.JWT_SECRET;
     const dbPassword = envVars.DB_PASSWORD;
 
@@ -68,12 +75,13 @@ export class ConfigValidationService {
     ];
 
     if (weakSecrets.some((isWeak) => isWeak)) {
+      // Deliberately avoid echoing the weak value itself
       throw new Error(
         'Production environment detected with weak or default secrets. Please set strong, unique secrets for JWT_SECRET and DB_PASSWORD.',
       );
     }
 
-    // Check minimum secret length
+    // Check minimum secret length — do NOT include the actual value in the error
     if (jwtSecret && jwtSecret.length < 32) {
       throw new Error(
         'JWT_SECRET must be at least 32 characters long in production',
