@@ -4,6 +4,104 @@
 
 This document outlines the secrets management approach for the Stellara project using **HashiCorp Vault** as the primary secret store, with **AWS Secrets Manager** as an alternative for AWS-deployed environments.
 
+---
+
+## Runtime Secrets Masking
+
+All secret values are masked before they reach application logs, exception
+messages, or any diagnostic payload.  This is handled by `SecretsMaskingService`
+(`src/config/secrets-masking.service.ts`).
+
+### How It Works
+
+| Layer | What is masked |
+|---|---|
+| Env-var substitution | Literal values of `JWT_SECRET`, `DB_PASSWORD`, `REDIS_URL`, `REDIS_PASSWORD`, `VAULT_TOKEN`, `LLM_API_KEY`, `STRIPE_SECRET_KEY`, and other known secret keys |
+| Regex patterns | Bearer tokens, passwords in connection URLs (`redis://:pass@host`), query-string and JSON-encoded secret fields |
+| Error masking | `Error.message` and `Error.stack` are sanitised before being logged |
+
+### Consuming the Service
+
+```typescript
+import { SecretsMaskingService } from '../config/secrets-masking.service';
+
+// Mask a free-form string
+const safe = maskingService.mask(rawString);
+logger.error(`Connection failed: ${safe}`);
+
+// Mask an Error before rethrowing
+throw maskingService.maskError(error);
+
+// Mask an entire object (e.g. a request body)
+const safeBody = maskingService.maskObject(req.body);
+```
+
+### Confirming Masking Is Active
+
+If secrets masking is working correctly you will see tokens like
+`***JWT_SECRET***` or `***DB_PASSWORD***` in log output instead of the
+real values.
+
+---
+
+## Runtime Secret Rotation
+
+`SecretsRotationService` (`src/config/secrets-rotation.service.ts`) provides
+an in-process event bus for rotation signals.
+
+### Registering a Rotation Handler
+
+```typescript
+import { SecretsRotationService } from '../config/secrets-rotation.service';
+
+@Injectable()
+export class MyService implements OnModuleInit {
+  constructor(private readonly rotationService: SecretsRotationService) {}
+
+  onModuleInit() {
+    this.rotationService.onRotation('JWT_SECRET', async (evt) => {
+      // New value is already in process.env / ConfigService
+      await this.reloadSigningKey();
+      this.logger.log(`JWT_SECRET reloaded at ${evt.rotatedAt}`);
+    });
+  }
+}
+```
+
+### Triggering a Rotation
+
+The `provision-dev.sh` script sends an HTTP notification to the running app:
+
+```bash
+# Rotate a single secret
+./scripts/vault/provision-dev.sh rotate-jwt
+./scripts/vault/provision-dev.sh rotate-redis
+./scripts/vault/provision-dev.sh rotate-db
+
+# Rotate everything at once
+./scripts/vault/provision-dev.sh rotate-all
+```
+
+You can also call the service programmatically (e.g. from a Vault renew
+callback or a scheduled job):
+
+```typescript
+// After the new value is already loaded into process.env:
+await rotationService.notifyRotation('JWT_SECRET', 'vault-renewal');
+
+// Or bulk-notify:
+await rotationService.notifyBulkRotation(['JWT_SECRET', 'DB_PASSWORD'], 'scheduled');
+```
+
+### Built-in Rotation Hooks
+
+| Secret | Handler location | Effect |
+|---|---|---|
+| `REDIS_URL` | `RedisService.onModuleInit` | Reconnects all three Redis clients |
+| `REDIS_PASSWORD` | `RedisService.onModuleInit` | Reconnects all three Redis clients |
+
+---
+
 ## Architecture
 
 ### Environments

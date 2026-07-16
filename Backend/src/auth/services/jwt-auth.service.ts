@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import { JwtService as NestJwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -8,6 +8,7 @@ import { User } from '../entities/user.entity';
 import { randomUUID as uuidv4 } from 'crypto';
 import { AuditService } from '../../audit/audit.service';
 import { AuditEvent } from '../../audit/audit.event';
+import { SecretsMaskingService } from '../../config/secrets-masking.service';
 
 export interface JwtPayload {
   sub: string; // user id
@@ -18,6 +19,8 @@ export interface JwtPayload {
 
 @Injectable()
 export class JwtAuthService {
+  private readonly logger = new Logger(JwtAuthService.name);
+
   constructor(
     private readonly jwtService: NestJwtService,
     private readonly configService: ConfigService,
@@ -26,6 +29,7 @@ export class JwtAuthService {
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
     private readonly auditService: AuditService,
+    private readonly maskingService: SecretsMaskingService,
   ) {}
 
   async generateAccessToken(
@@ -82,6 +86,12 @@ export class JwtAuthService {
       const payload = this.jwtService.verify(token);
       return payload as JwtPayload;
     } catch (error) {
+      // Mask the raw exception message — it may contain parts of the token
+      // or the signing secret if the library surfaces them.
+      const safeMessage = this.maskingService.mask(
+        (error as Error).message ?? 'unknown error',
+      );
+      this.logger.warn(`Access token validation failed: ${safeMessage}`);
       throw new UnauthorizedException('Invalid or expired access token');
     }
   }
@@ -158,7 +168,14 @@ export class JwtAuthService {
   }
 
   async getUserFromToken(token: string): Promise<User> {
-    const payload = await this.validateAccessToken(token);
+    let payload: JwtPayload;
+    try {
+      payload = await this.validateAccessToken(token);
+    } catch (error) {
+      // validateAccessToken already masks and logs; re-throw the clean exception
+      throw error;
+    }
+
     const user = await this.userRepository.findOne({
       where: { id: payload.sub },
     });

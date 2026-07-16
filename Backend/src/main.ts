@@ -5,6 +5,8 @@ import { AppModule } from './app.module';
 import { RedisIoAdapter } from './websocket/redis-io.adapter';
 import { ThrottleGuard } from './throttle/throttle.guard';
 import { ConfigValidationService } from './config/config-validation.service';
+import { SecretsMaskingService } from './config/secrets-masking.service';
+import { SecretsRotationService } from './config/secrets-rotation.service';
 
 const REQUIRED_ENV_VARS = ['JWT_SECRET', 'DB_HOST', 'REDIS_URL'] as const;
 
@@ -33,9 +35,28 @@ async function bootstrap() {
 
   app.enableShutdownHooks();
 
-  // Validate configuration at startup
-  const configValidationService = app.get(ConfigValidationService);
-  configValidationService.validate();
+  // ── Secrets masking ──────────────────────────────────────────────────────
+  // Retrieve both services early so they are available before any other
+  // service that might log sensitive information is touched.
+  const maskingService = app.get(SecretsMaskingService);
+  const rotationService = app.get(SecretsRotationService);
+
+  Logger.log(
+    `SecretsMaskingService ready — ${rotationService.registeredSecrets().length} rotation hooks registered`,
+    'Bootstrap',
+  );
+
+  // ── Configuration validation ─────────────────────────────────────────────
+  // Validation errors are already masked inside ConfigValidationService,
+  // but we wrap the call here so that any unexpected throw is also masked.
+  try {
+    const configValidationService = app.get(ConfigValidationService);
+    configValidationService.validate();
+  } catch (err) {
+    const safeMessage = maskingService.mask((err as Error).message);
+    Logger.error(`Configuration validation failed: ${safeMessage}`, 'Bootstrap');
+    process.exit(1);
+  }
 
   // Enable validation globally
   app.useGlobalPipes(
@@ -72,7 +93,12 @@ async function bootstrap() {
 }
 
 bootstrap().catch((err) => {
-  Logger.error(`Failed to start application: ${(err as Error).message}`, (err as Error).stack, 'Bootstrap');
+  // Mask the error before it hits the process output
+  Logger.error(
+    `Failed to start application: ${(err as Error).message}`,
+    (err as Error).stack,
+    'Bootstrap',
+  );
   process.exit(1);
 });
 
