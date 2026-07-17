@@ -22,8 +22,8 @@ export class ProcessTtsProcessor {
 
   constructor(
     @InjectQueue('failed-jobs') private readonly dlqQueue: Queue,
-    @Optional() @Inject(MetricsService) private readonly metrics?: MetricsService,
     private readonly queueJobTracingWrapper: QueueJobTracingWrapper,
+    @Optional() @Inject(MetricsService) private readonly metrics?: MetricsService,
   ) {}
 
   @Process()
