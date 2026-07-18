@@ -66,7 +66,7 @@ export class RateLimitGuard implements CanActivate {
     // Securely extract the client identifier string
     const ip = request.ip || request.connection?.remoteAddress || 'unknown';
 
-    // Establish the target route or function name space identifier
+    // Establish the target route or function namespace identifier
     const keyPrefix = options.keyPrefix || request.route?.path || context.getHandler().name;
 
     // Execute atomic validation check matching the service signature: (ip, route, limit, windowSeconds)
