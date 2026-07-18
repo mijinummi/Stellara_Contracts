@@ -15,6 +15,13 @@
 
 # production
 /build
+/dist
+
+# testing
+**/__snapshots__/
+*.snap
+/coverage
+/.nyc_output
 
 # debug
 npm-debug.log*
@@ -43,7 +50,7 @@ next-env.d.ts
 /contracts/*/target/
 .soroban/
 
-# IDE
+# IDEs and editors
 .vscode/
 .idea/
 *.swp
