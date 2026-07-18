@@ -1,3 +1,4 @@
+
 // src/auth/guards/rate-limit.guard.ts
 import {
   Injectable,
@@ -6,8 +7,12 @@ import {
   HttpException,
   HttpStatus,
 } from '@nestjs/common';
+
+import { Injectable, CanActivate, ExecutionContext } from '@nestjs/common';
+
 import { Reflector } from '@nestjs/core';
 import { RateLimitService } from '../services/rate-limit.service';
+import { RateLimitError } from '../../common/exceptions/api-error.exception';
 
 export const RATE_LIMIT_KEY = 'rate_limit';
 
@@ -32,6 +37,12 @@ export const RateLimit = (options: RateLimitOptions) => {
   };
 };
 
+/**
+ * Guard that enforces per-IP rate limits on decorated endpoints.
+ *
+ * Throws `RateLimitError` (typed `ApiError`) so the `HttpExceptionFilter`
+ * renders the standard error envelope with errorCode `RATE_LIMIT_EXCEEDED`.
+ */
 @Injectable()
 export class RateLimitGuard implements CanActivate {
   constructor(
@@ -80,6 +91,15 @@ export class RateLimitGuard implements CanActivate {
         },
         HttpStatus.TOO_MANY_REQUESTS,
       );
+
+    // Set informational rate limit headers
+    response.setHeader('X-RateLimit-Limit', options.limit);
+    response.setHeader('X-RateLimit-Remaining', result.remaining);
+    response.setHeader('X-RateLimit-Reset', result.resetAt.toISOString());
+
+    if (!result.allowed) {
+      throw new RateLimitError(result.resetAt);
+
     }
 
     return true;
