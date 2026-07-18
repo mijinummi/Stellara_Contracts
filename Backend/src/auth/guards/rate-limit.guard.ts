@@ -1,3 +1,4 @@
+// src/auth/guards/rate-limit.guard.ts
 import {
   Injectable,
   CanActivate,
@@ -51,23 +52,23 @@ export class RateLimitGuard implements CanActivate {
     const request = context.switchToHttp().getRequest();
     const response = context.switchToHttp().getResponse();
 
-    // Get client IP
-    const ip = request.ip || request.connection.remoteAddress;
+    // Securely extract the client identifier string
+    const ip = request.ip || request.connection?.remoteAddress || 'unknown';
 
-    // Generate rate limit key
-    const keyPrefix = options.keyPrefix || context.getHandler().name;
-    const key = this.rateLimitService.generateKeyForIp(ip, keyPrefix);
+    // Establish the target route or function name space identifier
+    const keyPrefix = options.keyPrefix || request.route?.path || context.getHandler().name;
 
-    // Check rate limit
+    // Execute atomic validation check matching the service signature: (ip, route, limit, windowSeconds)
     const result = await this.rateLimitService.checkRateLimit(
-      key,
+      ip,
+      keyPrefix,
       options.limit,
       options.windowSeconds,
     );
 
-    // Set rate limit headers
-    response.setHeader('X-RateLimit-Limit', options.limit);
-    response.setHeader('X-RateLimit-Remaining', result.remaining);
+    // Explicitly set string values on tracking header fields to satisfy HTTP specs
+    response.setHeader('X-RateLimit-Limit', options.limit.toString());
+    response.setHeader('X-RateLimit-Remaining', result.remaining.toString());
     response.setHeader('X-RateLimit-Reset', result.resetAt.toISOString());
 
     if (!result.allowed) {
@@ -75,7 +76,7 @@ export class RateLimitGuard implements CanActivate {
         {
           statusCode: HttpStatus.TOO_MANY_REQUESTS,
           message: 'Too many requests',
-          retryAfter: result.resetAt,
+          retryAfter: result.resetAt.toISOString(),
         },
         HttpStatus.TOO_MANY_REQUESTS,
       );
